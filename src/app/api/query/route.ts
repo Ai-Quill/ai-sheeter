@@ -52,10 +52,25 @@ export async function POST(req: Request): Promise<Response> {
           resolve(NextResponse.json({ error: 'API key not found' }, { status: 404 }));
           return;
         }
-
         const apiKey = apiKeyData.api_key;
-        const selectedModel = specificModel || apiKeyData.default_model;
-
+        let selectedModel = specificModel || apiKeyData.default_model;
+        if (!selectedModel) {
+          switch (model) {
+            case 'CHATGPT':
+              selectedModel = "gpt-4";
+              break;
+            case 'CLAUDE':
+              selectedModel = "claude-3-sonnet-20240229";
+              break;
+            case 'GROQ':
+              selectedModel = "grok-1";
+              break;
+            case 'GEMINI':
+              selectedModel = "gemini-pro";
+              break;
+            // Add default cases for other models if needed
+          }
+        }
         const { data: modelData, error: modelError } = await supabaseAdmin
           .from('models')
           .select('credit_price_per_token')
@@ -94,8 +109,14 @@ export async function POST(req: Request): Promise<Response> {
                 model: selectedModel || 'claude-3-sonnet-20240229',
                 messages: [{ role: 'user', content: input }]
               },
-              extractResponse: (data: unknown) => (data as ClaudeResponse).content[0].text,
-              calculateCredits: (data: unknown, creditPricePerToken: number) => (data as ClaudeResponse).usage.output_tokens * creditPricePerToken
+              extractResponse: (data: unknown) => {
+                console.log('Claude response:', JSON.stringify(data, null, 2));
+                return (data as ClaudeResponse).content[0].text;
+              },
+              calculateCredits: (data: unknown, creditPricePerToken: number) => {
+                console.log('Claude usage:', JSON.stringify((data as ClaudeResponse).usage, null, 2));
+                return (data as ClaudeResponse).usage.output_tokens * creditPricePerToken;
+              }
             },
             GROQ: {
               url: 'https://api.xai.com/v1/chat/completions',
