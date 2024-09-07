@@ -26,7 +26,7 @@ interface ClaudeResponse {
   };
 }
 
-interface GroqResponse {
+interface GrokResponse {
   choices: Array<{ message: { content: string } }>;
   usage: {
     total_tokens: number;
@@ -62,38 +62,38 @@ export async function POST(req: Request): Promise<Response> {
         const selectedModel = specificModel || data.default_model;
 
         const modelConfigs: Record<string, ModelConfig> = {
-          CHATGPT: {
+          GPT4O: {
             url: 'https://api.openai.com/v1/chat/completions',
             headers: { 'Authorization': `Bearer ${apiKey}` },
             data: {
-              model: selectedModel || 'gpt-3.5-turbo',
+              model: selectedModel || 'gpt-4o',
               messages: [{ role: 'user', content: input }]
             },
             extractResponse: (data: unknown) => (data as ChatGPTResponse).choices[0].message.content,
             calculateCredits: (data: unknown) => (data as ChatGPTResponse).usage.total_tokens / 1000
           },
-          CLAUDE: {
+          CLAUDE35: {
             url: 'https://api.anthropic.com/v1/messages',
             headers: { 'x-api-key': apiKey },
             data: {
-              model: selectedModel || 'claude-2.1',
+              model: selectedModel || 'claude-3.5',
               messages: [{ role: 'user', content: input }]
             },
             extractResponse: (data: unknown) => (data as ClaudeResponse).content[0].text,
             calculateCredits: (data: unknown) => (data as ClaudeResponse).usage.output_tokens / 1000
           },
-          GROQ: {
-            url: 'https://api.groq.com/openai/v1/chat/completions',
+          GROK1: {
+            url: 'https://api.xai.com/v1/chat/completions',
             headers: { 'Authorization': `Bearer ${apiKey}` },
             data: {
-              model: selectedModel || 'mixtral-8x7b-32768',
+              model: selectedModel || 'grok-1',
               messages: [{ role: 'user', content: input }]
             },
-            extractResponse: (data: unknown) => (data as GroqResponse).choices[0].message.content,
-            calculateCredits: (data: unknown) => (data as GroqResponse).usage.total_tokens / 1000
+            extractResponse: (data: unknown) => (data as GrokResponse).choices[0].message.content,
+            calculateCredits: (data: unknown) => (data as GrokResponse).usage.total_tokens / 1000
           },
-          GEMINI: {
-            url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+          GEMINI15: {
+            url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5:generateContent',
             headers: {},
             params: { key: apiKey },
             data: {
@@ -102,7 +102,8 @@ export async function POST(req: Request): Promise<Response> {
             extractResponse: (data: unknown) => 
               (data as GeminiResponse).candidates[0].content.parts[0].text,
             calculateCredits: (data: unknown) => (data as GeminiResponse).usage.total_tokens / 1000
-          }
+          },
+          // Add other models here following the same pattern
         };
 
         const config = modelConfigs[model];
