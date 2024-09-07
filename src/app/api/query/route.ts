@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import axios from 'axios';
 import { supabaseAdmin } from '@/lib/supabase';
 import { queue } from '@/lib/queue';
+import Anthropic from '@anthropic-ai/sdk';
 
 export async function POST(req: Request): Promise<Response> {
   return new Promise((resolve) => {
@@ -78,31 +79,24 @@ export async function POST(req: Request): Promise<Response> {
 
           case 'CLAUDE':
             try {
-              console.log('Sending request to Claude API with payload:', {
-                model: selectedModel || 'claude-3-sonnet-20240229',
-                prompt: input,
-                max_tokens_to_sample: 4000
+              const anthropic = new Anthropic({
+                apiKey: apiKey
               });
 
-              const claudeResponse = await axios.post('https://api.anthropic.com/v1/complete', {
+              const claudeResponse = await anthropic.messages.create({
                 model: selectedModel || 'claude-3-sonnet-20240229',
-                prompt: input,
-                max_tokens_to_sample: 4000
-              }, {
-                headers: { 'x-api-key': apiKey }
+                max_tokens: 1024,
+                messages: [{ role: 'user', content: input }]
               });
 
-              console.log('Claude response:', JSON.stringify(claudeResponse.data, null, 2));
-              result = claudeResponse.data.completion;
-              creditsUsed = claudeResponse.data.usage.output_tokens * creditPricePerToken;
+              console.log('Claude response:', JSON.stringify(claudeResponse, null, 2));
+              result = claudeResponse.content[0].type === 'text' 
+                ? claudeResponse.content[0].text 
+                : JSON.stringify(claudeResponse.content[0]);
+              creditsUsed = claudeResponse.usage.output_tokens * creditPricePerToken;
             } catch (error) {
-              if (axios.isAxiosError(error)) {
-                console.error('Error from Claude API:', error.response ? error.response.data : error.message);
-                resolve(NextResponse.json({ error: 'Error from Claude API' }, { status: 400 }));
-              } else {
-                console.error('Unexpected error:', error instanceof Error ? error.message : String(error));
-                resolve(NextResponse.json({ error: 'Unexpected error' }, { status: 500 }));
-              }
+              console.error('Error from Claude API:', error instanceof Error ? error.message : String(error));
+              resolve(NextResponse.json({ error: 'Error from Claude API' }, { status: 400 }));
               return;
             }
             break;
