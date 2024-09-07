@@ -51,4 +51,5 @@ This project serves as the backend for the AI Sheet Google Sheets Add-on, provid
 
 ## Development
 
-Run the development server:
+Run the development server. 
+Let's go. 
