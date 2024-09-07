@@ -77,17 +77,29 @@ export async function POST(req: Request): Promise<Response> {
             break;
 
           case 'CLAUDE':
-            const claudeResponse = await axios.post('https://api.anthropic.com/v1/complete', {
-              model: selectedModel || 'claude-3-sonnet-20240229',
-              prompt: input,
-              max_tokens_to_sample: 4000
-            }, {
-              headers: { 'x-api-key': apiKey }
-            });
+            try {
+              console.log('Sending request to Claude API with payload:', {
+                model: selectedModel || 'claude-3-sonnet-20240229',
+                prompt: input,
+                max_tokens_to_sample: 4000
+              });
 
-            console.log('Claude response:', JSON.stringify(claudeResponse.data, null, 2));
-            result = claudeResponse.data.completion;
-            creditsUsed = claudeResponse.data.usage.output_tokens * creditPricePerToken;
+              const claudeResponse = await axios.post('https://api.anthropic.com/v1/complete', {
+                model: selectedModel || 'claude-3-sonnet-20240229',
+                prompt: input,
+                max_tokens_to_sample: 4000
+              }, {
+                headers: { 'x-api-key': apiKey }
+              });
+
+              console.log('Claude response:', JSON.stringify(claudeResponse.data, null, 2));
+              result = claudeResponse.data.completion;
+              creditsUsed = claudeResponse.data.usage.output_tokens * creditPricePerToken;
+            } catch (error) {
+              console.error('Error from Claude API:', error.response ? error.response.data : error.message);
+              resolve(NextResponse.json({ error: 'Error from Claude API' }, { status: 400 }));
+              return;
+            }
             break;
 
           case 'GROQ':
