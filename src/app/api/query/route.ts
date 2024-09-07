@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
 import axios from 'axios';
 import { supabaseAdmin } from '@/lib/supabase';
 import { queue } from '@/lib/queue';
@@ -12,12 +13,12 @@ interface ModelConfig {
   calculateCredits: (data: unknown) => number;
 }
 
-interface ChatGPTResponse {
-  choices: Array<{ message: { content: string } }>;
-  usage: {
-    total_tokens: number;
-  };
-}
+// interface ChatGPTResponse {
+//   choices: Array<{ message: { content: string } }>;
+//   usage: {
+//     total_tokens: number;
+//   };
+// }
 
 interface ClaudeResponse {
   content: Array<{ text: string }>;
@@ -62,76 +63,78 @@ export async function POST(req: Request): Promise<Response> {
         const apiKey = data.api_key;
         const selectedModel = specificModel || data.default_model;
 
-        const modelConfigs: Record<string, ModelConfig> = {
-          CHATGPT: {
-            url: 'https://api.openai.com/v1/chat/completions',
-            headers: { 'Authorization': `Bearer ${apiKey}` },
-            data: {
-              model: selectedModel || 'gpt-4o',
-              messages: [{ role: 'user', content: input }]
-            },
-            extractResponse: (data: unknown) => (data as ChatGPTResponse).choices[0].message.content,
-            calculateCredits: (data: unknown) => (data as ChatGPTResponse).usage.total_tokens / 1000
-          },
-          CLAUDE: {
-            url: 'https://api.anthropic.com/v1/messages',
-            headers: { 'x-api-key': apiKey },
-            data: {
-              model: selectedModel || 'claude-3.5',
-              messages: [{ role: 'user', content: input }]
-            },
-            extractResponse: (data: unknown) => (data as ClaudeResponse).content[0].text,
-            calculateCredits: (data: unknown) => (data as ClaudeResponse).usage.output_tokens / 1000
-          },
-          GROQ: {
-            url: 'https://api.xai.com/v1/chat/completions',
-            headers: { 'Authorization': `Bearer ${apiKey}` },
-            data: {
-              model: selectedModel || 'grok-1',
-              messages: [{ role: 'user', content: input }]
-            },
-            extractResponse: (data: unknown) => (data as GrokResponse).choices[0].message.content,
-            calculateCredits: (data: unknown) => (data as GrokResponse).usage.total_tokens / 1000
-          },
-          GEMINI: {
-            url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5:generateContent',
-            headers: {},
-            params: { key: apiKey },
-            data: {
-              contents: [{ parts: [{ text: input }] }]
-            },
-            extractResponse: (data: unknown) => 
-              (data as GeminiResponse).candidates[0].content.parts[0].text,
-            calculateCredits: (data: unknown) => (data as GeminiResponse).usage.total_tokens / 1000
-          },
-          // Add other models here following the same pattern
-        };
-        console.log('modelConfigs', modelConfigs);
+        let result: string;
+        let creditsUsed: number;
 
-        const config = modelConfigs[model];
-        if (!config) {
-          console.error('Unsupported model:', model);
-          resolve(NextResponse.json({ error: 'Unsupported model' }, { status: 400 }));
-          return;
+        if (model === 'CHATGPT') {
+          const openai = new OpenAI({
+            apiKey: apiKey
+          });
+
+          const response = await openai.chat.completions.create({
+            model: selectedModel || 'gpt-4o',
+            messages: [{ role: 'user', content: input }]
+          });
+
+          result = response.choices[0].message.content!;
+          creditsUsed = response.usage ? response.usage.total_tokens / 1000 : 0;
+        } else {
+          const modelConfigs: Record<string, ModelConfig> = {
+            CLAUDE: {
+              url: 'https://api.anthropic.com/v1/messages',
+              headers: { 'x-api-key': apiKey },
+              data: {
+                model: selectedModel || 'claude-3.5',
+                messages: [{ role: 'user', content: input }]
+              },
+              extractResponse: (data: unknown) => (data as ClaudeResponse).content[0].text,
+              calculateCredits: (data: unknown) => (data as ClaudeResponse).usage.output_tokens / 1000
+            },
+            GROQ: {
+              url: 'https://api.xai.com/v1/chat/completions',
+              headers: { 'Authorization': `Bearer ${apiKey}` },
+              data: {
+                model: selectedModel || 'grok-1',
+                messages: [{ role: 'user', content: input }]
+              },
+              extractResponse: (data: unknown) => (data as GrokResponse).choices[0].message.content,
+              calculateCredits: (data: unknown) => (data as GrokResponse).usage.total_tokens / 1000
+            },
+            GEMINI: {
+              url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5:generateContent',
+              headers: {},
+              params: { key: apiKey },
+              data: {
+                contents: [{ parts: [{ text: input }] }]
+              },
+              extractResponse: (data: unknown) => 
+                (data as GeminiResponse).candidates[0].content.parts[0].text,
+              calculateCredits: (data: unknown) => (data as GeminiResponse).usage.total_tokens / 1000
+            }
+          };
+
+          const config = modelConfigs[model];
+          if (!config) {
+            console.error('Unsupported model:', model);
+            resolve(NextResponse.json({ error: 'Unsupported model' }, { status: 400 }));
+            return;
+          }
+
+          const response = await axios.post(config.url, config.data, {
+            headers: config.headers,
+            params: config.params
+          });
+
+          result = config.extractResponse(response.data);
+          creditsUsed = config.calculateCredits(response.data);
         }
-        console.log('config', config);
-        const response = await axios.post(config.url, config.data, {
-          headers: config.headers,
-          params: config.params
-        });
-        console.log('response', response);
-        
-        const result = config.extractResponse(response.data);
-        const creditsUsed = config.calculateCredits(response.data);
-        console.log('result', result);
-        console.log('creditsUsed', creditsUsed);
-        // Insert into credit_usage using user_email
+
         await supabaseAdmin.from('credit_usage').insert({
           user_email: userEmail,
           model: model,
           credits_used: creditsUsed
         });
-        console.log('credit_usage inserted');
+
         resolve(NextResponse.json({ result, creditsUsed }));
       } catch (error: unknown) {
         console.error('Error processing request:', error instanceof Error ? error.message : String(error));
