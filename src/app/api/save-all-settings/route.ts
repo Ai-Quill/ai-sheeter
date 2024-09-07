@@ -25,7 +25,8 @@ export async function POST(req: Request) {
           user_email: userEmail, 
           model: model, 
           api_key: modelSettings.apiKey,
-          default_model: modelSettings.defaultModel
+          default_model: modelSettings.defaultModel,
+          user_id: null  // Set user_id to null explicitly
         }, { 
           onConflict: 'user_email,model' 
         });
