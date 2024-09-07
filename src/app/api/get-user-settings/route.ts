@@ -10,17 +10,17 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { data, error } = await supabaseAdmin
+    const { data: userSettings, error: userSettingsError } = await supabaseAdmin
       .from('api_keys')
       .select('model, api_key, default_model')
       .eq('user_email', userEmail)
 
-    if (error) {
-      console.error('Error fetching user settings:', error)
+    if (userSettingsError) {
+      console.error('Error fetching user settings:', userSettingsError)
       return NextResponse.json({ error: 'Failed to fetch user settings' }, { status: 500 })
     }
 
-    const settings = data.reduce((acc: Record<string, { apiKey: string, defaultModel: string }>, item) => {
+    const settings = userSettings.reduce((acc: Record<string, { apiKey: string, defaultModel: string }>, item) => {
       acc[item.model] = {
         apiKey: item.api_key,
         defaultModel: item.default_model
@@ -28,7 +28,16 @@ export async function GET(req: Request) {
       return acc
     }, {})
 
-    return NextResponse.json({ settings })
+    const { data: models, error: modelsError } = await supabaseAdmin
+      .from('models')
+      .select('id, name, llm, credit_price_per_token')
+
+    if (modelsError) {
+      console.error('Error fetching models:', modelsError)
+      return NextResponse.json({ error: 'Failed to fetch models' }, { status: 500 })
+    }
+
+    return NextResponse.json({ settings, models })
   } catch (error: unknown) {
     console.error('Error:', error instanceof Error ? error.message : String(error))
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
