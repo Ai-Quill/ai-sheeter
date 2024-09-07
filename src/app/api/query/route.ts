@@ -121,7 +121,9 @@ export async function POST(req: Request): Promise<Response> {
 
         const result = config.extractResponse(response.data);
         const creditsUsed = config.calculateCredits(response.data);
-
+        console.log('result', result);
+        console.log('creditsUsed', creditsUsed);
+        // Insert into credit_usage using user_email
         await supabaseAdmin.from('credit_usage').insert({
           user_email: userEmail,
           model: model,
