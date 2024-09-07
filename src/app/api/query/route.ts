@@ -91,7 +91,7 @@ export async function POST(req: Request): Promise<Response> {
               url: 'https://api.anthropic.com/v1/messages',
               headers: { 'x-api-key': apiKey },
               data: {
-                model: selectedModel || 'claude-3.5',
+                model: selectedModel || 'claude-3-sonnet-20240229',
                 messages: [{ role: 'user', content: input }]
               },
               extractResponse: (data: unknown) => (data as ClaudeResponse).content[0].text,
