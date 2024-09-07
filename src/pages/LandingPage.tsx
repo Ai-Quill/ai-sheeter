@@ -1,5 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const LandingPage = () => {
   return (
@@ -31,6 +32,16 @@ const LandingPage = () => {
         <h2 className="text-2xl font-bold mb-4">Get Started</h2>
         <p className="mb-4">
           Click the &quot;Get Started&quot; button above to configure your settings and start using AI Sheet - Any LLM today!
+        </p>
+        <p className="text-center mt-8">
+          <Link href="/PrivacyPolicy">
+            <a className="text-blue-500 underline">Privacy Policy</a>
+          </Link>
+        </p>
+        <p className="text-center mt-4">
+          <Link href="/TermsOfService">
+            <a className="text-blue-500 underline">Terms of Service</a>
+          </Link>
         </p>
       </div>
     </div>
