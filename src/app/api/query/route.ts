@@ -129,7 +129,7 @@ export async function POST(req: Request): Promise<Response> {
           model: model,
           credits_used: creditsUsed
         });
-
+        console.log('credit_usage inserted');
         resolve(NextResponse.json({ result, creditsUsed }));
       } catch (error: unknown) {
         console.error('Error processing request:', error instanceof Error ? error.message : String(error));
