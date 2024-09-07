@@ -1,17 +1,21 @@
 import React from 'react';
+import Image from 'next/image';
 
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
-      <h1 className="text-4xl font-bold mb-4">Welcome to AI Sheet - Any LLM</h1>
-      <p className="text-lg mb-8 text-center">
-        Supercharge your Google Sheets with the power of AI. Seamlessly integrate with any Large Language Model (LLM) and transform your data processing and analysis.
-      </p>
-      <div className="mb-8">
-        <a href="/api/get-user-settings" className="px-4 py-2 bg-blue-500 text-white rounded mr-2">Get Started</a>
-        <a href="#features" className="px-4 py-2 bg-gray-500 text-white rounded">Learn More</a>
+    <div className="min-h-screen bg-gradient-to-r from-blue-500 to-indigo-600 flex flex-col justify-center items-center p-4 text-white">
+      <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+        <Image src="/images/logo.png" alt="AI Sheet - Any LLM Logo" width={150} height={150} className="mx-auto mb-4" />
+        <h1 className="text-4xl font-bold mb-4 text-gray-800">Welcome to AI Sheet - Any LLM</h1>
+        <p className="text-lg mb-8 text-gray-700">
+          Supercharge your Google Sheets with the power of AI. Seamlessly integrate with any Large Language Model (LLM) and transform your data processing and analysis.
+        </p>
+        <div className="mb-8 flex justify-center space-x-4">
+          <a href="/api/get-user-settings" className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition duration-300">Get Started</a>
+          <a href="#features" className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition duration-300">Learn More</a>
+        </div>
       </div>
-      <div id="features" className="w-full max-w-4xl">
+      <div id="features" className="w-full max-w-4xl mt-12 bg-white p-6 rounded-lg shadow-lg text-gray-800">
         <h2 className="text-2xl font-bold mb-4">Features</h2>
         <ul className="list-disc list-inside mb-8">
           <li className="mb-2">Integrate with multiple LLMs like ChatGPT, Claude, Groq, and Gemini.</li>
