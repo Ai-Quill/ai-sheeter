@@ -96,8 +96,13 @@ export async function POST(req: Request): Promise<Response> {
               result = claudeResponse.data.completion;
               creditsUsed = claudeResponse.data.usage.output_tokens * creditPricePerToken;
             } catch (error) {
-              console.error('Error from Claude API:', error.response ? error.response.data : error.message);
-              resolve(NextResponse.json({ error: 'Error from Claude API' }, { status: 400 }));
+              if (axios.isAxiosError(error)) {
+                console.error('Error from Claude API:', error.response ? error.response.data : error.message);
+                resolve(NextResponse.json({ error: 'Error from Claude API' }, { status: 400 }));
+              } else {
+                console.error('Unexpected error:', error instanceof Error ? error.message : String(error));
+                resolve(NextResponse.json({ error: 'Unexpected error' }, { status: 500 }));
+              }
               return;
             }
             break;
