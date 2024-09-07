@@ -106,6 +106,7 @@ export async function POST(req: Request): Promise<Response> {
           },
           // Add other models here following the same pattern
         };
+        console.log('modelConfigs', modelConfigs);
 
         const config = modelConfigs[model];
         if (!config) {
@@ -113,12 +114,13 @@ export async function POST(req: Request): Promise<Response> {
           resolve(NextResponse.json({ error: 'Unsupported model' }, { status: 400 }));
           return;
         }
-
+        console.log('config', config);
         const response = await axios.post(config.url, config.data, {
           headers: config.headers,
           params: config.params
         });
-
+        console.log('response', response);
+        
         const result = config.extractResponse(response.data);
         const creditsUsed = config.calculateCredits(response.data);
         console.log('result', result);
