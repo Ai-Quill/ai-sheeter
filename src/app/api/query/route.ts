@@ -44,12 +44,12 @@ export async function POST(req: Request): Promise<Response> {
   return new Promise((resolve) => {
     queue.add(async () => {
       try {
-        const { model, input, userId, specificModel } = await req.json();
+        const { model, input, userEmail, specificModel } = await req.json();
 
         const { data, error } = await supabase
           .from('api_keys')
           .select('api_key, default_model')
-          .eq('user_id', userId)
+          .eq('user_email', userEmail)
           .eq('model', model)
           .single();
 
@@ -62,7 +62,7 @@ export async function POST(req: Request): Promise<Response> {
         const selectedModel = specificModel || data.default_model;
 
         const modelConfigs: Record<string, ModelConfig> = {
-          GPT4O: {
+          CHATGPT: {
             url: 'https://api.openai.com/v1/chat/completions',
             headers: { 'Authorization': `Bearer ${apiKey}` },
             data: {
@@ -72,7 +72,7 @@ export async function POST(req: Request): Promise<Response> {
             extractResponse: (data: unknown) => (data as ChatGPTResponse).choices[0].message.content,
             calculateCredits: (data: unknown) => (data as ChatGPTResponse).usage.total_tokens / 1000
           },
-          CLAUDE35: {
+          CLAUDE: {
             url: 'https://api.anthropic.com/v1/messages',
             headers: { 'x-api-key': apiKey },
             data: {
@@ -82,7 +82,7 @@ export async function POST(req: Request): Promise<Response> {
             extractResponse: (data: unknown) => (data as ClaudeResponse).content[0].text,
             calculateCredits: (data: unknown) => (data as ClaudeResponse).usage.output_tokens / 1000
           },
-          GROK1: {
+          GROQ: {
             url: 'https://api.xai.com/v1/chat/completions',
             headers: { 'Authorization': `Bearer ${apiKey}` },
             data: {
@@ -92,7 +92,7 @@ export async function POST(req: Request): Promise<Response> {
             extractResponse: (data: unknown) => (data as GrokResponse).choices[0].message.content,
             calculateCredits: (data: unknown) => (data as GrokResponse).usage.total_tokens / 1000
           },
-          GEMINI15: {
+          GEMINI: {
             url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5:generateContent',
             headers: {},
             params: { key: apiKey },
@@ -121,7 +121,7 @@ export async function POST(req: Request): Promise<Response> {
         const creditsUsed = config.calculateCredits(response.data);
 
         await supabase.from('credit_usage').insert({
-          user_id: userId,
+          user_email: userEmail,
           model: model,
           credits_used: creditsUsed
         });
