@@ -12,17 +12,16 @@ interface Settings {
 
 export async function POST(req: Request) {
   try {
-    const { userEmail, settings } = await req.json()
+    const { userEmail, settings } = await req.json() as { userEmail: string; settings: Settings }
 
     const promises = Object.entries(settings).map(([model, modelSettings]) => {
-      const { apiKey, defaultModel } = modelSettings as ModelSettings;
       return supabase
         .from('api_keys')
         .upsert({ 
           user_email: userEmail, 
           model: model, 
-          api_key: apiKey,
-          default_model: defaultModel
+          api_key: modelSettings.apiKey,
+          default_model: modelSettings.defaultModel
         }, { 
           onConflict: 'user_email,model' 
         });
