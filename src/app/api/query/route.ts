@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { queue } from '@/lib/queue';
 
 interface ModelConfig {
@@ -46,7 +46,7 @@ export async function POST(req: Request): Promise<Response> {
       try {
         const { model, input, userEmail, specificModel } = await req.json();
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
           .from('api_keys')
           .select('api_key, default_model')
           .eq('user_email', userEmail)
@@ -54,6 +54,7 @@ export async function POST(req: Request): Promise<Response> {
           .single();
 
         if (error || !data) {
+          console.error('Error fetching API key:', error);
           resolve(NextResponse.json({ error: 'API key not found' }, { status: 404 }));
           return;
         }
@@ -108,6 +109,7 @@ export async function POST(req: Request): Promise<Response> {
 
         const config = modelConfigs[model];
         if (!config) {
+          console.error('Unsupported model:', model);
           resolve(NextResponse.json({ error: 'Unsupported model' }, { status: 400 }));
           return;
         }
@@ -120,7 +122,7 @@ export async function POST(req: Request): Promise<Response> {
         const result = config.extractResponse(response.data);
         const creditsUsed = config.calculateCredits(response.data);
 
-        await supabase.from('credit_usage').insert({
+        await supabaseAdmin.from('credit_usage').insert({
           user_email: userEmail,
           model: model,
           credits_used: creditsUsed
@@ -128,7 +130,7 @@ export async function POST(req: Request): Promise<Response> {
 
         resolve(NextResponse.json({ result, creditsUsed }));
       } catch (error: unknown) {
-        console.error('Error:', error instanceof Error ? error.message : String(error));
+        console.error('Error processing request:', error instanceof Error ? error.message : String(error));
         resolve(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
       }
     });
