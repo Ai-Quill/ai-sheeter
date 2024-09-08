@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: Request) {
   try {
     const { model, apiKey, userEmail } = await req.json()
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('api_keys')
       .upsert({ 
         user_email: userEmail, 

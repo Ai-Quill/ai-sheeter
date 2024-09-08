@@ -1,48 +1,27 @@
-import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
 
-interface ModelSettings {
-  apiKey?: string;
-  defaultModel: string;
-}
+// ... existing imports and supabase client creation ...
 
-interface Settings {
-  [key: string]: ModelSettings;
-}
+export async function POST(request: Request) {
+  const { userEmail, settings } = await request.json();
 
-export async function POST(req: Request) {
-//   console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
-//   console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-//   console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Set' : 'Not Set')
+  if (!userEmail || !settings) {
+    return NextResponse.json({ error: 'User email and settings are required' }, { status: 400 });
+  }
 
   try {
-    const { userEmail, settings } = await req.json() as { userEmail: string; settings: Settings }
+    // The API keys are already encrypted on the client side, so we can save them directly
+    const { data, error } = await supabaseAdmin
+      .from('user_settings')
+      .upsert({ user_email: userEmail, ...settings })
+      .select();
 
-    const promises = Object.entries(settings).map(([model, modelSettings]) => {
-      return supabaseAdmin
-        .from('api_keys')
-        .upsert({ 
-          user_email: userEmail, 
-          model: model, 
-          api_key: modelSettings.apiKey,
-          default_model: modelSettings.defaultModel,
-          user_id: null  // Set user_id to null explicitly
-        }, { 
-          onConflict: 'user_email,model' 
-        });
-    });
+    if (error) throw error;
 
-    const results = await Promise.all(promises);
-
-    const errors = results.filter(result => result.error);
-    if (errors.length > 0) {
-      console.error('Errors saving settings:', errors);
-      return NextResponse.json({ error: 'Failed to save some settings' }, { status: 500 });
-    }
-
-    return NextResponse.json({ message: 'All settings saved successfully' });
-  } catch (error: unknown) {
-    console.error('Error:', error instanceof Error ? error.message : String(error));
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ message: 'Settings saved successfully', data });
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 });
   }
 }
