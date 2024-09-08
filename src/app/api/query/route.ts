@@ -4,6 +4,7 @@ import axios from 'axios';
 import { supabaseAdmin } from '@/lib/supabase';
 import { queue } from '@/lib/queue';
 import Anthropic from '@anthropic-ai/sdk';
+import Groq from "groq-sdk";
 
 export async function POST(req: Request): Promise<Response> {
   return new Promise((resolve) => {
@@ -35,7 +36,7 @@ export async function POST(req: Request): Promise<Response> {
               selectedModel = "claude-3-sonnet-20240229";
               break;
             case 'GROQ':
-              selectedModel = "grok-1";
+              selectedModel = "llama3-8b-8192";
               break;
             case 'GEMINI':
               selectedModel = "gemini-pro";
@@ -102,16 +103,14 @@ export async function POST(req: Request): Promise<Response> {
             break;
 
           case 'GROQ':
-            const groqResponse = await axios.post('https://api.xai.com/v1/chat/completions', {
-              model: selectedModel || 'grok-1',
+            const groq = new Groq({ apiKey: apiKey });
+            const groqResponse = await groq.chat.completions.create({
               messages: [{ role: 'user', content: input }],
-              max_tokens: 4000
-            }, {
-              headers: { 'Authorization': `Bearer ${apiKey}` }
+              model: selectedModel || 'llama3-8b-8192'
             });
 
-            result = groqResponse.data.choices[0].message.content;
-            creditsUsed = groqResponse.data.usage.total_tokens * creditPricePerToken;
+            result = groqResponse.choices[0]?.message?.content || "";
+            creditsUsed = groqResponse.usage?.total_tokens ?? 0 * creditPricePerToken;
             break;
 
           case 'GEMINI':
