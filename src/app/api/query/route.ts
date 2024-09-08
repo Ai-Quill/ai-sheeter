@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import axios from 'axios';
 import { supabaseAdmin } from '@/lib/supabase';
 import { queue } from '@/lib/queue';
 import Anthropic from '@anthropic-ai/sdk';
 import Groq from "groq-sdk";
+import { VertexAI } from '@google-cloud/vertexai';
 
 export async function POST(req: Request): Promise<Response> {
   return new Promise((resolve) => {
@@ -39,7 +39,7 @@ export async function POST(req: Request): Promise<Response> {
               selectedModel = "llama3-8b-8192";
               break;
             case 'GEMINI':
-              selectedModel = "gemini-pro";
+              selectedModel = "gemini-1.5-pro";
               break;
             // Add default cases for other models if needed
           }
@@ -114,16 +114,27 @@ export async function POST(req: Request): Promise<Response> {
             break;
 
           case 'GEMINI':
-            const geminiResponse = await axios.post('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5:generateContent', {
-              contents: [{ parts: [{ text: input }] }],
-              max_tokens: 4000
-            }, {
-              headers: {},
-              params: { key: apiKey }
+            const vertexAI = new VertexAI({project: 'your-project-id', location: 'us-central1'});
+            const generativeModel = vertexAI.getGenerativeModel({
+              model: selectedModel || "gemini-1.5-pro",
+              generationConfig: {
+                maxOutputTokens: 2048,
+              },
             });
 
-            result = geminiResponse.data.candidates[0].content.parts[0].text;
-            creditsUsed = geminiResponse.data.usage.total_tokens * creditPricePerToken;
+            // Count tokens
+            const tokenCountResponse = await generativeModel.countTokens({
+              contents: [{ role: 'user', parts: [{ text: input }] }],
+            });
+            
+            // Generate content
+            const geminiResult = await generativeModel.generateContent({
+              contents: [{ role: 'user', parts: [{ text: input }] }],
+            });
+
+            const geminiResponse = await geminiResult.response;
+            result = geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+            creditsUsed = (tokenCountResponse.totalTokens ?? 0) * creditPricePerToken;
             break;
 
           default:
