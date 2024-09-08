@@ -1,8 +1,11 @@
-import '../styles/globals.css';
-import type { AppProps } from 'next/app';
+import '@/styles/globals.css'
+import type { AppProps } from 'next/app'
+import { poppins } from '@/app/fonts'
 
-function MyApp({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />;
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <main className={`${poppins.variable} font-sans`}>
+      <Component {...pageProps} />
+    </main>
+  )
 }
-
-export default MyApp;
