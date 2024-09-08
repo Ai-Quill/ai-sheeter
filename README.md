@@ -1,55 +1,127 @@
-# AI Sheet Backend
+# AI Sheet - Any LLM
 
-This project serves as the backend for the AI Sheet Google Sheets Add-on, providing a flexible API to interact with various AI models including ChatGPT, Claude, Groq, and Gemini.
+## Project Overview
 
-## Features
+AI Sheet is a Google Sheets add-on that allows users to interact with various AI models directly from their spreadsheets. It supports multiple AI providers including ChatGPT, Claude, Groq, and Gemini.
 
-- RESTful API endpoint for querying multiple AI models
-- Integration with Supabase for secure API key management
-- Support for ChatGPT, Claude, Groq, and Gemini AI models
-- Easy extensibility for adding new AI models
+## Architecture
 
-## Tech Stack
+The project consists of two main parts:
+1. Google Apps Script (Front-end)
+2. Next.js Backend (API Server)
 
-- Next.js
-- TypeScript
-- Supabase
-- Axios
+### Front-end (Google Apps Script)
 
-## Prerequisites
+The front-end is built using Google Apps Script and is responsible for:
+- Creating the user interface (sidebar)
+- Handling user interactions
+- Making API calls to the backend
+- Encrypting and decrypting API keys
 
-- Node.js (v14 or later)
-- npm or yarn
-- Supabase account and project
-- API keys for the AI models you want to use
+Key files:
+- `Code.gs`: Main script file containing all the functions
+- `Sidebar.html`: HTML file for the sidebar UI
 
-## Setup
+### Back-end (Next.js)
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/YOUR_USERNAME/ai-sheet-backend.git
-   cd ai-sheet-backend
-   ```
+The back-end is built with Next.js and handles:
+- API requests from the front-end
+- Interaction with AI providers
+- User settings management
+- Credit usage tracking
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+Key directories:
+- `src/app/api`: Contains all API route handlers
+- `src/lib`: Contains utility functions and configurations
+- `src/utils`: Contains helper functions like encryption
 
-3. Create a `.env.local` file in the root directory with the following content:
-   ```
-   SUPABASE_URL=your_supabase_project_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
+## API Documentation
 
-4. Set up your Supabase database:
-   - Create a table named `api_keys` with columns:
-     - `id` (uuid, primary key)
-     - `user_id` (text)
-     - `model` (text)
-     - `api_key` (text)
+### 1. Get User Settings
 
-## Development
+- **Endpoint**: `/api/get-user-settings`
+- **Method**: GET
+- **Query Parameters**: 
+  - `userEmail`: The email of the user
+- **Response**: JSON object containing user settings
 
-Run the development server. 
-Let's go. 
+### 2. Save All Settings
+
+- **Endpoint**: `/api/save-all-settings`
+- **Method**: POST
+- **Body**: 
+  ```json
+  {
+    "userEmail": "user@example.com",
+    "settings": {
+      "CHATGPT": {
+        "apiKey": "encrypted_api_key",
+        "defaultModel": "gpt-4"
+      },
+      // ... other models
+    }
+  }
+  ```
+- **Response**: Confirmation message and saved data
+
+### 3. Query AI Model
+
+- **Endpoint**: `/api/query`
+- **Method**: POST
+- **Body**:
+  ```json
+  {
+    "model": "CHATGPT",
+    "input": "User's input text",
+    "userEmail": "user@example.com",
+    "specificModel": "gpt-4",
+    "encryptedApiKey": "encrypted_api_key"
+  }
+  ```
+- **Response**: AI model's response and credits used
+
+### 4. Fetch Available Models
+
+- **Endpoint**: `/api/models`
+- **Method**: GET
+- **Response**: List of available AI models
+
+## Security
+
+- API keys are encrypted on the client-side before being sent to the server
+- Encryption salt is stored in Google Apps Script properties
+- Decryption only occurs on the server-side when making API calls to AI providers
+
+## Database Schema
+
+The project uses Supabase with the following main tables:
+1. `api_keys`: Stores encrypted API keys for each user and model
+2. `models`: Stores information about available AI models
+3. `credit_usage`: Tracks credit usage for each query
+
+## Environment Variables
+
+Backend environment variables are stored in `.env.local` and include:
+- Supabase URL and keys
+- Encryption salt
+
+## Deployment
+
+- Front-end: Deployed as a Google Sheets add-on
+- Back-end: Deployed on Vercel
+
+## Development Setup
+
+1. Clone the repository
+2. Set up the Google Apps Script project
+3. Install dependencies for the Next.js backend
+4. Set up environment variables
+5. Run the development server
+
+## Contributing
+
+[Include guidelines for contributing to the project]
+
+## License
+
+[Specify the license under which the project is released]

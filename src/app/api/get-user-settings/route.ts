@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     // Transform the data into the expected format
     const settings: Settings = (data as ApiKeyData[]).reduce((acc, item) => {
       acc[item.model] = {
-        apiKey: item.api_key,
+        apiKey: item.api_key, // Keep the API key encrypted
         defaultModel: item.default_model
       };
       return acc;
