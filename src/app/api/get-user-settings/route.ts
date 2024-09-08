@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+interface ApiKeyData {
+  model: string;
+  api_key: string;
+  default_model: string;
+}
+
+interface Settings {
+  [key: string]: {
+    apiKey: string;
+    defaultModel: string;
+  };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userEmail = searchParams.get('userEmail');
@@ -11,15 +24,22 @@ export async function GET(request: Request) {
 
   try {
     const { data, error } = await supabaseAdmin
-      .from('user_settings')
-      .select('*')
-      .eq('user_email', userEmail)
-      .single();
+      .from('api_keys')
+      .select('model, api_key, default_model')
+      .eq('user_email', userEmail);
 
     if (error) throw error;
 
-    // The API keys are already encrypted, so we can send them directly to the client
-    return NextResponse.json({ settings: data || {} });
+    // Transform the data into the expected format
+    const settings: Settings = (data as ApiKeyData[]).reduce((acc, item) => {
+      acc[item.model] = {
+        apiKey: item.api_key,
+        defaultModel: item.default_model
+      };
+      return acc;
+    }, {} as Settings);
+
+    return NextResponse.json({ settings });
   } catch (error) {
     console.error('Error fetching user settings:', error);
     return NextResponse.json({ error: 'Failed to fetch user settings' }, { status: 500 });

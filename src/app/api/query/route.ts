@@ -18,21 +18,15 @@ export async function POST(req: Request): Promise<Response> {
 
     let selectedModel = specificModel;
     if (!selectedModel) {
-      switch (model) {
-        case 'CHATGPT':
-          selectedModel = "gpt-4";
-          break;
-        case 'CLAUDE':
-          selectedModel = "claude-3-sonnet-20240229";
-          break;
-        case 'GROQ':
-          selectedModel = "llama3-8b-8192";
-          break;
-        case 'GEMINI':
-          selectedModel = "gemini-1.5-pro";
-          break;
-        // Add default cases for other models if needed
-      }
+      const { data, error } = await supabaseAdmin
+        .from('api_keys')
+        .select('default_model')
+        .eq('user_email', userEmail)
+        .eq('model', model)
+        .single();
+
+      if (error) throw error;
+      selectedModel = data.default_model;
     }
 
     const { data: modelData, error: modelError } = await supabaseAdmin

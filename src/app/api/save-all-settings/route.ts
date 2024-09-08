@@ -1,20 +1,33 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// ... existing imports and supabase client creation ...
+interface SettingsData {
+  apiKey: string;
+  defaultModel: string;
+}
+
+interface Settings {
+  [key: string]: SettingsData;
+}
 
 export async function POST(request: Request) {
-  const { userEmail, settings } = await request.json();
+  const { userEmail, settings }: { userEmail: string; settings: Settings } = await request.json();
 
   if (!userEmail || !settings) {
     return NextResponse.json({ error: 'User email and settings are required' }, { status: 400 });
   }
 
   try {
-    // The API keys are already encrypted on the client side, so we can save them directly
+    const apiKeys = Object.entries(settings).map(([model, data]) => ({
+      user_email: userEmail,
+      model,
+      api_key: data.apiKey,
+      default_model: data.defaultModel
+    }));
+
     const { data, error } = await supabaseAdmin
-      .from('user_settings')
-      .upsert({ user_email: userEmail, ...settings })
+      .from('api_keys')
+      .upsert(apiKeys, { onConflict: 'user_email,model' })
       .select();
 
     if (error) throw error;
