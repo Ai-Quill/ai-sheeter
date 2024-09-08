@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { queue } from '@/lib/queue';
 import Anthropic from '@anthropic-ai/sdk';
 import Groq from "groq-sdk";
-import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: Request): Promise<Response> {
   return new Promise((resolve) => {
@@ -114,27 +114,18 @@ export async function POST(req: Request): Promise<Response> {
             break;
 
           case 'GEMINI':
-            const vertexAI = new VertexAI({project: 'your-project-id', location: 'us-central1'});
-            const generativeModel = vertexAI.getGenerativeModel({
-              model: selectedModel || "gemini-1.5-pro",
-              generationConfig: {
-                maxOutputTokens: 2048,
-              },
-            });
-
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const geminiModel = genAI.getGenerativeModel({ model: selectedModel || "gemini-pro" });
+            
             // Count tokens
-            const tokenCountResponse = await generativeModel.countTokens({
-              contents: [{ role: 'user', parts: [{ text: input }] }],
-            });
+            const tokenCount = await geminiModel.countTokens(input);
             
             // Generate content
-            const geminiResult = await generativeModel.generateContent({
-              contents: [{ role: 'user', parts: [{ text: input }] }],
-            });
-
+            const geminiResult = await geminiModel.generateContent(input);
             const geminiResponse = await geminiResult.response;
-            result = geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-            creditsUsed = (tokenCountResponse.totalTokens ?? 0) * creditPricePerToken;
+            
+            result = geminiResponse.text();
+            creditsUsed = tokenCount.totalTokens * creditPricePerToken;
             break;
 
           default:
