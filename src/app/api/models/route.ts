@@ -5,8 +5,8 @@ export async function GET(): Promise<Response> {
   try {
     const { data: models, error } = await supabaseAdmin
       .from('models')
-      .select('name, display_name, category')
-      .order('category', { ascending: true })
+      .select('name, display_name, llm, credit_price_per_token')
+      .order('llm', { ascending: true })
       .order('display_name', { ascending: true });
 
     if (error) {
