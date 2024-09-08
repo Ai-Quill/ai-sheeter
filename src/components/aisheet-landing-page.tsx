@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronRight, Star, Shield, Calculator } from 'lucide-react'
@@ -12,33 +11,13 @@ export function AisheetLandingPage() {
   const [isPopupOpen, setIsPopupOpen] = useState(false)
 
   return (
-    <div className="flex flex-col min-h-screen bg-white text-gray-800 font-sans">
-      <header className="px-6 lg:px-8 h-20 flex items-center border-b border-red-200">
-        <Link className="flex items-center justify-center" href="#">
-          <Image
-            src="/images/logo.png"
-            alt="Aisheet.app Logo"
-            width={48}
-            height={48}
-            className="mr-3"
-          />
-          <span className="font-bold text-3xl text-red-600">Aisheet.app</span>
-        </Link>
-        <nav className="ml-auto flex gap-8">
-          <Link className="text-base font-medium hover:text-red-600 transition-colors" href="#features">
-            Features
-          </Link>
-          <Link className="text-base font-medium hover:text-red-600 transition-colors" href="#faq">
-            FAQ
-          </Link>
-        </nav>
-      </header>
+   
       <main className="flex-1">
         <section className="w-full py-20 md:py-32 lg:py-40 xl:py-48 bg-red-50">
           <div className="container px-6 md:px-8 max-w-6xl mx-auto">
             <div className="flex flex-col items-center space-y-8 text-center">
               <div className="space-y-4">
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-red-600 leading-tight">
+                <h1 className="text-4xl font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl text-red-600 leading-tight">
                   Use AI in Google Sheets with a Simple Formula
                 </h1>
                 <p className="mx-auto max-w-2xl text-xl text-gray-600 leading-relaxed">
@@ -47,7 +26,7 @@ export function AisheetLandingPage() {
               </div>
               <div className="space-x-6">
                 <Button className="bg-red-600 text-white hover:bg-red-700 text-lg px-8 py-3" onClick={() => setIsPopupOpen(true)}>Get Started</Button>
-                <Button variant="outline" className="text-red-600 border-red-600 hover:bg-red-50 text-lg px-8 py-3">Watch Demo</Button>
+                <Button className="text-red-600 border border-red-600 hover:bg-red-50 text-lg px-8 py-3">Watch Demo</Button>
               </div>
             </div>
           </div>
@@ -210,20 +189,6 @@ export function AisheetLandingPage() {
             </div>
           </div>
         </section>
-      </main>
-      <footer className="flex flex-col gap-4 sm:flex-row py-8 w-full shrink-0 items-center px-6 md:px-8 border-t border-red-200">
-        <p className="text-sm text-gray-500">
-          © 2024 Aisheet.app. All rights reserved.
-        </p>
-        <nav className="sm:ml-auto flex gap-6">
-          <Link className="text-sm hover:underline underline-offset-4 text-gray-500 hover:text-red-600" href="#">
-            Terms of Service
-          </Link>
-          <Link className="text-sm hover:underline underline-offset-4 text-gray-500 hover:text-red-600" href="#">
-            Privacy
-          </Link>
-        </nav>
-      </footer>
 
       <Dialog open={isPopupOpen} onOpenChange={setIsPopupOpen}>
         <DialogContent className="bg-white">
@@ -236,6 +201,8 @@ export function AisheetLandingPage() {
           <Button onClick={() => setIsPopupOpen(false)} className="mt-6 bg-red-600 text-white hover:bg-red-700 text-lg px-6 py-2">Close</Button>
         </DialogContent>
       </Dialog>
-    </div>
+      </main>
+  
+
   )
 }

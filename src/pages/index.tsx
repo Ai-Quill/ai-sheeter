@@ -1,14 +1,8 @@
-import { useEffect } from 'react';
-import { useRouter } from 'next/router';
+import React from 'react';
+import LandingPage from './LandingPage';
 
-const Home = () => {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.push('/LandingPage');
-  }, [router]);
-
-  return null;
+const Home: React.FC = () => {
+  return <LandingPage />;
 };
 
 export default Home;
