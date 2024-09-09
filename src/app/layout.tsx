@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 // import localFont from "next/font/local";
 import "./globals.css";
-import { urbanist } from './fonts';
+import { poppins } from './fonts';
+
 
 // const geistSans = localFont({
 //   src: "./fonts/GeistVF.woff",
@@ -25,7 +26,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={urbanist.className}>
+    <html lang="en" className={poppins.className}>
+
       <body>{children}</body>
     </html>
   )
