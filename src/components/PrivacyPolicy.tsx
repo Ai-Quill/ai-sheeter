@@ -7,7 +7,7 @@ const PrivacyPolicy = () => {
         <h1 className="text-3xl font-bold mb-4">Privacy Policy</h1>
         <p className="mb-4">Last Updated: March 23, 2024</p>
         <p className="mb-4">
-          Thank you for choosing AI Sheet - Any LLM (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). This Privacy Policy explains how we collect, use, and safeguard your personal and non-personal information when you interact with our website located at https://aisheet.vercel.app (the &quot;Website&quot;).
+          Thank you for choosing AISheeter - Any LLM (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). This Privacy Policy explains how we collect, use, and safeguard your personal and non-personal information when you interact with our website located at https://aisheet.vercel.app (the &quot;Website&quot;).
         </p>
         <p className="mb-4">
           By accessing or utilizing the Website, you consent to the terms outlined in this Privacy Policy. If the practices described in this policy are not agreeable to you, please refrain from using the Website.
@@ -36,7 +36,7 @@ const PrivacyPolicy = () => {
         </p>
         <h2 className="text-2xl font-bold mb-4">4. Children&#39;s Privacy</h2>
         <p className="mb-4">
-          AI Sheet - Any LLM is not designed for children under the age of 13. We do not intentionally collect personal information from children. If you are a parent or guardian and suspect that your child has provided us with personal information, please contact us using the email address listed below.
+          AISheeter - Any LLM is not designed for children under the age of 13. We do not intentionally collect personal information from children. If you are a parent or guardian and suspect that your child has provided us with personal information, please contact us using the email address listed below.
         </p>
         <h2 className="text-2xl font-bold mb-4">5. Updates to the Privacy Policy</h2>
         <p className="mb-4">
@@ -53,7 +53,7 @@ const PrivacyPolicy = () => {
           For all other inquiries, please visit our Contact Us page on the Website.
         </p>
         <p className="mb-4">
-          By utilizing AI Sheet - Any LLM, you acknowledge and agree to the terms of this Privacy Policy.
+          By utilizing AISheeter - Any LLM, you acknowledge and agree to the terms of this Privacy Policy.
         </p>
       </div>
     </div>

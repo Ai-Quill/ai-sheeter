@@ -7,18 +7,18 @@ const TermsOfService = () => {
         <h1 className="text-3xl font-bold mb-4">Terms of Service</h1>
         <p className="mb-4">Last Updated: March 23, 2024</p>
         <p className="mb-4">
-          Welcome to AI Sheet - Any LLM!
+          Welcome to AISheeter - Any LLM!
         </p>
         <p className="mb-4">
-          These Terms of Service (&quot;Terms&quot;) govern your use of the AI Sheet - Any LLM website at https://aisheet.vercel.app (&quot;Website&quot;) and the services provided by AI Sheet - Any LLM. By using our Website and services, you agree to these Terms.
+          These Terms of Service (&quot;Terms&quot;) govern your use of the AISheeter - Any LLM website at https://aisheet.vercel.app (&quot;Website&quot;) and the services provided by AISheeter - Any LLM. By using our Website and services, you agree to these Terms.
         </p>
-        <h2 className="text-2xl font-bold mb-4">Description of AI Sheet - Any LLM</h2>
+        <h2 className="text-2xl font-bold mb-4">Description of AISheeter - Any LLM</h2>
         <p className="mb-4">
-          AI Sheet - Any LLM is an innovative platform that offers AI-powered web scraping solutions to businesses and individuals. Our services enable users to efficiently extract web data with the assistance of advanced AI technologies, including natural language processing and machine learning algorithms.
+          AISheeter - Any LLM is an innovative platform that offers AI-powered web scraping solutions to businesses and individuals. Our services enable users to efficiently extract web data with the assistance of advanced AI technologies, including natural language processing and machine learning algorithms.
         </p>
         <h2 className="text-2xl font-bold mb-4">Ownership and Usage Rights</h2>
         <p className="mb-4">
-          Upon subscribing to an AI Sheet - Any LLM package, you gain the right to access and utilize our web scraping tools and APIs for extracting data from various websites. While you retain ownership of the data you extract and analyze, you agree not to misuse the service in any way that violates the terms of service or privacy policies of the target websites. Redistribution or resale of data obtained through AI Sheet - Any LLM without explicit permission from the data owners is strictly prohibited. We offer a refund policy detailed on our website for your reference.
+          Upon subscribing to an AISheeter - Any LLM package, you gain the right to access and utilize our web scraping tools and APIs for extracting data from various websites. While you retain ownership of the data you extract and analyze, you agree not to misuse the service in any way that violates the terms of service or privacy policies of the target websites. Redistribution or resale of data obtained through AISheeter - Any LLM without explicit permission from the data owners is strictly prohibited. We offer a refund policy detailed on our website for your reference.
         </p>
         <h2 className="text-2xl font-bold mb-4">User Data and Privacy</h2>
         <p className="mb-4">
@@ -26,11 +26,11 @@ const TermsOfService = () => {
         </p>
         <h2 className="text-2xl font-bold mb-4">Ethical Data Collection</h2>
         <p className="mb-4">
-          AI Sheet - Any LLM is committed to ethical data collection practices. We adhere to legal standards and advocate for the respectful use of web scraping technologies. Users of AI Sheet - Any LLM are expected to comply with all applicable laws and regulations regarding data privacy and intellectual property rights.
+          AISheeter - Any LLM is committed to ethical data collection practices. We adhere to legal standards and advocate for the respectful use of web scraping technologies. Users of AISheeter - Any LLM are expected to comply with all applicable laws and regulations regarding data privacy and intellectual property rights.
         </p>
         <h2 className="text-2xl font-bold mb-4">Governing Law</h2>
         <p className="mb-4">
-          These Terms shall be governed and construed in accordance with the laws of the jurisdiction in which AI Sheet - Any LLM operates, without regard to its conflict of law provisions.
+          These Terms shall be governed and construed in accordance with the laws of the jurisdiction in which AISheeter - Any LLM operates, without regard to its conflict of law provisions.
         </p>
         <h2 className="text-2xl font-bold mb-4">Updates to the Terms</h2>
         <p className="mb-4">
@@ -40,7 +40,7 @@ const TermsOfService = () => {
           For any inquiries or concerns regarding these Terms of Service, please reach out to us at tuanvutruong@gmail.com.
         </p>
         <p className="mb-4">
-          Thank you for choosing AI Sheet - Any LLM as your trusted partner in data extraction!
+          Thank you for choosing AISheeter - Any LLM as your trusted partner in data extraction!
         </p>
       </div>
     </div>
