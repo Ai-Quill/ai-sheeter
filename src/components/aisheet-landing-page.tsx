@@ -48,10 +48,10 @@ export function AisheetLandingPage() {
           <div className="flex flex-col items-center space-y-8 text-center">
             <div className="space-y-4">
               <h1 className="text-4xl font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl text-red-600 leading-tight">
-                Use AI in Google Sheets with a Simple Formula
+                Sheet Smarter, Not Harder, With Any LLM
               </h1>
               <p className="mx-auto max-w-2xl text-xl text-gray-600 leading-relaxed">
-                Harness the power of ChatGPT, Claude, Groq, and Gemini directly in your spreadsheets. Currently free to use!
+                Harness the power of ChatGPT, Claude, Groq, and Gemini<sup className="text-xs">TM</sup> directly in your spreadsheets. Currently free to use!
               </p>
             </div>
             <div className="space-x-6">
