@@ -7,12 +7,12 @@ const Header: React.FC = () => {
         <Link className="flex items-center justify-center" href="/">
           <Image
             src="/images/logo.png"
-            alt="Aisheet.app Logo"
+            alt="AISheeter.com Logo"
             width={48}
             height={48}
             className="mr-3"
           />
-          <span className="font-bold text-3xl text-red-600">Aisheet.app</span>
+          <span className="font-bold text-3xl text-red-600">AISheeter.com</span>
         </Link>
         <nav className="ml-auto flex gap-8">
           <Link className="text-base font-medium hover:text-red-600 transition-colors" href="#features">
