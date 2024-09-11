@@ -176,7 +176,7 @@ export function AisheetLandingPage() {
             {[
               {
                 q: "How do I get started with AISheeter?",
-                a: "Simply install our Google Sheets add-on and start using AI formulas in your spreadsheets."
+                a: "Simply install our Google Sheets™ add-on and start using AI formulas in your spreadsheets."
               },
               {
                 q: "Which AI models are supported?",
@@ -241,7 +241,7 @@ export function AisheetLandingPage() {
           <DialogHeader>
             <DialogTitle className="text-2xl font-semibold mb-4">Coming Soon!</DialogTitle>
             <DialogDescription className="text-lg text-gray-600">
-              Our Google Sheets add-on is currently under review for the Google Workspace™ Marketplace. We&apos;ll notify you as soon as it&apos;s available. Thank you for your interest!
+              Our Google Sheets™ add-on is currently under review for the Google Workspace™ Marketplace. We&apos;ll notify you as soon as it&apos;s available. Thank you for your interest!
             </DialogDescription>
           </DialogHeader>
           <Button onClick={() => setIsPopupOpen(false)} className="mt-6 bg-red-600 text-white hover:bg-red-700 text-lg px-6 py-2">Close</Button>
