@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 export function AisheetLandingPage() {
   const [isPopupOpen, setIsPopupOpen] = useState(false)
+  const [isVideoOpen, setIsVideoOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState('')
@@ -55,8 +56,13 @@ export function AisheetLandingPage() {
               </p>
             </div>
             <div className="space-x-6">
-              <Button className="bg-red-600 text-white hover:bg-red-700 text-lg px-8 py-3" onClick={() => setIsPopupOpen(true)}>Get Started</Button>
-              <Button className="text-red-600 border border-red-600 hover:bg-red-50 text-lg px-8 py-3">Watch Demo</Button>
+              <Button className="bg-red-600 text-white hover:bg-red-700 hover:text-slate-90e text-lg px-8 py-3" onClick={() => setIsPopupOpen(true)}>Get Started</Button>
+              <Button className="text-red-600 border border-red-600 hover:bg-red-50 hover:text-slate-900 text-lg px-8 py-3" onClick={() => {
+                const howItWorksSection = document.getElementById('how-it-works');
+                if (howItWorksSection) {
+                  howItWorksSection.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}>Watch Demo</Button>
             </div>
           </div>
         </div>
@@ -98,7 +104,7 @@ export function AisheetLandingPage() {
           </div>
         </div>
       </section>
-      <section className="w-full py-20 md:py-32 lg:py-40 bg-red-50">
+      <section id="how-it-works" className="w-full py-20 md:py-32 lg:py-40 bg-red-50">
         <div className="container px-6 md:px-8 max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold tracking-tight sm:text-5xl text-center mb-16 text-red-600">
             How It Works
@@ -245,6 +251,29 @@ export function AisheetLandingPage() {
             </DialogDescription>
           </DialogHeader>
           <Button onClick={() => setIsPopupOpen(false)} className="mt-6 bg-red-600 text-white hover:bg-red-700 text-lg px-6 py-2">Close</Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isVideoOpen} onOpenChange={setIsVideoOpen}>
+        <DialogContent className="bg-black w-4/5 h-4/5 max-w-none relative mx-auto my-auto">
+          <Button
+            onClick={() => setIsVideoOpen(false)}
+            className="absolute top-4 right-4 z-10 bg-transparent hover:bg-gray-800 text-white rounded-full p-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </Button>
+          <div className="w-full h-full flex items-center justify-center">
+            <iframe
+              className="w-full h-full"
+              src="https://www.youtube.com/embed/fAIKG5PzVzg"
+              title="AISheeter Demo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
         </DialogContent>
       </Dialog>
     </main>
