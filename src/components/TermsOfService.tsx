@@ -19,7 +19,7 @@ const TermsOfService: React.FC = () => {
       <p className="mb-4">We respect your privacy and handle your data in accordance with our Privacy Policy. We do not use Google Workspace APIs to develop, improve, or train generalized AI and/or ML models.</p>
       
       <h2 className="text-2xl font-semibold mt-8 mb-4">5. Intellectual Property</h2>
-      <p className="mb-4">The add-on and its original content are and will remain the exclusive property of aisheeter.com.</p>
+      <p className="mb-4">The add-on and its original content are and will remain the exclusive property of AISheeter (https://aisheeter.com).</p>
       
       <h2 className="text-2xl font-semibold mt-8 mb-4">6. Termination</h2>
       <p className="mb-4">We reserve the right to terminate or suspend access to our add-on for any reason, without prior notice.</p>
