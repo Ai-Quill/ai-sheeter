@@ -16,6 +16,10 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const decryptedApiKey = decryptApiKey(encryptedApiKey);
 
+    if (!decryptedApiKey) {
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
+    }
+
     let selectedModel = specificModel;
     if (!selectedModel) {
       const { data, error } = await supabaseAdmin
@@ -51,14 +55,19 @@ export async function POST(req: Request): Promise<Response> {
           apiKey: decryptedApiKey
         });
 
-        const chatGptResponse = await openai.chat.completions.create({
-          model: selectedModel,
-          messages: [{ role: 'user', content: input }],
-          max_tokens: 4000
-        });
+        try {
+          const chatGptResponse = await openai.chat.completions.create({
+            model: selectedModel,
+            messages: [{ role: 'user', content: input }],
+            max_tokens: 4000
+          });
 
-        result = chatGptResponse.choices[0].message.content ?? '';
-        creditsUsed = (chatGptResponse.usage?.total_tokens ?? 0) * creditPricePerToken;
+          result = chatGptResponse.choices[0].message.content ?? '';
+          creditsUsed = (chatGptResponse.usage?.total_tokens ?? 0) * creditPricePerToken;
+        } catch (error) {
+          console.error('Error from OpenAI API:', error);
+          return NextResponse.json({ error: 'Invalid API key or API error' }, { status: 401 });
+        }
         break;
 
       case 'CLAUDE':

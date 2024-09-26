@@ -18,7 +18,9 @@ export async function POST(request: Request) {
   
   let userEmail, settings;
   try {
-    ({ userEmail, settings } = await request.json());
+    const body = await request.json();
+    console.log('Received body:', body);
+    ({ userEmail, settings } = body);
     console.log('Parsed request body:', { userEmail, settings });
   } catch (error) {
     console.error('Error parsing request body:', error);
