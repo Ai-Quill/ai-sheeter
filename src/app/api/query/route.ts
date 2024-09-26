@@ -16,11 +16,15 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const decryptedApiKey = decryptApiKey(encryptedApiKey);
 
+    console.log('Decrypted API Key:', decryptedApiKey ? 'Valid' : 'Invalid');
+
     if (!decryptedApiKey) {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
     }
 
     let selectedModel = specificModel;
+    console.log('Initial Selected Model:', selectedModel);
+
     if (!selectedModel) {
       const { data, error } = await supabaseAdmin
         .from('api_keys')
@@ -29,9 +33,15 @@ export async function POST(req: Request): Promise<Response> {
         .eq('model', model)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching default model:', error);
+        throw error;
+      }
       selectedModel = data.default_model;
+      console.log('Default Model Selected:', selectedModel);
     }
+
+    console.log('Final Selected Model:', selectedModel);
 
     const { data: modelData, error: modelError } = await supabaseAdmin
       .from('models')
@@ -45,6 +55,14 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     const creditPricePerToken = modelData.credit_price_per_token;
+    console.log('Credit Price Per Token:', creditPricePerToken);
+
+    console.log('Request Payload:', {
+      model,
+      selectedModel,
+      userEmail,
+      inputLength: input.length,
+    });
 
     let result: string;
     let creditsUsed: number;
