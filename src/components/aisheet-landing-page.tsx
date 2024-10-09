@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+// Removed the unused Input import
 import { ChevronRight, Star, Shield, Calculator } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
