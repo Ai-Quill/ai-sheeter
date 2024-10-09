@@ -10,37 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 export function AisheetLandingPage() {
   const [isPopupOpen, setIsPopupOpen] = useState(false)
   const [isVideoOpen, setIsVideoOpen] = useState(false)
-  const [email, setEmail] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitMessage, setSubmitMessage] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setSubmitMessage('')
-
-    try {
-      const response = await fetch('/api/join-waitlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to join waitlist')
-      }
-
-      setSubmitMessage('Thank you for joining our waitlist!')
-      setEmail('')
-    } catch (error) {
-      console.error('Error joining waitlist:', error)
-      setSubmitMessage('An error occurred. Please try again.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   return (
     <main className="flex-1">
@@ -52,11 +21,16 @@ export function AisheetLandingPage() {
                 Sheet Smarter, Not Harder, With Any LLM
               </h1>
               <p className="mx-auto max-w-2xl text-xl text-gray-600 leading-relaxed">
-                Harness the power of ChatGPT, Claude, Groq, and Gemini™ directly in your spreadsheets. Currently free to use!
+                Harness the power of ChatGPT, Claude, Groq, and Gemini™ directly in your spreadsheets. Available now in the Google Workspace™ Marketplace!
               </p>
             </div>
             <div className="space-x-6">
-              <Button className="bg-red-600 text-white hover:bg-red-700 hover:text-slate-90e text-lg px-8 py-3" onClick={() => setIsPopupOpen(true)}>Get Started</Button>
+              <Button 
+                className="bg-red-600 text-white hover:bg-red-700 hover:text-slate-90e text-lg px-8 py-3" 
+                onClick={() => window.open('https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853', '_blank')}
+              >
+                Download Now
+              </Button>
               <Button className="text-red-600 border border-red-600 hover:bg-red-50 hover:text-slate-900 text-lg px-8 py-3" onClick={() => {
                 const howItWorksSection = document.getElementById('how-it-works');
                 if (howItWorksSection) {
@@ -213,30 +187,17 @@ export function AisheetLandingPage() {
                 Ready to supercharge your spreadsheets?
               </h2>
               <p className="mx-auto max-w-2xl text-xl leading-relaxed">
-                Join our waitlist to be notified when AISheeter is available in the Google Workspace™ Marketplace.
+                AISheeter is now available in the Google Workspace™ Marketplace. Download it today and start enhancing your spreadsheets with AI!
               </p>
             </div>
             <div className="w-full max-w-md space-y-4">
-              <form onSubmit={handleSubmit} className="flex space-x-4">
-                <Input
-                  className="flex-1 bg-white text-black text-lg py-3"
-                  placeholder="Enter your email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <Button
-                  type="submit"
-                  className=" text-red-600 hover:bg-red-100 text-lg px-8 py-3 border border-red-600"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Joining...' : 'Join Waitlist'}
-                </Button>
-              </form>
-              {submitMessage && (
-                <p className="text-sm font-medium">{submitMessage}</p>
-              )}
+                
+                  <Button
+                    className="bg-black text-red-600 hover:bg-red-100 text-lg px-8 py-3 border border-red-600"
+                    onClick={() => window.open('https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853', '_blank')}
+                  >
+                    Download AISheeter
+                  </Button>
             </div>
           </div>
         </div>
