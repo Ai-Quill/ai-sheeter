@@ -6,10 +6,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-async function getBase64FromUrl(url: string): Promise<string> {
+async function getBase64FromUrl(url: string): Promise<{ base64: string; mediaType: string }> {
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer).toString('base64');
+  const base64 = Buffer.from(arrayBuffer).toString('base64');
+  const mediaType = response.headers.get('content-type') || 'application/octet-stream';
+  return { base64, mediaType };
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -103,14 +105,14 @@ export async function POST(req: Request): Promise<Response> {
           ];
 
           if (imageUrl) {
-            const base64Image = await getBase64FromUrl(imageUrl);
+            const { base64: base64Image, mediaType } = await getBase64FromUrl(imageUrl);
             messages[0].content = [
               { type: 'text', text: input },
               {
                 type: 'image',
                 source: {
                   type: 'base64',
-                  media_type: 'image/jpeg', // Adjust this based on the actual image type
+                  media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
                   data: base64Image
                 }
               }
