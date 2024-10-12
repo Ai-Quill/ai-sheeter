@@ -6,8 +6,14 @@ import Anthropic from '@anthropic-ai/sdk';
 import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+async function getBase64FromUrl(url: string): Promise<string> {
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer).toString('base64');
+}
+
 export async function POST(req: Request): Promise<Response> {
-  const { model, input, userEmail, specificModel, encryptedApiKey } = await req.json();
+  const { model, input, userEmail, specificModel, encryptedApiKey, imageUrl } = await req.json();
 
   if (!model || !input || !userEmail || !encryptedApiKey) {
     return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -56,9 +62,22 @@ export async function POST(req: Request): Promise<Response> {
         });
 
         try {
+          let messages: OpenAI.ChatCompletionMessageParam[] = [{ role: 'user', content: input }];
+          if (imageUrl) {
+            messages = [
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: input },
+                  { type: 'image_url', image_url: { url: imageUrl } }
+                ]
+              }
+            ];
+          }
+
           const chatGptResponse = await openai.chat.completions.create({
             model: selectedModel,
-            messages: [{ role: 'user', content: input }],
+            messages: messages,
             max_tokens: 4000
           });
 
@@ -76,10 +95,32 @@ export async function POST(req: Request): Promise<Response> {
             apiKey: decryptedApiKey
           });
 
+          const messages: Anthropic.MessageParam[] = [
+            {
+              role: 'user',
+              content: input
+            }
+          ];
+
+          if (imageUrl) {
+            const base64Image = await getBase64FromUrl(imageUrl);
+            messages[0].content = [
+              { type: 'text', text: input },
+              {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: 'image/jpeg', // Adjust this based on the actual image type
+                  data: base64Image
+                }
+              }
+            ];
+          }
+
           const claudeResponse = await anthropic.messages.create({
             model: selectedModel,
             max_tokens: 1024,
-            messages: [{ role: 'user', content: input }]
+            messages: messages
           });
 
           console.log('Claude response:', JSON.stringify(claudeResponse, null, 2));
@@ -101,22 +142,36 @@ export async function POST(req: Request): Promise<Response> {
         });
 
         result = groqResponse.choices[0]?.message?.content || "";
-        creditsUsed = groqResponse.usage?.total_tokens ?? 0 * creditPricePerToken;
+        creditsUsed = (groqResponse.usage?.total_tokens ?? 0) * creditPricePerToken;
         break;
 
       case 'GEMINI':
         const genAI = new GoogleGenerativeAI(decryptedApiKey);
         const geminiModel = genAI.getGenerativeModel({ model: selectedModel });
         
-        // Count tokens
-        const tokenCount = await geminiModel.countTokens(input);
+        let geminiInput;
+        if (imageUrl) {
+          const imageResponse = await fetch(imageUrl);
+          const imageData = await imageResponse.arrayBuffer();
+          geminiInput = [
+            input,
+            {
+              inlineData: {
+                data: Buffer.from(imageData).toString('base64'),
+                mimeType: imageResponse.headers.get('content-type') || 'image/jpeg'
+              }
+            }
+          ];
+        } else {
+          geminiInput = input;
+        }
         
         // Generate content
-        const geminiResult = await geminiModel.generateContent(input);
+        const geminiResult = await geminiModel.generateContent(geminiInput);
         const geminiResponse = await geminiResult.response;
         
         result = geminiResponse.text();
-        creditsUsed = tokenCount.totalTokens * creditPricePerToken;
+        creditsUsed = (await geminiModel.countTokens(input)).totalTokens * creditPricePerToken;
         break;
 
       default:
