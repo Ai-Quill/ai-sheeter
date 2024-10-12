@@ -31,8 +31,22 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const { name, prompt, variables, user_id } = await request.json();
 
+    console.log('Received user_id:', user_id);  // Add this line
+
     if (!name || !prompt || !user_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Check if the user exists
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id', user_id)
+      .single();
+
+    if (userError || !user) {
+      console.error('User not found:', userError);
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const { data, error } = await supabaseAdmin
