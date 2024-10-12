@@ -2,11 +2,35 @@ import { NextResponse } from 'next/server';
 import { decryptApiKey } from '@/utils/encryption';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { v4 as uuidv4 } from 'uuid';
+import { supabaseAdmin } from '@/lib/supabase';
+
+// Initialize S3 client
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+
+async function uploadToS3(imageBuffer: Buffer, fileName: string): Promise<string> {
+  const uploadParams = {
+    Bucket: process.env.S3_BUCKET_NAME!,
+    Key: fileName,
+    Body: imageBuffer,
+    ContentType: 'image/png',
+  };
+
+  await s3Client.send(new PutObjectCommand(uploadParams));
+  return `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+}
 
 export async function POST(req: Request): Promise<Response> {
-  const { model, prompt, userEmail, encryptedApiKey } = await req.json();
+  const { model, prompt, userId, encryptedApiKey } = await req.json();
 
-  if (!model || !prompt || !userEmail || !encryptedApiKey) {
+  if (!model || !prompt || !userId || !encryptedApiKey) {
     return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
   }
 
@@ -17,7 +41,7 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
     }
 
-    let imageUrl: string;
+    let imageBuffer: Buffer;
 
     switch (model) {
       case 'DALLE':
@@ -27,8 +51,9 @@ export async function POST(req: Request): Promise<Response> {
           prompt: prompt,
           n: 1,
           size: "1024x1024",
+          response_format: "b64_json",
         });
-        imageUrl = dalleResponse.data[0].url!;
+        imageBuffer = Buffer.from(dalleResponse.data[0].b64_json!, 'base64');
         break;
 
       case 'GEMINI':
@@ -43,17 +68,26 @@ export async function POST(req: Request): Promise<Response> {
         if (!imageBlob) {
           throw new Error('Failed to generate image with Gemini');
         }
-        // Here you would typically upload the imageBlob to a storage service and get a URL
-        // For this example, we'll just return a placeholder
-        imageUrl = "https://placeholder.com/gemini-generated-image.jpg";
+        imageBuffer = Buffer.from(imageBlob, 'base64');
         break;
 
       default:
         return NextResponse.json({ error: 'Unsupported model' }, { status: 400 });
     }
 
+    // Upload to S3
+    const fileName = `${uuidv4()}.png`;
+    const imageUrl = await uploadToS3(imageBuffer, fileName);
+
+    // Store URL in Supabase using supabaseAdmin
+    const { error } = await supabaseAdmin
+      .from('generated_images')
+      .insert({ url: imageUrl, user_id: userId, model: model });
+
+    if (error) throw error;
+
     // Log credit usage (you'll need to implement this based on your pricing model)
-    // await logCreditUsage(userEmail, model, 1);
+    // await logCreditUsage(userId, model, 1);
 
     return NextResponse.json({ imageUrl });
   } catch (error: unknown) {
