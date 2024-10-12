@@ -83,18 +83,24 @@ export async function POST(request: Request) {
     });
     console.log('Prepared apiKeys for upsert:', apiKeys);
 
-    const { data, error } = await supabaseAdmin
-      .from('api_keys')
-      .upsert(apiKeys, { onConflict: 'user_id,model' })
-      .select();
+    // Perform upsert for each API key individually
+    const results = await Promise.all(apiKeys.map(async (apiKey) => {
+      const { data, error } = await supabaseAdmin
+        .from('api_keys')
+        .upsert(apiKey, { 
+          onConflict: 'user_id,model'
+        });
 
-    if (error) {
-      console.error('Supabase upsert error:', error);
-      throw error;
-    }
+      if (error) {
+        console.error('Supabase upsert error:', error);
+        throw error;
+      }
 
-    console.log('Upsert successful, returned data:', data);
-    return NextResponse.json({ message: 'Settings saved successfully', data });
+      return data;
+    }));
+
+    console.log('Upsert successful, returned data:', results);
+    return NextResponse.json({ message: 'Settings saved successfully', data: results });
   } catch (error) {
     console.error('Error saving settings:', error);
     return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 });
