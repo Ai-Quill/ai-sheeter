@@ -1,26 +1,37 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(): Promise<Response> {
   try {
-    // Get all unique user emails from existing tables
-    const { data: userEmails, error: emailError } = await supabaseAdmin
+    // Get user emails from each table
+    const { data: promptEmails, error: promptError } = await supabaseAdmin
       .from('user_prompts')
-      .select('user_email')
-      .union(
-        supabaseAdmin.from('api_keys').select('user_email'),
-        supabaseAdmin.from('credit_usage').select('user_email')
-      );
+      .select('user_email');
 
-    if (emailError) {
-      throw new Error('Failed to fetch user emails: ' + emailError.message);
+    const { data: apiKeyEmails, error: apiKeyError } = await supabaseAdmin
+      .from('api_keys')
+      .select('user_email');
+
+    const { data: creditUsageEmails, error: creditUsageError } = await supabaseAdmin
+      .from('credit_usage')
+      .select('user_email');
+
+    if (promptError || apiKeyError || creditUsageError) {
+      throw new Error('Failed to fetch user emails: ' + 
+        (promptError || apiKeyError || creditUsageError)?.message);
     }
 
-    const uniqueEmails = [...new Set(userEmails.map(item => item.user_email))];
+    // Combine and deduplicate emails
+    const allEmails = [
+      ...(promptEmails || []),
+      ...(apiKeyEmails || []),
+      ...(creditUsageEmails || [])
+    ];
+    const uniqueEmails = Array.from(new Set(allEmails.map(item => item.user_email).filter(Boolean)));
 
     // Insert users into the new users table
     for (const email of uniqueEmails) {
-      const { data: user, error: insertError } = await supabaseAdmin
+      const { error: insertError } = await supabaseAdmin
         .from('users')
         .insert({ email })
         .select()

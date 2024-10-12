@@ -10,11 +10,15 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // Try to get existing user
-    let { data: user, error } = await supabaseAdmin
+    const { data: user, error: fetchError } = await supabaseAdmin
       .from('users')
       .select('id')
       .eq('email', email)
       .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      throw new Error('Failed to fetch user: ' + fetchError.message);
+    }
 
     // If user doesn't exist, create a new one
     if (!user) {
@@ -28,7 +32,11 @@ export async function POST(request: Request): Promise<Response> {
         throw new Error('Failed to create user: ' + insertError.message);
       }
 
-      user = newUser;
+      if (!newUser) {
+        throw new Error('Failed to get or create user');
+      }
+
+      return NextResponse.json({ userId: newUser.id });
     }
 
     return NextResponse.json({ userId: user.id });
