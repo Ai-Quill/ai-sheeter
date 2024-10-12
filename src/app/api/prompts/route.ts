@@ -4,16 +4,16 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET(request: Request): Promise<Response> {
   try {
     const { searchParams } = new URL(request.url);
-    const userEmail = searchParams.get('user_email');
+    const userId = searchParams.get('user_id');
 
-    if (!userEmail) {
-      return NextResponse.json({ error: 'User email is required' }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
     const { data: prompts, error } = await supabaseAdmin
       .from('user_prompts')
       .select('*')
-      .eq('user_email', userEmail);
+      .eq('user_id', userId);
 
     if (error) {
       console.error('Error fetching prompts:', error);
@@ -29,15 +29,15 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const { name, prompt, variables, user_email } = await request.json();
+    const { name, prompt, variables, user_id } = await request.json();
 
-    if (!name || !prompt || !user_email) {
+    if (!name || !prompt || !user_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin
       .from('user_prompts')
-      .insert({ name, prompt, variables, user_email })
+      .insert({ name, prompt, variables, user_id })
       .select()
       .single();
 
@@ -59,9 +59,9 @@ export async function POST(request: Request): Promise<Response> {
 
 export async function PUT(request: Request): Promise<Response> {
   try {
-    const { id, name, prompt, variables, user_email } = await request.json();
+    const { id, name, prompt, variables, user_id } = await request.json();
 
-    if (!id || !name || !prompt || !user_email) {
+    if (!id || !name || !prompt || !user_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -69,7 +69,7 @@ export async function PUT(request: Request): Promise<Response> {
       .from('user_prompts')
       .update({ name, prompt, variables })
       .eq('id', id)
-      .eq('user_email', user_email)
+      .eq('user_id', user_id)
       .select()
       .single();
 
@@ -93,9 +93,9 @@ export async function DELETE(request: Request): Promise<Response> {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const userEmail = searchParams.get('user_email');
+    const userId = searchParams.get('user_id');
 
-    if (!id || !userEmail) {
+    if (!id || !userId) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
@@ -103,7 +103,7 @@ export async function DELETE(request: Request): Promise<Response> {
       .from('user_prompts')
       .delete()
       .eq('id', id)
-      .eq('user_email', userEmail);
+      .eq('user_id', userId);
 
     if (error) {
       console.error('Error deleting prompt:', error);
