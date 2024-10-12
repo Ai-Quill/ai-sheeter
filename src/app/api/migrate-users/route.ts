@@ -3,59 +3,60 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(): Promise<Response> {
   try {
-    // Get user IDs from each table
-    const { data: promptUserIds, error: promptError } = await supabaseAdmin
-      .from('user_prompts')
-      .select('user_id');
+    console.log('Starting migration process...');
 
-    const { data: apiKeyUserIds, error: apiKeyError } = await supabaseAdmin
+    // Get all unique emails from api_keys table
+    const { data: apiKeyEmails, error: apiKeyError } = await supabaseAdmin
       .from('api_keys')
-      .select('user_id');
+      .select('user_email')
+      .not('user_email', 'is', null);
 
-    const { data: creditUsageUserIds, error: creditUsageError } = await supabaseAdmin
-      .from('credit_usage')
-      .select('user_id');
-
-    if (promptError || apiKeyError || creditUsageError) {
-      throw new Error('Failed to fetch user IDs: ' + 
-        (promptError || apiKeyError || creditUsageError)?.message);
+    if (apiKeyError) {
+      throw new Error('Failed to fetch user emails: ' + apiKeyError.message);
     }
 
-    // Combine and deduplicate user IDs
-    const allUserIds = [
-      ...(promptUserIds || []),
-      ...(apiKeyUserIds || []),
-      ...(creditUsageUserIds || [])
-    ];
-    const uniqueUserIds = Array.from(new Set(allUserIds.map(item => item.user_id).filter(Boolean)));
+    const uniqueEmails = Array.from(new Set(apiKeyEmails?.map(item => item.user_email) || []));
+    console.log('Unique emails found:', uniqueEmails.length);
 
-    // Fetch emails for these user IDs
-    const { data: users, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('id, email')
-      .in('id', uniqueUserIds);
+    // Insert users into the users table
+    for (const email of uniqueEmails) {
+      const { data: existingUser, error: checkError } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
 
-    if (userError) {
-      throw new Error('Failed to fetch user data: ' + userError.message);
-    }
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error(`Error checking existing user for ${email}:`, checkError);
+        continue;
+      }
 
-    // Create a map of user IDs to emails
-    const userMap = new Map(users?.map(user => [user.id, user.email]) || []);
-
-    // Insert missing users into the users table
-    for (const userId of uniqueUserIds) {
-      if (!userMap.has(userId)) {
+      if (!existingUser) {
         const { error: insertError } = await supabaseAdmin
           .from('users')
-          .insert({ id: userId, email: `unknown_${userId}@example.com` })
+          .insert({ email })
           .single();
 
         if (insertError) {
-          console.error(`Failed to insert user ${userId}: ${insertError.message}`);
+          console.error(`Failed to insert user ${email}:`, insertError);
+        } else {
+          console.log(`Inserted new user: ${email}`);
         }
       }
     }
 
+    // Update other tables with user_id
+    const tables = ['user_prompts', 'api_keys', 'credit_usage'];
+    for (const table of tables) {
+      const { error: updateError } = await supabaseAdmin.rpc('update_user_ids', { table_name: table });
+      if (updateError) {
+        console.error(`Failed to update ${table}:`, updateError);
+      } else {
+        console.log(`Updated ${table} with user_ids`);
+      }
+    }
+
+    console.log('Migration completed successfully');
     return NextResponse.json({ message: 'Migration completed successfully' });
   } catch (error) {
     console.error('Migration error:', error);
