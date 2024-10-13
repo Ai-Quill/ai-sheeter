@@ -17,16 +17,36 @@ interface Settings {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userEmail = searchParams.get('userEmail');
+  const userId = searchParams.get('userId');
 
-  if (!userEmail) {
-    return NextResponse.json({ error: 'User email is required' }, { status: 400 });
+  if (!userEmail && !userId) {
+    return NextResponse.json({ error: 'User identification is required' }, { status: 400 });
   }
 
   try {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('api_keys')
-      .select('model, api_key, default_model')
-      .eq('user_email', userEmail);
+      .select('model, api_key, default_model');
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    } else {
+      // First, get the user_id from the email
+      const { data: userData, error: userError } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', userEmail)
+        .single();
+
+      if (userError) {
+        console.error('Error fetching user:', userError);
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      query = query.eq('user_id', userData.id);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
