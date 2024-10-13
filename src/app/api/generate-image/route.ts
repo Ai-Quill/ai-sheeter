@@ -15,16 +15,24 @@ const s3Client = new S3Client({
   },
 });
 
+// Add this line to get the bucket name from environment variables
+const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
+
 async function uploadToS3(imageBuffer: Buffer, fileName: string): Promise<string> {
+  // Check if the bucket name is defined
+  if (!S3_BUCKET_NAME) {
+    throw new Error('S3_BUCKET_NAME is not defined in environment variables');
+  }
+
   const uploadParams = {
-    Bucket: process.env.S3_BUCKET_NAME!,
+    Bucket: S3_BUCKET_NAME,
     Key: fileName,
     Body: imageBuffer,
     ContentType: 'image/png',
   };
 
   await s3Client.send(new PutObjectCommand(uploadParams));
-  return `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+  return `https://${S3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
 }
 
 export async function POST(req: Request): Promise<Response> {
