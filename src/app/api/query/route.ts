@@ -14,14 +14,37 @@ async function getBase64FromUrl(url: string): Promise<{ base64: string; mediaTyp
   return { base64, mediaType };
 }
 
-export async function POST(req: Request): Promise<Response> {
-  const { model, input, userEmail, specificModel, encryptedApiKey, imageUrl } = await req.json();
+async function getUserIdFromEmail(userEmail: string): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('email', userEmail)
+    .single();
 
-  if (!model || !input || !userEmail || !encryptedApiKey) {
+  if (error) {
+    console.error('Error fetching user ID:', error);
+    return null;
+  }
+
+  return data?.id || null;
+}
+
+export async function POST(req: Request): Promise<Response> {
+  const { model, input, userEmail, userId, specificModel, encryptedApiKey, imageUrl } = await req.json();
+
+  if (!model || !input || (!userEmail && !userId) || !encryptedApiKey) {
     return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
   }
 
   try {
+    let actualUserId = userId;
+    if (!actualUserId && userEmail) {
+      actualUserId = await getUserIdFromEmail(userEmail);
+      if (!actualUserId) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+    }
+
     const decryptedApiKey = decryptApiKey(encryptedApiKey);
 
     if (!decryptedApiKey) {
@@ -33,7 +56,7 @@ export async function POST(req: Request): Promise<Response> {
       const { data, error } = await supabaseAdmin
         .from('api_keys')
         .select('default_model')
-        .eq('user_email', userEmail)
+        .eq('user_id', actualUserId)
         .eq('model', model)
         .single();
 
@@ -182,7 +205,7 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     await supabaseAdmin.from('credit_usage').insert({
-      user_email: userEmail,
+      user_id: actualUserId,
       model: model,
       credits_used: creditsUsed
     });

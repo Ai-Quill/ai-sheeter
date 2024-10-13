@@ -51,31 +51,34 @@ async function getOrCreateUser(userEmail: string): Promise<string> {
 export async function POST(request: Request) {
   console.log('Received POST request');
   
-  let userEmail, settings;
+  let userEmail, userId, settings;
   try {
     const body = await request.json();
     console.log('Received body:', body);
-    ({ userEmail, settings } = body);
-    console.log('Parsed request body:', { userEmail, settings });
+    ({ userEmail, userId, settings } = body);
+    console.log('Parsed request body:', { userEmail, userId, settings });
   } catch (error) {
     console.error('Error parsing request body:', error);
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  if (!userEmail || !settings) {
-    console.error('Missing required fields:', { userEmail, settings });
-    return NextResponse.json({ error: 'User email and settings are required' }, { status: 400 });
+  if ((!userEmail && !userId) || !settings) {
+    console.error('Missing required fields:', { userEmail, userId, settings });
+    return NextResponse.json({ error: 'User identification and settings are required' }, { status: 400 });
   }
 
   try {
     // Get or create user
-    const userId = await getOrCreateUser(userEmail);
-    console.log('User ID:', userId);
+    let actualUserId = userId;
+    if (!actualUserId) {
+      actualUserId = await getOrCreateUser(userEmail);
+    }
+    console.log('User ID:', actualUserId);
 
     const apiKeys = Object.entries(settings).map(([model, data]) => {
       console.log('Processing model:', model, 'with data:', data);
       return {
-        user_id: userId,
+        user_id: actualUserId,
         model,
         api_key: (data as SaveSettingsData).apiKey,
         default_model: (data as SaveSettingsData).defaultModel
@@ -100,7 +103,7 @@ export async function POST(request: Request) {
     }));
 
     console.log('Upsert successful, returned data:', results);
-    return NextResponse.json({ message: 'Settings saved successfully', data: results });
+    return NextResponse.json({ message: 'Settings saved successfully', data: results, userId: actualUserId });
   } catch (error) {
     console.error('Error saving settings:', error);
     return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 });
