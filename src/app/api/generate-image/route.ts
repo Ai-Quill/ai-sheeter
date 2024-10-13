@@ -15,34 +15,39 @@ const s3Client = new S3Client({
   },
 });
 
-// Add this line to get the bucket name from environment variables
 const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
 
-async function uploadToS3(imageBuffer: Buffer, fileName: string): Promise<string> {
-  // Check if the bucket name is defined
+async function uploadToS3(imageBuffer: Buffer, userId: string, fileName: string): Promise<string> {
   if (!S3_BUCKET_NAME) {
     throw new Error('S3_BUCKET_NAME is not defined in environment variables');
   }
 
+  const key = `users/${userId}/${fileName}`;
   const uploadParams = {
     Bucket: S3_BUCKET_NAME,
-    Key: fileName,
+    Key: key,
     Body: imageBuffer,
     ContentType: 'image/png',
+    ACL: 'public-read' as const, // Type assertion to 'public-read'
   };
 
-  await s3Client.send(new PutObjectCommand(uploadParams));
-  return `https://${S3_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+  try {
+    await s3Client.send(new PutObjectCommand(uploadParams));
+    return `https://${S3_BUCKET_NAME}.s3.amazonaws.com/${key}`;
+  } catch (error) {
+    console.error('Error uploading to S3:', error);
+    throw new Error('Failed to upload image to S3');
+  }
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const { model, prompt, userId, encryptedApiKey } = await req.json();
-
-  if (!model || !prompt || !userId || !encryptedApiKey) {
-    return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
-  }
-
   try {
+    const { model, prompt, userId, encryptedApiKey } = await req.json();
+
+    if (!model || !prompt || !userId || !encryptedApiKey) {
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    }
+
     const decryptedApiKey = decryptApiKey(encryptedApiKey);
 
     if (!decryptedApiKey) {
@@ -83,19 +88,14 @@ export async function POST(req: Request): Promise<Response> {
         return NextResponse.json({ error: 'Unsupported model' }, { status: 400 });
     }
 
-    // Upload to S3
     const fileName = `${uuidv4()}.png`;
-    const imageUrl = await uploadToS3(imageBuffer, fileName);
+    const imageUrl = await uploadToS3(imageBuffer, userId, fileName);
 
-    // Store URL in Supabase using supabaseAdmin
     const { error } = await supabaseAdmin
       .from('generated_images')
       .insert({ url: imageUrl, user_id: userId, model: model });
 
     if (error) throw error;
-
-    // Log credit usage (you'll need to implement this based on your pricing model)
-    // await logCreditUsage(userId, model, 1);
 
     return NextResponse.json({ imageUrl });
   } catch (error: unknown) {
