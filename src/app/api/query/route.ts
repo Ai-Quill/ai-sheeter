@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
 import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import axios from 'axios';
 
 async function getBase64FromUrl(url: string): Promise<{ base64: string; mediaType: string }> {
   const response = await fetch(url);
@@ -197,6 +198,50 @@ export async function POST(req: Request): Promise<Response> {
         
         result = geminiResponse.text();
         creditsUsed = (await geminiModel.countTokens(input)).totalTokens * creditPricePerToken;
+        break;
+
+      case 'STRATICO':
+        const straticoUrl = 'https://api.stratico.com/v1/chat/completions';
+        const straticoHeaders = {
+          'Authorization': `Bearer ${decryptedApiKey}`,
+          'Content-Type': 'application/json'
+        };
+        const straticoPayload = {
+          model: selectedModel || 'gpt-3.5-turbo', // Use default model if not specified
+          messages: [{ role: 'user', content: input }]
+        };
+
+        if (imageUrl) {
+          straticoPayload.messages[0].content = [
+            { type: 'text', text: input },
+            { type: 'image_url', image_url: { url: imageUrl } }
+          ];
+        }
+
+        try {
+          const straticoResponse = await axios.post(straticoUrl, straticoPayload, { headers: straticoHeaders });
+          
+          if (straticoResponse.data.choices && straticoResponse.data.choices.length > 0) {
+            result = straticoResponse.data.choices[0].message.content;
+          } else if (straticoResponse.data.content) {
+            // Fallback in case the response structure is different
+            result = straticoResponse.data.content;
+          } else {
+            throw new Error('Unexpected response structure from Stratico API');
+          }
+
+          // Calculate credits used, fallback to a default if usage is not provided
+          creditsUsed = (straticoResponse.data.usage?.total_tokens || 0) * creditPricePerToken;
+          if (creditsUsed === 0) {
+            // If usage is not provided, estimate based on input and output length
+            const inputTokens = input.length / 4; // Rough estimate
+            const outputTokens = result.length / 4; // Rough estimate
+            creditsUsed = (inputTokens + outputTokens) * creditPricePerToken;
+          }
+        } catch (error) {
+          console.error('Error from Stratico API:', error);
+          return NextResponse.json({ error: 'Error from Stratico API' }, { status: 400 });
+        }
         break;
 
       default:

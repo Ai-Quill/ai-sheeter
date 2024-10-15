@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import { decryptApiKey } from '@/utils/encryption';
+import axios from 'axios';
+// import { uploadToS3 } from '@/utils/s3';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin } from '@/lib/supabase';
 
@@ -28,7 +30,7 @@ async function uploadToS3(imageBuffer: Buffer, userId: string, fileName: string)
     Key: key,
     Body: imageBuffer,
     ContentType: 'image/png',
-    ACL: 'public-read' as const, // Type assertion to 'public-read'
+    ACL: 'public-read' as const,
   };
 
   try {
@@ -42,7 +44,7 @@ async function uploadToS3(imageBuffer: Buffer, userId: string, fileName: string)
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    const { model, prompt, userId, encryptedApiKey } = await req.json();
+    const { model, prompt, userId, encryptedApiKey, specificModel } = await req.json();
 
     if (!model || !prompt || !userId || !encryptedApiKey) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -94,6 +96,24 @@ export async function POST(req: Request): Promise<Response> {
         }
         
         imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64');
+        break;
+
+      case 'STRATICO':
+        const straticoUrl = 'https://api.stratico.com/v1/images/generations';
+        const straticoHeaders = {
+          'Authorization': `Bearer ${decryptedApiKey}`,
+          'Content-Type': 'application/json'
+        };
+        const straticoPayload = {
+          model: specificModel || 'dall-e-3', // Use default model if not specified
+          prompt: prompt,
+          n: 1,
+          size: '1024x1024',
+          response_format: 'b64_json'
+        };
+
+        const straticoResponse = await axios.post(straticoUrl, straticoPayload, { headers: straticoHeaders });
+        imageBuffer = Buffer.from(straticoResponse.data.data[0].b64_json, 'base64');
         break;
 
       default:
