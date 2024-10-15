@@ -68,7 +68,10 @@ export async function POST(req: Request): Promise<Response> {
           size: "1024x1024",
           response_format: "b64_json",
         });
-        imageBuffer = Buffer.from(dalleResponse.data[0].b64_json!, 'base64');
+        if (!dalleResponse.data[0].b64_json) {
+          throw new Error('No image data received from DALL-E');
+        }
+        imageBuffer = Buffer.from(dalleResponse.data[0].b64_json, 'base64');
         break;
 
       case 'GEMINI':
