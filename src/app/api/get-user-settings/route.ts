@@ -59,6 +59,8 @@ export async function GET(request: Request) {
       return acc;
     }, {} as Settings);
 
+    console.log('User settings:', JSON.stringify(settings, null, 2));
+
     return NextResponse.json({ settings });
   } catch (error) {
     console.error('Error fetching user settings:', error);
