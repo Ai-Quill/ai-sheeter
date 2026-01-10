@@ -54,7 +54,7 @@ const ContactPage: React.FC = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border rounded"
+                className="w-full px-3 py-2 border rounded-sm"
               />
             </div>
             <div className="mb-4">
@@ -65,7 +65,7 @@ const ContactPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 border rounded"
+                className="w-full px-3 py-2 border rounded-sm"
               />
             </div>
             <div className="mb-4">
@@ -75,11 +75,11 @@ const ContactPage: React.FC = () => {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 required
-                className="w-full px-3 py-2 border rounded"
+                className="w-full px-3 py-2 border rounded-sm"
                 rows={4}
               ></textarea>
             </div>
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-sm hover:bg-blue-700">
               Submit
             </button>
             {error && <p className="text-red-600 mt-2">{error}</p>}

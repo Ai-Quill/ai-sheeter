@@ -1,3 +1,2 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Legacy styles file - primary CSS is now in src/app/globals.css */
+@import 'tailwindcss';

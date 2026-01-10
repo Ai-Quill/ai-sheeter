@@ -1,18 +1,37 @@
-import { NextResponse } from 'next/server';
-import { decryptApiKey } from '@/utils/encryption';
-import OpenAI from 'openai';
-import { supabaseAdmin } from '@/lib/supabase';
-import Anthropic from '@anthropic-ai/sdk';
-import Groq from "groq-sdk";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import axios from 'axios';
+/**
+ * AI Query Endpoint - Unified via Vercel AI SDK
+ * 
+ * Features:
+ * - Single API for all providers (OpenAI, Anthropic, Google, Groq)
+ * - Built-in system prompts (context engineering)
+ * - Response caching (saves API costs)
+ * - Automatic task type inference
+ * - Unified token counting
+ * - Multi-modal support (text + images)
+ * 
+ * @see https://ai-sdk.dev/docs/introduction
+ */
 
-async function getBase64FromUrl(url: string): Promise<{ base64: string; mediaType: string }> {
+import { NextResponse } from 'next/server';
+import { generateText } from 'ai';
+import { decryptApiKey } from '@/utils/encryption';
+import { supabaseAdmin } from '@/lib/supabase';
+import { getModel, type AIProvider } from '@/lib/ai/models';
+import { getSystemPrompt, inferTaskType } from '@/lib/prompts';
+import { generateCacheKey, getFromCache, setCache } from '@/lib/cache';
+
+// Type for multi-modal message content
+type MessageContent = 
+  | string 
+  | Array<{ type: 'text'; text: string } | { type: 'image'; image: string }>;
+
+// For image processing, convert URLs to base64
+async function fetchImageAsBase64(url: string): Promise<string> {
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
   const base64 = Buffer.from(arrayBuffer).toString('base64');
-  const mediaType = response.headers.get('content-type') || 'application/octet-stream';
-  return { base64, mediaType };
+  const mimeType = response.headers.get('content-type') || 'image/jpeg';
+  return `data:${mimeType};base64,${base64}`;
 }
 
 async function getUserIdFromEmail(userEmail: string): Promise<string | null> {
@@ -31,13 +50,25 @@ async function getUserIdFromEmail(userEmail: string): Promise<string | null> {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const { model, input, userEmail, userId, specificModel, encryptedApiKey, imageUrl } = await req.json();
+  const { 
+    model, 
+    input, 
+    userEmail, 
+    userId, 
+    specificModel, 
+    encryptedApiKey, 
+    imageUrl,
+    taskType: explicitTaskType,  // Optional: client can hint the task type
+    skipCache = false            // Optional: force fresh response
+  } = await req.json();
 
+  // Validate required fields
   if (!model || !input || (!userEmail && !userId) || !encryptedApiKey) {
     return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
   }
 
   try {
+    // Resolve user ID
     let actualUserId = userId;
     if (!actualUserId && userEmail) {
       actualUserId = await getUserIdFromEmail(userEmail);
@@ -46,12 +77,13 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
-    const decryptedApiKey = decryptApiKey(encryptedApiKey);
-
-    if (!decryptedApiKey) {
+    // Decrypt API key
+    const apiKey = decryptApiKey(encryptedApiKey);
+    if (!apiKey) {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
     }
 
+    // Resolve model
     let selectedModel = specificModel;
     if (!selectedModel) {
       const { data, error } = await supabaseAdmin
@@ -65,6 +97,7 @@ export async function POST(req: Request): Promise<Response> {
       selectedModel = data.default_model;
     }
 
+    // Get credit price per token
     const { data: modelData, error: modelError } = await supabaseAdmin
       .from('models')
       .select('credit_price_per_token')
@@ -78,186 +111,112 @@ export async function POST(req: Request): Promise<Response> {
 
     const creditPricePerToken = modelData.credit_price_per_token;
 
-    let result: string;
-    let creditsUsed: number;
+    // === Context Engineering: Get appropriate system prompt ===
+    const taskType = explicitTaskType || inferTaskType(input);
+    const systemPrompt = getSystemPrompt(taskType);
 
-    switch (model) {
-      case 'CHATGPT':
-        const openai = new OpenAI({
-          apiKey: decryptedApiKey
+    // === Check cache (skip for image queries - they're unique) ===
+    const canCache = !imageUrl && !skipCache;
+    let cacheKey = '';
+    
+    if (canCache) {
+      cacheKey = generateCacheKey(selectedModel, systemPrompt, input);
+      const cacheResult = await getFromCache(cacheKey);
+      
+      if (cacheResult.cached) {
+        // Cache hit! Return cached response
+        const creditsUsed = cacheResult.tokensUsed * creditPricePerToken;
+        
+        // Log as cached usage (no actual API call made)
+        await supabaseAdmin.from('credit_usage').insert({
+          user_id: actualUserId,
+          model: model,
+          credits_used: 0  // No credits charged for cache hits
         });
 
-        try {
-          let messages: OpenAI.ChatCompletionMessageParam[] = [{ role: 'user', content: input }];
-          if (imageUrl) {
-            messages = [
-              {
-                role: 'user',
-                content: [
-                  { type: 'text', text: input },
-                  { type: 'image_url', image_url: { url: imageUrl } }
-                ]
-              }
-            ];
-          }
-
-          const chatGptResponse = await openai.chat.completions.create({
+        return NextResponse.json({ 
+          result: cacheResult.response, 
+          creditsUsed: 0,  // Free!
+          meta: {
+            taskType,
             model: selectedModel,
-            messages: messages,
-            max_tokens: 4000
-          });
-
-          result = chatGptResponse.choices[0].message.content ?? '';
-          creditsUsed = (chatGptResponse.usage?.total_tokens ?? 0) * creditPricePerToken;
-        } catch (error) {
-          console.error('Error from OpenAI API:', error);
-          return NextResponse.json({ error: 'Invalid API key or API error' }, { status: 401 });
-        }
-        break;
-
-      case 'CLAUDE':
-        try {
-          const anthropic = new Anthropic({
-            apiKey: decryptedApiKey
-          });
-
-          const messages: Anthropic.MessageParam[] = [
-            {
-              role: 'user',
-              content: input
+            cached: true,
+            tokens: {
+              input: 0,
+              output: 0,
+              total: cacheResult.tokensUsed  // Original token count
             }
-          ];
-
-          if (imageUrl) {
-            const { base64: base64Image, mediaType } = await getBase64FromUrl(imageUrl);
-            messages[0].content = [
-              { type: 'text', text: input },
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-                  data: base64Image
-                }
-              }
-            ];
           }
-
-          const claudeResponse = await anthropic.messages.create({
-            model: selectedModel,
-            max_tokens: 1024,
-            messages: messages
-          });
-
-          console.log('Claude response:', JSON.stringify(claudeResponse, null, 2));
-          result = claudeResponse.content[0].type === 'text' 
-            ? claudeResponse.content[0].text 
-            : JSON.stringify(claudeResponse.content[0]);
-          creditsUsed = claudeResponse.usage.output_tokens * creditPricePerToken;
-        } catch (error) {
-          console.error('Error from Claude API:', error instanceof Error ? error.message : String(error));
-          return NextResponse.json({ error: 'Error from Claude API' }, { status: 400 });
-        }
-        break;
-
-      case 'GROQ':
-        const groq = new Groq({ apiKey: decryptedApiKey });
-        const groqResponse = await groq.chat.completions.create({
-          messages: [{ role: 'user', content: input }],
-          model: selectedModel
         });
-
-        result = groqResponse.choices[0]?.message?.content || "";
-        creditsUsed = (groqResponse.usage?.total_tokens ?? 0) * creditPricePerToken;
-        break;
-
-      case 'GEMINI':
-        const genAI = new GoogleGenerativeAI(decryptedApiKey);
-        const geminiModel = genAI.getGenerativeModel({ model: selectedModel });
-        
-        let geminiInput;
-        if (imageUrl) {
-          const imageResponse = await fetch(imageUrl);
-          const imageData = await imageResponse.arrayBuffer();
-          geminiInput = [
-            input,
-            {
-              inlineData: {
-                data: Buffer.from(imageData).toString('base64'),
-                mimeType: imageResponse.headers.get('content-type') || 'image/jpeg'
-              }
-            }
-          ];
-        } else {
-          geminiInput = input;
-        }
-        
-        // Generate content
-        const geminiResult = await geminiModel.generateContent(geminiInput);
-        const geminiResponse = await geminiResult.response;
-        
-        result = geminiResponse.text();
-        creditsUsed = (await geminiModel.countTokens(input)).totalTokens * creditPricePerToken;
-        break;
-
-      case 'STRATICO':
-        const straticoUrl = 'https://api.stratico.com/v1/chat/completions';
-        const straticoHeaders = {
-          'Authorization': `Bearer ${decryptedApiKey}`,
-          'Content-Type': 'application/json'
-        };
-        const straticoPayload = {
-          model: selectedModel || 'gpt-3.5-turbo', // Use default model if not specified
-          messages: [{ role: 'user', content: input }]
-        };
-
-        if (imageUrl) {
-          straticoPayload.messages[0].content = [
-            { type: 'text', text: input },
-            { type: 'image_url', image_url: { url: imageUrl } }
-          ];
-        }
-
-        try {
-          const straticoResponse = await axios.post(straticoUrl, straticoPayload, { headers: straticoHeaders });
-          
-          if (straticoResponse.data.choices && straticoResponse.data.choices.length > 0) {
-            result = straticoResponse.data.choices[0].message.content;
-          } else if (straticoResponse.data.content) {
-            // Fallback in case the response structure is different
-            result = straticoResponse.data.content;
-          } else {
-            throw new Error('Unexpected response structure from Stratico API');
-          }
-
-          // Calculate credits used, fallback to a default if usage is not provided
-          creditsUsed = (straticoResponse.data.usage?.total_tokens || 0) * creditPricePerToken;
-          if (creditsUsed === 0) {
-            // If usage is not provided, estimate based on input and output length
-            const inputTokens = input.length / 4; // Rough estimate
-            const outputTokens = result.length / 4; // Rough estimate
-            creditsUsed = (inputTokens + outputTokens) * creditPricePerToken;
-          }
-        } catch (error) {
-          console.error('Error from Stratico API:', error);
-          return NextResponse.json({ error: 'Error from Stratico API' }, { status: 400 });
-        }
-        break;
-
-      default:
-        console.error('Unsupported model:', model);
-        return NextResponse.json({ error: 'Unsupported model' }, { status: 400 });
+      }
     }
 
+    // === Build messages array (supports text + images) ===
+    let messageContent: MessageContent;
+    
+    if (imageUrl) {
+      // Multi-modal: text + image
+      const base64Image = await fetchImageAsBase64(imageUrl);
+      messageContent = [
+        { type: 'text', text: input },
+        { type: 'image', image: base64Image }
+      ];
+    } else {
+      // Text only
+      messageContent = input;
+    }
+    
+    const messages = [{ role: 'user' as const, content: messageContent }];
+
+    // === Generate response using AI SDK ===
+    const { text, usage } = await generateText({
+      model: getModel(model as AIProvider, selectedModel, apiKey),
+      system: systemPrompt,
+      messages,
+      maxOutputTokens: 4000,
+    });
+
+    // Calculate credits used (AI SDK v6 uses inputTokens/outputTokens)
+    const inputTokens = usage?.inputTokens || 0;
+    const outputTokens = usage?.outputTokens || 0;
+    const totalTokens = inputTokens + outputTokens;
+    const creditsUsed = totalTokens * creditPricePerToken;
+
+    // === Store in cache (for text-only queries) ===
+    if (canCache && cacheKey) {
+      await setCache(cacheKey, selectedModel, cacheKey.slice(0, 16), text, totalTokens);
+    }
+
+    // Log credit usage
     await supabaseAdmin.from('credit_usage').insert({
       user_id: actualUserId,
       model: model,
       credits_used: creditsUsed
     });
 
-    return NextResponse.json({ result, creditsUsed });
+    return NextResponse.json({ 
+      result: text, 
+      creditsUsed,
+      meta: {
+        taskType,
+        model: selectedModel,
+        cached: false,
+        tokens: {
+          input: inputTokens,
+          output: outputTokens,
+          total: totalTokens
+        }
+      }
+    });
+
   } catch (error: unknown) {
     console.error('Error processing request:', error instanceof Error ? error.message : String(error));
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    
+    // Provide more helpful error messages
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    const status = errorMessage.includes('API key') ? 401 : 
+                   errorMessage.includes('not found') ? 404 : 500;
+    
+    return NextResponse.json({ error: errorMessage }, { status });
   }
 }
