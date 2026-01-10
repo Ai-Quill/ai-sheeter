@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   const { name, email, message } = await request.json();
 
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('contact_submissions')
       .insert([{ name, email, message }]);
 
