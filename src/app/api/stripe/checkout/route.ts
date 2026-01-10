@@ -79,8 +79,9 @@ export async function POST(req: Request): Promise<Response> {
           quantity: 1
         }
       ],
-      success_url: `${appUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/pricing`,
+      // Redirect to home with status params (no dedicated pages exist)
+      success_url: `${appUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}?checkout=cancelled`,
       metadata: {
         user_id: user?.id || userId,
         tier: tier

@@ -38,9 +38,10 @@ export async function POST(req: Request): Promise<Response> {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aisheet.vercel.app';
 
     // Create portal session
+    // Note: Settings are managed in Google Sheets sidebar, redirect to home
     const session = await stripe.billingPortal.sessions.create({
       customer: user.stripe_customer_id,
-      return_url: `${appUrl}/settings`
+      return_url: appUrl
     });
 
     return NextResponse.json({ portalUrl: session.url });
