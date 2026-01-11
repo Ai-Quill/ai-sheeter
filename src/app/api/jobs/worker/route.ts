@@ -242,12 +242,46 @@ async function markJobFailed(jobId: string, errorMessage: string): Promise<void>
 // GET - Triggered by Vercel cron to process jobs
 export async function GET(req: Request): Promise<Response> {
   try {
+    // First, reset any stale 'processing' jobs back to 'queued'
+    // Jobs stuck for more than 5 minutes are considered stale (Vercel timeout is 60s)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    
+    // Find stale jobs first
+    const { data: staleJobs } = await supabaseAdmin
+      .from('jobs')
+      .select('id, retry_count')
+      .eq('status', 'processing')
+      .lt('started_at', fiveMinutesAgo)
+      .lte('retry_count', 3);  // Max 3 retries
+    
+    // Reset each stale job individually (to increment retry_count)
+    if (staleJobs && staleJobs.length > 0) {
+      for (const staleJob of staleJobs) {
+        await supabaseAdmin
+          .from('jobs')
+          .update({ 
+            status: 'queued',
+            started_at: null,
+            retry_count: (staleJob.retry_count || 0) + 1
+          })
+          .eq('id', staleJob.id);
+      }
+      console.log(`Reset ${staleJobs.length} stale jobs: ${staleJobs.map(j => j.id).join(', ')}`);
+    }
+    
     // Get next queued job using atomic lock
-    const { data: jobId } = await supabaseAdmin.rpc('get_next_job');
+    const { data: jobId, error: rpcError } = await supabaseAdmin.rpc('get_next_job');
+    
+    if (rpcError) {
+      console.error('get_next_job RPC error:', rpcError);
+      return NextResponse.json({ error: 'Failed to get next job', details: rpcError.message }, { status: 500 });
+    }
     
     if (!jobId) {
-      return NextResponse.json({ message: 'No jobs queued' });
+      return NextResponse.json({ message: 'No jobs queued', staleJobsReset: staleJobs?.length || 0 });
     }
+
+    console.log(`[Worker] Processing job: ${jobId}`);
 
     // Fetch full job data
     const { data: job, error: jobError } = await supabaseAdmin
@@ -257,8 +291,11 @@ export async function GET(req: Request): Promise<Response> {
       .single();
 
     if (jobError || !job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      console.error('[Worker] Job fetch error:', jobError);
+      return NextResponse.json({ error: 'Job not found', jobId }, { status: 404 });
     }
+    
+    console.log(`[Worker] Job ${jobId}: ${job.total_rows} rows, model: ${job.config?.model}`);
 
     const config: JobConfig = job.config;
     const inputs: InputRow[] = job.input_data;
