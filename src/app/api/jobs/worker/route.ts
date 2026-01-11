@@ -241,10 +241,14 @@ async function markJobFailed(jobId: string, errorMessage: string): Promise<void>
 
 // GET - Triggered by Vercel cron to process jobs
 export async function GET(req: Request): Promise<Response> {
+  const startTime = Date.now();
+  console.log('[Worker] Starting job processing...');
+  
   try {
     // First, reset any stale 'processing' jobs back to 'queued'
     // Jobs stuck for more than 5 minutes are considered stale (Vercel timeout is 60s)
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    console.log('[Worker] Checking for stale jobs older than:', fiveMinutesAgo);
     
     // Find stale jobs first
     const { data: staleJobs } = await supabaseAdmin
@@ -278,7 +282,13 @@ export async function GET(req: Request): Promise<Response> {
     }
     
     if (!jobId) {
-      return NextResponse.json({ message: 'No jobs queued', staleJobsReset: staleJobs?.length || 0 });
+      const elapsed = Date.now() - startTime;
+      console.log(`[Worker] No jobs queued. Elapsed: ${elapsed}ms`);
+      return NextResponse.json({ 
+        message: 'No jobs queued', 
+        staleJobsReset: staleJobs?.length || 0,
+        elapsedMs: elapsed 
+      });
     }
 
     console.log(`[Worker] Processing job: ${jobId}`);
@@ -295,7 +305,7 @@ export async function GET(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'Job not found', jobId }, { status: 404 });
     }
     
-    console.log(`[Worker] Job ${jobId}: ${job.total_rows} rows, model: ${job.config?.model}`);
+    console.log(`[Worker] Job ${jobId}: ${job.total_rows} rows, model: ${job.config?.model}, prompt: ${job.config?.prompt?.substring(0, 50)}...`);
 
     const config: JobConfig = job.config;
     const inputs: InputRow[] = job.input_data;
@@ -405,6 +415,7 @@ export async function GET(req: Request): Promise<Response> {
     }
 
     // Mark job as completed
+    console.log(`[Worker] Job ${jobId} completing: ${processedCount} rows processed, ${totalTokens} tokens`);
     await supabaseAdmin
       .from('jobs')
       .update({
@@ -430,17 +441,23 @@ export async function GET(req: Request): Promise<Response> {
       is_cached: false
     });
 
+    const elapsed = Date.now() - startTime;
+    console.log(`[Worker] Job ${jobId} completed in ${elapsed}ms`);
+    
     return NextResponse.json({ 
       jobId,
       status: 'completed',
       processedRows: processedCount,
-      totalTokens
+      totalTokens,
+      elapsedMs: elapsed
     });
 
   } catch (error) {
-    console.error('Worker error:', error);
+    const elapsed = Date.now() - startTime;
+    console.error('[Worker] Error after', elapsed, 'ms:', error);
     return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Worker failed' 
+      error: error instanceof Error ? error.message : 'Worker failed',
+      elapsedMs: elapsed
     }, { status: 500 });
   }
 }
