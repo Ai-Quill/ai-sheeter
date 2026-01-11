@@ -4,5 +4,13 @@
       "path": "/api/jobs/worker",
       "schedule": "* * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/jobs/worker/route.ts": {
+      "maxDuration": 300
+    },
+    "api/jobs/stream/route.ts": {
+      "maxDuration": 300
+    }
+  }
 }

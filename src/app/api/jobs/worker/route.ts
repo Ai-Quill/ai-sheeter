@@ -2,16 +2,22 @@
  * Job Worker - Processes queued async jobs
  * 
  * Triggered by:
- * - Vercel Cron (every minute)
+ * - Vercel Cron (configurable frequency)
  * - Manual POST request (for testing)
  * 
  * Flow:
- * 1. Pick next queued job (with locking)
- * 2. Process each input row
- * 3. Update progress/results in real-time
- * 4. Mark complete/failed
+ * 1. Claim multiple jobs atomically (parallel processing)
+ * 2. Process all jobs concurrently with Promise.allSettled
+ * 3. Each job processes rows in batches
+ * 4. Update progress/results in real-time via Supabase
+ * 
+ * Performance (Vercel Pro + Supabase Pro):
+ * - PARALLEL_JOBS: Process up to 5 jobs simultaneously
+ * - BATCH_SIZE: 10-15 rows per API call
+ * - Cron frequency: Every 10 seconds recommended
  * 
  * @see vercel.json for cron config
+ * @version 2.0.0 - Parallel job processing
  */
 
 import { NextResponse } from 'next/server';
@@ -308,60 +314,31 @@ async function markJobFailed(jobId: string, errorMessage: string): Promise<void>
     .eq('id', jobId);
 }
 
-// GET - Triggered by Vercel cron to process jobs
-export async function GET(req: Request): Promise<Response> {
-  const startTime = Date.now();
-  console.log('[Worker] Starting job processing...');
+// ============================================
+// PARALLEL JOB PROCESSING (Vercel Pro)
+// ============================================
+
+// Configuration for Pro environments
+const PARALLEL_JOBS = 5;  // Process up to 5 jobs simultaneously
+const BATCH_SIZE = 12;    // Rows per AI call (optimized for Pro)
+
+interface JobResult {
+  jobId: string;
+  status: 'completed' | 'failed';
+  processedRows: number;
+  totalTokens: number;
+  elapsedMs: number;
+  error?: string;
+}
+
+/**
+ * Process a single job completely
+ * Extracted for parallel execution
+ */
+async function processJob(jobId: string): Promise<JobResult> {
+  const jobStartTime = Date.now();
   
   try {
-    // First, reset any stale 'processing' jobs back to 'queued'
-    // Jobs stuck for more than 5 minutes are considered stale (Vercel timeout is 60s)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    console.log('[Worker] Checking for stale jobs older than:', fiveMinutesAgo);
-    
-    // Find stale jobs first
-    const { data: staleJobs } = await supabaseAdmin
-      .from('jobs')
-      .select('id, retry_count')
-      .eq('status', 'processing')
-      .lt('started_at', fiveMinutesAgo)
-      .lte('retry_count', 3);  // Max 3 retries
-    
-    // Reset each stale job individually (to increment retry_count)
-    if (staleJobs && staleJobs.length > 0) {
-      for (const staleJob of staleJobs) {
-        await supabaseAdmin
-          .from('jobs')
-          .update({ 
-            status: 'queued',
-            started_at: null,
-            retry_count: (staleJob.retry_count || 0) + 1
-          })
-          .eq('id', staleJob.id);
-      }
-      console.log(`Reset ${staleJobs.length} stale jobs: ${staleJobs.map(j => j.id).join(', ')}`);
-    }
-    
-    // Get next queued job using atomic lock
-    const { data: jobId, error: rpcError } = await supabaseAdmin.rpc('get_next_job');
-    
-    if (rpcError) {
-      console.error('get_next_job RPC error:', rpcError);
-      return NextResponse.json({ error: 'Failed to get next job', details: rpcError.message }, { status: 500 });
-    }
-    
-    if (!jobId) {
-      const elapsed = Date.now() - startTime;
-      console.log(`[Worker] No jobs queued. Elapsed: ${elapsed}ms`);
-      return NextResponse.json({ 
-        message: 'No jobs queued', 
-        staleJobsReset: staleJobs?.length || 0,
-        elapsedMs: elapsed 
-      });
-    }
-
-    console.log(`[Worker] Processing job: ${jobId}`);
-
     // Fetch full job data
     const { data: job, error: jobError } = await supabaseAdmin
       .from('jobs')
@@ -370,11 +347,17 @@ export async function GET(req: Request): Promise<Response> {
       .single();
 
     if (jobError || !job) {
-      console.error('[Worker] Job fetch error:', jobError);
-      return NextResponse.json({ error: 'Job not found', jobId }, { status: 404 });
+      return { 
+        jobId, 
+        status: 'failed', 
+        processedRows: 0, 
+        totalTokens: 0, 
+        elapsedMs: Date.now() - jobStartTime,
+        error: 'Job not found' 
+      };
     }
     
-    console.log(`[Worker] Job ${jobId}: ${job.total_rows} rows, model: ${job.config?.model}, prompt: ${job.config?.prompt?.substring(0, 50)}...`);
+    console.log(`[Worker] Job ${jobId}: ${job.total_rows} rows, model: ${job.config?.model}`);
 
     const config: JobConfig = job.config;
     const inputs: InputRow[] = job.input_data;
@@ -384,7 +367,14 @@ export async function GET(req: Request): Promise<Response> {
     const apiKey = decryptApiKey(config.encryptedApiKey);
     if (!apiKey) {
       await markJobFailed(jobId, 'Invalid API key');
-      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
+      return { 
+        jobId, 
+        status: 'failed', 
+        processedRows: 0, 
+        totalTokens: 0, 
+        elapsedMs: Date.now() - jobStartTime,
+        error: 'Invalid API key' 
+      };
     }
 
     // Get system prompt
@@ -396,14 +386,13 @@ export async function GET(req: Request): Promise<Response> {
     // Filter out already processed rows
     const pendingInputs = inputs.filter(row => !results.some(r => r.index === row.index));
     
-    // Use batch processing for efficiency (process multiple items per API call)
-    const BATCH_SIZE = 10;  // Process up to 10 items per API call
+    // Create batches
     const batches: InputRow[][] = [];
     for (let i = 0; i < pendingInputs.length; i += BATCH_SIZE) {
       batches.push(pendingInputs.slice(i, i + BATCH_SIZE));
     }
     
-    console.log(`[Worker] Processing ${pendingInputs.length} items in ${batches.length} batch(es)`);
+    console.log(`[Worker] Job ${jobId}: Processing ${pendingInputs.length} items in ${batches.length} batch(es)`);
     
     for (const batch of batches) {
       // Check if job was cancelled
@@ -414,7 +403,14 @@ export async function GET(req: Request): Promise<Response> {
         .single();
       
       if (checkJob?.status === 'cancelled') {
-        return NextResponse.json({ message: 'Job cancelled', processedCount });
+        return { 
+          jobId, 
+          status: 'failed', 
+          processedRows: processedCount, 
+          totalTokens, 
+          elapsedMs: Date.now() - jobStartTime,
+          error: 'Job cancelled' 
+        };
       }
 
       try {
@@ -426,7 +422,7 @@ export async function GET(req: Request): Promise<Response> {
           model: getModel(config.model, config.specificModel, apiKey),
           system: systemPrompt + '\n\nIMPORTANT: Process each numbered item and return results in the same numbered format. Each result should be on its own line starting with the number.',
           messages: [{ role: 'user', content: batchPrompt }],
-          maxOutputTokens: 4000,  // Larger for batch output
+          maxOutputTokens: 4000,
         });
 
         const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
@@ -457,7 +453,7 @@ export async function GET(req: Request): Promise<Response> {
           .eq('id', jobId);
 
       } catch (batchError) {
-        console.error('[Worker] Batch error, falling back to individual processing:', batchError);
+        console.error(`[Worker] Job ${jobId} batch error, fallback to individual:`, batchError);
         
         // Fallback: process items individually if batch fails
         for (const row of batch) {
@@ -511,7 +507,7 @@ export async function GET(req: Request): Promise<Response> {
     }
 
     // Mark job as completed
-    console.log(`[Worker] Job ${jobId} completing: ${processedCount} rows processed, ${totalTokens} tokens`);
+    console.log(`[Worker] Job ${jobId} completing: ${processedCount} rows, ${totalTokens} tokens`);
     await supabaseAdmin
       .from('jobs')
       .update({
@@ -537,15 +533,128 @@ export async function GET(req: Request): Promise<Response> {
       is_cached: false
     });
 
-    const elapsed = Date.now() - startTime;
-    console.log(`[Worker] Job ${jobId} completed in ${elapsed}ms`);
-    
-    return NextResponse.json({ 
+    return {
       jobId,
       status: 'completed',
       processedRows: processedCount,
       totalTokens,
-      elapsedMs: elapsed
+      elapsedMs: Date.now() - jobStartTime
+    };
+
+  } catch (error) {
+    console.error(`[Worker] Job ${jobId} failed:`, error);
+    await markJobFailed(jobId, error instanceof Error ? error.message : 'Unknown error');
+    return {
+      jobId,
+      status: 'failed',
+      processedRows: 0,
+      totalTokens: 0,
+      elapsedMs: Date.now() - jobStartTime,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+// GET - Triggered by Vercel cron to process jobs (PARALLEL)
+export async function GET(req: Request): Promise<Response> {
+  const startTime = Date.now();
+  console.log('[Worker] Starting parallel job processing...');
+  
+  try {
+    // First, reset any stale 'processing' jobs back to 'queued'
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    console.log('[Worker] Checking for stale jobs older than:', fiveMinutesAgo);
+    
+    const { data: staleJobs } = await supabaseAdmin
+      .from('jobs')
+      .select('id, retry_count')
+      .eq('status', 'processing')
+      .lt('started_at', fiveMinutesAgo)
+      .lte('retry_count', 3);
+    
+    if (staleJobs && staleJobs.length > 0) {
+      await Promise.all(staleJobs.map(staleJob => 
+        supabaseAdmin
+          .from('jobs')
+          .update({ 
+            status: 'queued',
+            started_at: null,
+            retry_count: (staleJob.retry_count || 0) + 1
+          })
+          .eq('id', staleJob.id)
+      ));
+      console.log(`[Worker] Reset ${staleJobs.length} stale jobs`);
+    }
+    
+    // Try to get multiple jobs using the new function
+    // Falls back to single job if get_next_jobs doesn't exist
+    let jobIds: string[] = [];
+    
+    const { data: multiJobData, error: multiJobError } = await supabaseAdmin.rpc('get_next_jobs', { p_limit: PARALLEL_JOBS });
+    
+    if (!multiJobError && multiJobData && multiJobData.length > 0) {
+      jobIds = multiJobData.map((j: { job_id: string }) => j.job_id);
+    } else {
+      // Fallback to single job processing
+      const { data: singleJobId } = await supabaseAdmin.rpc('get_next_job');
+      if (singleJobId) {
+        jobIds = [singleJobId];
+      }
+    }
+    
+    if (jobIds.length === 0) {
+      const elapsed = Date.now() - startTime;
+      console.log(`[Worker] No jobs queued. Elapsed: ${elapsed}ms`);
+      return NextResponse.json({ 
+        message: 'No jobs queued', 
+        staleJobsReset: staleJobs?.length || 0,
+        elapsedMs: elapsed 
+      });
+    }
+
+    console.log(`[Worker] Processing ${jobIds.length} job(s) in parallel: ${jobIds.join(', ')}`);
+
+    // Process all jobs in parallel
+    const jobResults = await Promise.allSettled(
+      jobIds.map(jobId => processJob(jobId))
+    );
+
+    // Aggregate results
+    const completed: JobResult[] = [];
+    const failed: JobResult[] = [];
+    let totalProcessed = 0;
+    let totalTokensAll = 0;
+
+    for (const result of jobResults) {
+      if (result.status === 'fulfilled') {
+        const jobResult = result.value;
+        if (jobResult.status === 'completed') {
+          completed.push(jobResult);
+        } else {
+          failed.push(jobResult);
+        }
+        totalProcessed += jobResult.processedRows;
+        totalTokensAll += jobResult.totalTokens;
+      } else {
+        // Promise rejected - should not happen as processJob catches errors
+        console.error('[Worker] Unexpected promise rejection:', result.reason);
+      }
+    }
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[Worker] Completed ${completed.length}/${jobIds.length} jobs in ${elapsed}ms`);
+    console.log(`[Worker] Total: ${totalProcessed} rows, ${totalTokensAll} tokens`);
+    
+    return NextResponse.json({ 
+      message: `Processed ${jobIds.length} job(s) in parallel`,
+      jobsProcessed: jobIds.length,
+      completed: completed.length,
+      failed: failed.length,
+      totalRowsProcessed: totalProcessed,
+      totalTokens: totalTokensAll,
+      staleJobsReset: staleJobs?.length || 0,
+      elapsedMs: elapsed,
+      jobs: [...completed, ...failed]
     });
 
   } catch (error) {
