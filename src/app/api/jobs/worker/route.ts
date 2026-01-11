@@ -55,6 +55,75 @@ function verifyCronSecret(req: Request): boolean {
   return authHeader === `Bearer ${cronSecret}`;
 }
 
+// Create a batched prompt for multiple inputs
+function createBatchPrompt(promptTemplate: string, batch: InputRow[]): string {
+  const lines = batch.map((row, i) => `${i + 1}. ${row.input}`).join('\n');
+  
+  if (promptTemplate && (promptTemplate.includes('{input}') || promptTemplate.includes('{{input}}'))) {
+    // Template-based prompt
+    const instruction = promptTemplate
+      .replace('{input}', '')
+      .replace('{{input}}', '')
+      .trim();
+    return `${instruction}\n\nProcess each item below and return results in the same numbered format:\n\n${lines}`;
+  }
+  
+  return `Process each item below and return results in the same numbered format:\n\n${lines}`;
+}
+
+// Parse batched response back into individual results
+function parseBatchResponse(response: string, batch: InputRow[]): Array<{index: number; input: string; output: string}> {
+  const results: Array<{index: number; input: string; output: string}> = [];
+  const lines = response.split('\n').filter(l => l.trim());
+  
+  // Try to match numbered responses
+  const numberedPattern = /^(\d+)[.\):\s]+(.+)$/;
+  const parsedLines: Map<number, string> = new Map();
+  
+  let currentNum = 0;
+  let currentContent = '';
+  
+  for (const line of lines) {
+    const match = line.match(numberedPattern);
+    if (match) {
+      // Save previous if exists
+      if (currentNum > 0 && currentContent) {
+        parsedLines.set(currentNum, currentContent.trim());
+      }
+      currentNum = parseInt(match[1], 10);
+      currentContent = match[2];
+    } else if (currentNum > 0) {
+      // Continue previous numbered item
+      currentContent += ' ' + line.trim();
+    }
+  }
+  
+  // Save last item
+  if (currentNum > 0 && currentContent) {
+    parsedLines.set(currentNum, currentContent.trim());
+  }
+  
+  // Map back to batch items
+  for (let i = 0; i < batch.length; i++) {
+    const row = batch[i];
+    const output = parsedLines.get(i + 1) || '';
+    results.push({
+      index: row.index,
+      input: row.input,
+      output
+    });
+  }
+  
+  // Fallback: if no numbered responses found, try splitting by lines
+  if (results.every(r => !r.output) && lines.length >= batch.length) {
+    for (let i = 0; i < batch.length; i++) {
+      results[i].output = lines[i]?.trim() || '';
+    }
+  }
+  
+  return results;
+}
+
 export async function POST(req: Request): Promise<Response> {
   // Verify this is a legitimate cron/worker call
   if (!verifyCronSecret(req)) {
@@ -324,11 +393,19 @@ export async function GET(req: Request): Promise<Response> {
     let totalTokens = 0;
     let processedCount = job.processed_rows || 0;
 
-    // Process each input row
-    for (const row of inputs) {
-      // Skip already processed rows (for resume after failure)
-      if (results.some(r => r.index === row.index)) continue;
-
+    // Filter out already processed rows
+    const pendingInputs = inputs.filter(row => !results.some(r => r.index === row.index));
+    
+    // Use batch processing for efficiency (process multiple items per API call)
+    const BATCH_SIZE = 10;  // Process up to 10 items per API call
+    const batches: InputRow[][] = [];
+    for (let i = 0; i < pendingInputs.length; i += BATCH_SIZE) {
+      batches.push(pendingInputs.slice(i, i + BATCH_SIZE));
+    }
+    
+    console.log(`[Worker] Processing ${pendingInputs.length} items in ${batches.length} batch(es)`);
+    
+    for (const batch of batches) {
       // Check if job was cancelled
       const { data: checkJob } = await supabaseAdmin
         .from('jobs')
@@ -341,76 +418,95 @@ export async function GET(req: Request): Promise<Response> {
       }
 
       try {
-        // Apply prompt template if provided
-        const userInput = config.prompt 
-          ? config.prompt.replace('{input}', row.input)
-          : row.input;
-
-        // Check cache first
-        const cacheKey = generateCacheKey(config.specificModel, systemPrompt, userInput);
-        const cacheResult = await getFromCache(cacheKey);
-
-        let output: string;
-        let tokens: number;
-        let cached: boolean;
-
-        if (cacheResult.cached) {
-          output = cacheResult.response;
-          tokens = cacheResult.tokensUsed;
-          cached = true;
-        } else {
-          // Call AI
-          const { text, usage } = await generateText({
-            model: getModel(config.model, config.specificModel, apiKey),
-            system: systemPrompt,
-            messages: [{ role: 'user', content: userInput }],
-            maxOutputTokens: 2000,
-          });
-
-          output = text;
-          tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
-          cached = false;
-
-          // Store in cache
-          await setCache(cacheKey, config.specificModel, cacheKey.slice(0, 16), text, tokens);
-        }
-
-        results.push({
-          index: row.index,
-          input: row.input,
-          output,
-          tokens,
-          cached
+        // Create batched prompt
+        const batchPrompt = createBatchPrompt(config.prompt || '', batch);
+        
+        // Call AI with batched prompt
+        const { text, usage } = await generateText({
+          model: getModel(config.model, config.specificModel, apiKey),
+          system: systemPrompt + '\n\nIMPORTANT: Process each numbered item and return results in the same numbered format. Each result should be on its own line starting with the number.',
+          messages: [{ role: 'user', content: batchPrompt }],
+          maxOutputTokens: 4000,  // Larger for batch output
         });
 
+        const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
         totalTokens += tokens;
-        processedCount++;
-
-        // Update progress every 5 rows or on completion
-        if (processedCount % 5 === 0 || processedCount === inputs.length) {
-          const progress = Math.round((processedCount / inputs.length) * 100);
-          await supabaseAdmin
-            .from('jobs')
-            .update({
-              progress,
-              processed_rows: processedCount,
-              results,
-              credits_used: Math.ceil(totalTokens * 0.001)
-            })
-            .eq('id', jobId);
+        
+        // Parse batch response
+        const batchResults = parseBatchResponse(text, batch);
+        
+        for (const result of batchResults) {
+          results.push({
+            ...result,
+            tokens: Math.ceil(tokens / batch.length),
+            cached: false
+          });
+          processedCount++;
         }
+        
+        // Update progress after each batch
+        const progress = Math.round((processedCount / inputs.length) * 100);
+        await supabaseAdmin
+          .from('jobs')
+          .update({
+            progress,
+            processed_rows: processedCount,
+            results,
+            credits_used: Math.ceil(totalTokens * 0.001)
+          })
+          .eq('id', jobId);
 
-      } catch (rowError) {
-        // Log row error but continue processing
-        results.push({
-          index: row.index,
-          input: row.input,
-          output: '',
-          tokens: 0,
-          cached: false,
-          error: rowError instanceof Error ? rowError.message : 'Processing failed'
-        });
-        processedCount++;
+      } catch (batchError) {
+        console.error('[Worker] Batch error, falling back to individual processing:', batchError);
+        
+        // Fallback: process items individually if batch fails
+        for (const row of batch) {
+          try {
+            const userInput = config.prompt 
+              ? config.prompt.replace('{input}', row.input).replace('{{input}}', row.input)
+              : row.input;
+
+            const { text, usage } = await generateText({
+              model: getModel(config.model, config.specificModel, apiKey),
+              system: systemPrompt,
+              messages: [{ role: 'user', content: userInput }],
+              maxOutputTokens: 2000,
+            });
+
+            const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
+            totalTokens += tokens;
+            
+            results.push({
+              index: row.index,
+              input: row.input,
+              output: text,
+              tokens,
+              cached: false
+            });
+          } catch (rowError) {
+            results.push({
+              index: row.index,
+              input: row.input,
+              output: '',
+              tokens: 0,
+              cached: false,
+              error: rowError instanceof Error ? rowError.message : 'Processing failed'
+            });
+          }
+          processedCount++;
+        }
+        
+        // Update progress
+        const progress = Math.round((processedCount / inputs.length) * 100);
+        await supabaseAdmin
+          .from('jobs')
+          .update({
+            progress,
+            processed_rows: processedCount,
+            results,
+            credits_used: Math.ceil(totalTokens * 0.001)
+          })
+          .eq('id', jobId);
       }
     }
 
