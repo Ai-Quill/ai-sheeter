@@ -1,8 +1,8 @@
 /**
  * @file route.ts
  * @path /api/agent/parse
- * @version 2.0.0
- * @updated 2026-01-10
+ * @version 2.1.0
+ * @updated 2026-01-11
  * 
  * AI-Powered Command Parsing with Structured Output
  * 
@@ -59,25 +59,38 @@ type ParsedPlan = z.infer<typeof ParsedPlanSchema>;
 // ============================================
 
 const SYSTEM_PROMPT = `You are a command parser for a Google Sheets AI assistant.
-Your job is to extract structured information from natural language commands.
+Your job is to extract structured information from natural language commands and create executable prompts.
 
 The user wants to process data in a spreadsheet. Parse their command into a structured plan.
 
 Guidelines:
-1. taskType: Identify the task (translate, summarize, extract, classify, generate, clean, rewrite, or custom)
-2. inputRange: Extract cell range like "A2:A100". Set to null if not mentioned.
-3. outputColumns: Extract output column letters like ["B", "C"]. Empty array if not specified.
-4. prompt: Create the actual instruction to run on each cell
-5. summary: Write a clear human-readable summary
-6. confidence: 'high' if everything is explicit, 'medium' if you inferred something, 'low' if major ambiguity
+1. taskType: Identify the task type:
+   - translate, summarize, extract, classify, generate, clean, rewrite (for standard tasks)
+   - custom (for calculations, conversions, date operations, formatting, or anything else)
+   
+2. inputRange: Extract cell range like "A2:A100". If user says "column B", infer the range from context.
 
-If the command is too ambiguous (no input range AND unclear task), set success=false and plan=null.
-Provide clarification with a helpful question and example suggestions.
+3. outputColumns: Extract output column letters like ["B", "C"]. If not specified, use the next column after input.
 
-Examples of good commands:
-- "Translate A2:A50 to Spanish in B" → high confidence, all fields clear
-- "Summarize column A to B" → medium confidence (inferred "A:A" range)
-- "Make my data better" → low confidence, needs clarification`;
+4. prompt: CRITICAL - Create a specific, actionable instruction for the AI to run on each cell's data.
+   For custom tasks, be creative and specific:
+   - "Calculate employee seniority" → "Calculate years of employment from this start date to today. Return only the number of years (e.g., '5 years'):\\n\\nStart date: {{input}}"
+   - "Convert to uppercase" → "Convert this text to uppercase:\\n\\n{{input}}"
+   - "Calculate age from birthdate" → "Calculate the current age from this birthdate. Return just the age in years:\\n\\nBirthdate: {{input}}"
+   
+5. summary: Write a clear human-readable summary of what will happen
+
+6. confidence: 'high' if everything is explicit, 'medium' if you inferred something, 'low' if ambiguous
+
+IMPORTANT: Always generate a useful prompt, even for custom tasks. The prompt should be specific enough that an AI can execute it on each cell's data.
+
+If the command is truly unclear (no input AND no clear task), set success=false and ask for clarification.
+
+Examples:
+- "Calculate employee seniority on column B" → custom task, generate calculation prompt
+- "Translate A2:A50 to Spanish in B" → translate task, standard prompt
+- "Summarize column A to B" → summarize task, medium confidence
+- "Format dates in column A" → custom task, date formatting prompt`;
 
 // ============================================
 // API HANDLER
@@ -102,7 +115,22 @@ export async function POST(request: NextRequest) {
         contextInfo += `\nCurrently selected range: ${context.selectedRange}`;
       }
       if (context.headers && context.headers.length > 0) {
-        contextInfo += `\nSheet headers: ${context.headers.join(', ')}`;
+        const headerList = context.headers.map((h: { column: string; name: string }) => 
+          `${h.column}: "${h.name}"`
+        ).join(', ');
+        contextInfo += `\nSheet headers: ${headerList}`;
+      }
+      if (context.columnDataRanges) {
+        const ranges = Object.entries(context.columnDataRanges)
+          .filter(([_, data]: [string, any]) => data.hasData)
+          .map(([col, data]: [string, any]) => `${col}: ${data.range} (${data.rowCount} rows)`)
+          .join(', ');
+        if (ranges) {
+          contextInfo += `\nColumns with data: ${ranges}`;
+        }
+      }
+      if (context.contextDescription) {
+        contextInfo += `\n\nDetailed context:\n${context.contextDescription}`;
       }
     }
 
