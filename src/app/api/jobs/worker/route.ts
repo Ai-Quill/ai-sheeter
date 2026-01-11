@@ -28,6 +28,9 @@ import { getModel, type AIProvider } from '@/lib/ai/models';
 import { getSystemPrompt, type TaskType } from '@/lib/prompts';
 import { generateCacheKey, getFromCache, setCache } from '@/lib/cache';
 
+// Vercel Pro: Extended timeout for parallel job processing (5 min)
+export const maxDuration = 300;
+
 interface JobConfig {
   model: AIProvider;
   specificModel: string;
