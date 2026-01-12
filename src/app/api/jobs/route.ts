@@ -90,16 +90,18 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // Trigger worker immediately (fire-and-forget)
-    // This reduces latency vs waiting for cron
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    // Use production URL to ensure worker runs on correct deployment
+    // VERCEL_URL changes per deployment and may route to stale instances
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL 
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     
+    // Fire-and-forget with no-cache to bypass CDN
     fetch(`${baseUrl}/api/jobs/worker`, {
       method: 'GET',
-      headers: process.env.CRON_SECRET 
-        ? { 'Authorization': `Bearer ${process.env.CRON_SECRET}` }
-        : {}
+      headers: {
+        ...(process.env.CRON_SECRET ? { 'Authorization': `Bearer ${process.env.CRON_SECRET}` } : {}),
+        'Cache-Control': 'no-cache, no-store'
+      }
     }).catch(err => {
       // Silently ignore - cron will pick it up anyway
       console.log('[Jobs] Worker trigger (fire-and-forget) failed:', err.message);
