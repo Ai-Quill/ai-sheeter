@@ -96,9 +96,9 @@ const TASK_CONFIGS: Record<TaskType, TaskConfig> = {
     batchable: true,
     recommendedModel: 'fast',
     avgTokensPerRow: 35,
-    promptTemplate: '{calculation} {{input}}. Today: {today}. Format: {format}',
+    promptTemplate: 'Calculate {calculation} from date {{input}} to today ({today}). Reply with ONLY the result in format: {format}',
     formulaAlternative: '={formula}',
-    systemPromptAddition: 'Return only the calculated value in the specified format.',
+    systemPromptAddition: 'Return ONLY the calculated value. No explanations, no formulas, just the result.',
   },
   
   clean: {
@@ -246,48 +246,82 @@ interface FormulaPattern {
   taskMatch: RegExp;
   formula: string;
   description: string;
+  /** 
+   * Reliability level:
+   * - 'guaranteed': 100% safe, always works (text transforms)
+   * - 'conditional': Works if data is clean (dates, regex)
+   */
+  reliability: 'guaranteed' | 'conditional';
+  /** Warning to show user for conditional formulas */
+  warning?: string;
 }
 
 const FORMULA_PATTERNS: FormulaPattern[] = [
-  {
-    taskMatch: /seniority|years (of employment|since|working)/i,
-    formula: '=DATEDIF({input}, TODAY(), "Y") & " years, " & DATEDIF({input}, TODAY(), "YM") & " months"',
-    description: 'Calculate years and months since date',
-  },
-  {
-    taskMatch: /age from (birth|dob|date of birth)/i,
-    formula: '=DATEDIF({input}, TODAY(), "Y")',
-    description: 'Calculate age from birthdate',
-  },
+  // ============================================
+  // GUARANTEED: 100% safe, always works
+  // ============================================
   {
     taskMatch: /uppercase|upper case|to upper/i,
     formula: '=UPPER({input})',
     description: 'Convert to uppercase',
+    reliability: 'guaranteed',
   },
   {
     taskMatch: /lowercase|lower case|to lower/i,
     formula: '=LOWER({input})',
     description: 'Convert to lowercase',
+    reliability: 'guaranteed',
   },
   {
     taskMatch: /proper case|title case|capitalize/i,
     formula: '=PROPER({input})',
     description: 'Capitalize each word',
-  },
-  {
-    taskMatch: /extract email/i,
-    formula: '=REGEXEXTRACT({input}, "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")',
-    description: 'Extract email address',
-  },
-  {
-    taskMatch: /word count|count words/i,
-    formula: '=IF(LEN(TRIM({input}))=0, 0, LEN(TRIM({input}))-LEN(SUBSTITUTE({input}," ",""))+1)',
-    description: 'Count words in text',
+    reliability: 'guaranteed',
   },
   {
     taskMatch: /character count|count char|length/i,
     formula: '=LEN({input})',
     description: 'Count characters',
+    reliability: 'guaranteed',
+  },
+  {
+    taskMatch: /trim|remove spaces|clean spaces/i,
+    formula: '=TRIM({input})',
+    description: 'Remove extra spaces',
+    reliability: 'guaranteed',
+  },
+  
+  // ============================================
+  // CONDITIONAL: Works if data is clean
+  // Only suggest, don't auto-apply
+  // ============================================
+  {
+    taskMatch: /seniority|years (of employment|since|working)/i,
+    formula: '=DATEDIF({input}, TODAY(), "Y") & " years, " & DATEDIF({input}, TODAY(), "YM") & " months"',
+    description: 'Calculate years and months since date',
+    reliability: 'conditional',
+    warning: 'Requires valid date format. May fail on inconsistent dates.',
+  },
+  {
+    taskMatch: /age from (birth|dob|date of birth)/i,
+    formula: '=DATEDIF({input}, TODAY(), "Y")',
+    description: 'Calculate age from birthdate',
+    reliability: 'conditional',
+    warning: 'Requires valid date format.',
+  },
+  {
+    taskMatch: /extract email/i,
+    formula: '=REGEXEXTRACT({input}, "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")',
+    description: 'Extract email address',
+    reliability: 'conditional',
+    warning: 'Returns #N/A if no email found in cell.',
+  },
+  {
+    taskMatch: /word count|count words/i,
+    formula: '=IF(LEN(TRIM({input}))=0, 0, LEN(TRIM({input}))-LEN(SUBSTITUTE({input}," ",""))+1)',
+    description: 'Count words in text',
+    reliability: 'conditional',
+    warning: 'Empty cells return 0.',
   },
 ];
 
@@ -303,6 +337,9 @@ export interface DetectedTask {
   formulaAlternative?: {
     formula: string;
     description: string;
+    /** 'guaranteed' = 100% safe, 'conditional' = may fail on bad data */
+    reliability: 'guaranteed' | 'conditional';
+    warning?: string;
   };
 }
 
@@ -344,6 +381,8 @@ export function detectTaskType(command: string): DetectedTask {
       formulaAlternative = {
         formula: fp.formula,
         description: fp.description,
+        reliability: fp.reliability,
+        warning: fp.warning,
       };
       break;
     }
@@ -400,14 +439,24 @@ export function buildOptimizedPrompt(
       break;
       
     case 'calculate':
+      // For calculate tasks, ensure we have good defaults
       if (!extractedParams.calculation) {
-        prompt = `${command}. Input: {{input}}`;
-        if (context?.today) {
-          prompt += `. Today: ${context.today}`;
-        }
+        // Extract what we're calculating from the command
+        const calcMatch = command.match(/(seniority|age|years|months|days|difference)/i);
+        extractedParams.calculation = calcMatch?.[1] || 'time';
       }
+      
+      // Set default format if not specified
       if (!extractedParams.format) {
         prompt = prompt.replace('{format}', 'X years, Y months');
+      }
+      
+      // Fill in calculation
+      prompt = prompt.replace('{calculation}', extractedParams.calculation);
+      
+      // Fill in today if available
+      if (context?.today) {
+        prompt = prompt.replace('{today}', context.today);
       }
       break;
       
@@ -423,8 +472,9 @@ export function buildOptimizedPrompt(
       break;
   }
   
-  // Clean up any remaining placeholders
-  prompt = prompt.replace(/\{[^}]+\}/g, '');
+  // Clean up any remaining single-brace placeholders (NOT double braces like {{input}})
+  // Use negative lookbehind/lookahead to avoid matching {{input}}
+  prompt = prompt.replace(/(?<!\{)\{[^{}]+\}(?!\})/g, '');
   
   return prompt.trim();
 }

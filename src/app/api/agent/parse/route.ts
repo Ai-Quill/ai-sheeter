@@ -162,53 +162,145 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // FAST PATH: Task Optimizer (no API call)
+    // TASK DETECTION
     // ============================================
     const detected = taskOptimizer.detectTaskType(command);
     console.log('Task detection:', detected.type, 'confidence:', detected.confidence);
     
-    // If high confidence detection, we can build plan locally without AI
-    if (detected.confidence === 'high' && context?.selectionInfo) {
-      const today = new Date().toISOString().split('T')[0];
-      const inputCol = context.selectionInfo.columnsWithData?.[0] || 
-                       context.selectionInfo.sourceColumn;
-      const outputCol = context.selectionInfo.emptyColumns?.[0]?.column ||
-                        (inputCol ? String.fromCharCode(inputCol.charCodeAt(0) + 1) : 'B');
-      const inputRange = context.columnDataRanges?.[inputCol]?.range;
-      const rowCount = context.columnDataRanges?.[inputCol]?.rowCount || 10;
+    // Get context info
+    const inputCol = context?.selectionInfo?.columnsWithData?.[0] || 
+                     context?.selectionInfo?.sourceColumn;
+    const outputCol = context?.selectionInfo?.emptyColumns?.[0]?.column ||
+                      (inputCol ? String.fromCharCode(inputCol.charCodeAt(0) + 1) : 'B');
+    const inputRange = context?.columnDataRanges?.[inputCol]?.range;
+    const rowCount = context?.columnDataRanges?.[inputCol]?.rowCount || 10;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // ============================================
+    // FORMULA PATH: Only for GUARANTEED reliability formulas
+    // ============================================
+    if (detected.formulaAlternative && inputCol && inputRange) {
+      const formula = detected.formulaAlternative;
+      const isGuaranteed = formula.reliability === 'guaranteed';
       
-      if (inputCol && inputRange) {
-        const optimizedPrompt = taskOptimizer.buildOptimizedPrompt(
-          command,
-          detected,
-          { headerName: context.headerRow?.[inputCol], today }
-        );
-        
-        const strategy = taskOptimizer.getProcessingStrategy(detected, rowCount);
-        
-        console.log('Fast path: Using task optimizer (no AI call)');
-        console.log('Optimized prompt:', optimizedPrompt);
+      console.log('🧮 Formula detected:', formula.description);
+      console.log('   Reliability:', formula.reliability);
+      
+      if (isGuaranteed) {
+        // 100% safe formula - offer as primary action
+        console.log('✅ Guaranteed formula - offering as primary action');
         
         return NextResponse.json({
           success: true,
+          useFormula: true,
+          formula: {
+            template: formula.formula,
+            description: formula.description,
+            reliability: formula.reliability,
+            inputColumn: inputCol,
+            outputColumn: outputCol,
+            startRow: parseInt(inputRange.match(/\d+/)?.[0] || '2'),
+            endRow: parseInt(inputRange.match(/:.*?(\d+)/)?.[1] || '100'),
+            rowCount,
+          },
+          plan: {
+            taskType: detected.type,
+            inputRange,
+            outputColumns: [outputCol],
+            prompt: taskOptimizer.buildOptimizedPrompt(command, detected, { today }),
+            summary: `${formula.description} (${inputRange} → ${outputCol})`,
+            confidence: 'high',
+          },
+          _meta: {
+            recommendation: 'formula',
+            reason: 'Formula is 100% reliable for this task - instant and free!',
+          },
+        });
+      } else {
+        // Conditional formula - use AI as default, show formula as option
+        console.log('⚠️ Conditional formula - using AI as default, formula as option');
+        
+        const optimizedPrompt = taskOptimizer.buildOptimizedPrompt(
+          command,
+          detected,
+          { headerName: context?.headerRow?.[inputCol], today }
+        );
+        const strategy = taskOptimizer.getProcessingStrategy(detected, rowCount);
+        
+        return NextResponse.json({
+          success: true,
+          useFormula: false, // AI is default for conditional formulas
           plan: {
             taskType: detected.type,
             inputRange,
             outputColumns: [outputCol],
             prompt: optimizedPrompt,
             summary: `${detected.type.charAt(0).toUpperCase() + detected.type.slice(1)} ${inputRange} → column ${outputCol}`,
-            confidence: detected.confidence,
+            confidence: 'high',
           },
-          // Include optimization hints for the worker
+          // Include formula as OPTION, not default
+          _formulaOption: {
+            template: formula.formula,
+            description: formula.description,
+            reliability: formula.reliability,
+            warning: formula.warning,
+            inputColumn: inputCol,
+            outputColumn: outputCol,
+            startRow: parseInt(inputRange.match(/\d+/)?.[0] || '2'),
+            endRow: parseInt(inputRange.match(/:.*?(\d+)/)?.[1] || '100'),
+            rowCount,
+          },
           _optimization: {
             batchable: strategy.batchable,
             recommendedBatchSize: strategy.recommendedBatchSize,
             estimatedTokens: strategy.estimatedTokensPerRow * rowCount,
             systemPromptAddition: strategy.systemPrompt,
-            formulaAlternative: detected.formulaAlternative,
+          },
+          _meta: {
+            recommendation: 'ai',
+            reason: `Formula available but ${formula.warning || 'may fail on some data'}. AI is more robust.`,
           },
         });
       }
+    }
+    
+    // ============================================
+    // FAST AI PATH: High confidence, no formula available
+    // ============================================
+    if (detected.confidence === 'high' && inputCol && inputRange) {
+      const optimizedPrompt = taskOptimizer.buildOptimizedPrompt(
+        command,
+        detected,
+        { headerName: context?.headerRow?.[inputCol], today }
+      );
+      
+      const strategy = taskOptimizer.getProcessingStrategy(detected, rowCount);
+      
+      console.log('⚡ Fast AI path: Using task optimizer (no API call for parsing)');
+      console.log('Optimized prompt:', optimizedPrompt);
+      
+      return NextResponse.json({
+        success: true,
+        useFormula: false,
+        plan: {
+          taskType: detected.type,
+          inputRange,
+          outputColumns: [outputCol],
+          prompt: optimizedPrompt,
+          summary: `${detected.type.charAt(0).toUpperCase() + detected.type.slice(1)} ${inputRange} → column ${outputCol}`,
+          confidence: detected.confidence,
+        },
+        _optimization: {
+          batchable: strategy.batchable,
+          recommendedBatchSize: strategy.recommendedBatchSize,
+          estimatedTokens: strategy.estimatedTokensPerRow * rowCount,
+          systemPromptAddition: strategy.systemPrompt,
+        },
+        _meta: {
+          recommendation: 'ai',
+          reason: 'No formula alternative available',
+        },
+      });
     }
 
     // ============================================
