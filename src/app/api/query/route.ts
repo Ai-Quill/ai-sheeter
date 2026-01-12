@@ -153,14 +153,14 @@ export async function POST(req: Request): Promise<Response> {
 
     // === Build messages array (supports text + images) ===
     let messageContent: MessageContent;
-    
-    if (imageUrl) {
+
+        if (imageUrl) {
       // Multi-modal: text + image
       const base64Image = await fetchImageAsBase64(imageUrl);
       messageContent = [
-        { type: 'text', text: input },
+            { type: 'text', text: input },
         { type: 'image', image: base64Image }
-      ];
+          ];
     } else {
       // Text only
       messageContent = input;

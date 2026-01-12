@@ -43,7 +43,7 @@
 
 /* Custom utilities */
 @utility text-balance {
-  text-wrap: balance;
+    text-wrap: balance;
 }
 
 /* Base layer: CSS variable definitions */

@@ -63,34 +63,66 @@ Your job is to extract structured information from natural language commands and
 
 The user wants to process data in a spreadsheet. Parse their command into a structured plan.
 
-Guidelines:
-1. taskType: Identify the task type:
+## Guidelines
+
+1. **taskType**: Identify the task type:
    - translate, summarize, extract, classify, generate, clean, rewrite (for standard tasks)
    - custom (for calculations, conversions, date operations, formatting, or anything else)
    
-2. inputRange: Extract cell range like "A2:A100". If user says "column B", infer the range from context.
+2. **inputRange**: Extract cell range like "A2:A100". 
+   - If user says "column B", infer the range from context.
+   - If AUTO-DETECTED context is provided, use the first column with data.
 
-3. outputColumns: Extract output column letters like ["B", "C"]. If not specified, use the next column after input.
+3. **outputColumns**: Extract output column letters like ["B", "C"]. 
+   - If not specified, use empty columns from context, or next column after input.
+   - Look at empty columns in context to suggest appropriate outputs.
 
-4. prompt: CRITICAL - Create a specific, actionable instruction for the AI to run on each cell's data.
-   For custom tasks, be creative and specific:
-   - "Calculate employee seniority" → "Calculate years of employment from this start date to today. Return only the number of years (e.g., '5 years'):\\n\\nStart date: {{input}}"
-   - "Convert to uppercase" → "Convert this text to uppercase:\\n\\n{{input}}"
-   - "Calculate age from birthdate" → "Calculate the current age from this birthdate. Return just the age in years:\\n\\nBirthdate: {{input}}"
+4. **prompt**: CRITICAL - Create a specific, actionable instruction for the AI to run on each cell's data.
+   - Look at the HEADER NAMES in context to understand what the data represents
+   - Use {{input}} as placeholder for each cell's data
+   - Be specific about the expected output format
    
-5. summary: Write a clear human-readable summary of what will happen
+   Examples:
+   - "Calculate employee seniority" with header "employee start date" → 
+     "Calculate years of employment from this start date to today. Today is ${new Date().toISOString().split('T')[0]}. Return ONLY the number like '5 years'.\\n\\nStart date: {{input}}"
+   - "Categorize sentiment" → 
+     "Analyze the sentiment of this text. Return exactly one of: Positive, Negative, or Neutral.\\n\\nText: {{input}}"
+   - "Extract emails" → 
+     "Extract all email addresses from this text. Return emails separated by commas, or 'None' if no emails found.\\n\\nText: {{input}}"
+   
+5. **summary**: Write a clear human-readable summary of what will happen
 
-6. confidence: 'high' if everything is explicit, 'medium' if you inferred something, 'low' if ambiguous
+6. **confidence**: 
+   - 'high' if command explicitly specifies input/output columns
+   - 'medium' if inferred from context (e.g., auto-detected data)
+   - 'low' if ambiguous or missing critical info
 
-IMPORTANT: Always generate a useful prompt, even for custom tasks. The prompt should be specific enough that an AI can execute it on each cell's data.
+## Important Rules
 
-If the command is truly unclear (no input AND no clear task), set success=false and ask for clarification.
+- ALWAYS generate a useful prompt, even for vague commands. Use context to figure out what the user likely wants.
+- If context has AUTO-DETECTED DATA, the user hasn't explicitly selected anything - use the auto-detected columns.
+- Look at header names to understand what the data represents.
+- If only one column has data, that's likely the input.
+- If there are empty columns, those are likely outputs.
+- Only ask for clarification if you truly can't figure out what the user wants.
 
-Examples:
-- "Calculate employee seniority on column B" → custom task, generate calculation prompt
-- "Translate A2:A50 to Spanish in B" → translate task, standard prompt
-- "Summarize column A to B" → summarize task, medium confidence
-- "Format dates in column A" → custom task, date formatting prompt`;
+## Examples with Context
+
+Command: "Calculate employee seniority"
+Context: Column B has header "employee start date", Column C is empty
+→ taskType: "custom"
+→ inputRange: "B2:B100" (from context)
+→ outputColumns: ["C"]
+→ prompt: "Calculate years of employment from this start date to today (${new Date().toISOString().split('T')[0]}). Return only a number like '5 years'.\\n\\nStart date: {{input}}"
+→ confidence: "medium"
+
+Command: "Fill in the product descriptions"  
+Context: Column A has "product name", Column B is empty with header "description"
+→ taskType: "generate"
+→ inputRange: "A2:A50"
+→ outputColumns: ["B"]
+→ prompt: "Generate a compelling product description for this product.\\n\\nProduct: {{input}}"
+→ confidence: "medium"`;
 
 // ============================================
 // API HANDLER
