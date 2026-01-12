@@ -615,19 +615,25 @@ export async function GET(req: Request): Promise<Response> {
       console.log(`[Worker] Reset ${staleJobs.length} stale jobs`);
     }
     
-    // Try to get multiple jobs using the new function
-    // Falls back to single job if get_next_jobs doesn't exist
+    // Try to get multiple jobs using the parallel function
+    // Falls back to single job if get_next_jobs doesn't exist or errors
     let jobIds: string[] = [];
     
     const { data: multiJobData, error: multiJobError } = await supabaseAdmin.rpc('get_next_jobs', { p_limit: PARALLEL_JOBS });
     
     if (!multiJobError && multiJobData && multiJobData.length > 0) {
       jobIds = multiJobData.map((j: { job_id: string }) => j.job_id);
+      console.log(`[Worker] Claimed ${jobIds.length} jobs via get_next_jobs`);
     } else {
+      // Log why parallel failed
+      if (multiJobError) {
+        console.log(`[Worker] get_next_jobs failed (${multiJobError.code}): ${multiJobError.message} - using fallback`);
+      }
       // Fallback to single job processing
       const { data: singleJobId } = await supabaseAdmin.rpc('get_next_job');
       if (singleJobId) {
         jobIds = [singleJobId];
+        console.log(`[Worker] Fallback: claimed 1 job via get_next_job`);
       }
     }
     
