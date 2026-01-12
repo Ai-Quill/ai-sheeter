@@ -456,13 +456,13 @@ async function processJob(jobId: string): Promise<JobResult> {
       const batchResults: ResultRow[] = [];
       let batchTokens = 0;
       
-      // For complex prompts, skip batch processing entirely
-      if (isComplexPrompt) {
-        console.log(`[Worker] Job ${jobId} using individual processing (complex prompt detected)`);
-        throw new Error('COMPLEX_PROMPT');
-      }
-      
       try {
+        // For complex prompts, skip batch processing and use individual
+        if (isComplexPrompt) {
+          console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Complex prompt detected, using individual processing`);
+          throw new Error('COMPLEX_PROMPT');
+        }
+        
         // Create batched prompt
         const batchPrompt = createBatchPrompt(config.prompt || '', batch);
         
