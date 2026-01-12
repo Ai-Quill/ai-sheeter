@@ -1,8 +1,8 @@
 /**
  * @file route.ts
  * @path /api/agent/parse
- * @version 2.1.0
- * @updated 2026-01-11
+ * @version 2.2.0
+ * @updated 2026-01-13
  * 
  * AI-Powered Command Parsing with Structured Output
  * 
@@ -13,17 +13,14 @@
  * - Schema is enforced at generation time
  * - Output is automatically validated
  * - Type-safe response guaranteed
+ * 
+ * Now supports user's selected model instead of hardcoded Gemini.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText, Output, NoObjectGeneratedError } from 'ai';
 import { z } from 'zod';
-
-// Use Gemini Flash for parsing (cheap & fast)
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_API_KEY || ''
-});
+import { getModel, AIProvider, getDefaultModel } from '@/lib/ai/models';
 
 // ============================================
 // STRUCTURED OUTPUT SCHEMA
@@ -131,11 +128,24 @@ Context: Column A has "product name", Column B is empty with header "description
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { command, context } = body;
+    const { command, context, provider, apiKey } = body;
 
     if (!command || typeof command !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Command is required' },
+        { status: 400 }
+      );
+    }
+
+    // Determine which model to use
+    // Priority: user's selected provider > fallback to server's Gemini
+    const aiProvider = (provider as AIProvider) || 'GEMINI';
+    const modelApiKey = apiKey || process.env.GOOGLE_API_KEY || '';
+    const modelId = getDefaultModel(aiProvider);
+    
+    if (!modelApiKey) {
+      return NextResponse.json(
+        { success: false, error: `No API key available for ${aiProvider}` },
         { status: 400 }
       );
     }
@@ -168,10 +178,16 @@ export async function POST(request: NextRequest) {
 
     const userMessage = `Parse this command: "${command}"${contextInfo}`;
 
+    console.log('Parsing command:', command);
+    console.log('Using model:', aiProvider, modelId);
+    
+    // Get the model using the unified factory
+    const model = getModel(aiProvider, modelId, modelApiKey);
+    
     // Use structured output for reliable parsing
     // See: https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
     const { output } = await generateText({
-      model: google('gemini-2.0-flash'),
+      model,
       system: SYSTEM_PROMPT,
       prompt: userMessage,
       temperature: 0.1, // Low temperature for consistent parsing
@@ -179,12 +195,16 @@ export async function POST(request: NextRequest) {
         schema: ParsedPlanSchema,
       }),
     });
+    
+    console.log('AI output:', JSON.stringify(output, null, 2));
 
     // Output is guaranteed to match schema or throw NoObjectGeneratedError
     return NextResponse.json(output);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Agent parse error:', error);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
 
     // Handle structured output generation failure
     if (NoObjectGeneratedError.isInstance(error)) {
@@ -203,16 +223,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Return error details for debugging
     return NextResponse.json(
       { 
         success: false, 
         plan: null,
         clarification: {
-          question: "Something went wrong. Please try a simpler command.",
+          question: `Something went wrong: ${error?.message || 'Unknown error'}. Please try a simpler command.`,
           suggestions: [
             "Translate A2:A50 to Spanish in B",
             "Summarize A2:A100 to B"
           ]
+        },
+        _debug: {
+          error: error?.message,
+          name: error?.name
         }
       },
       { status: 500 }
