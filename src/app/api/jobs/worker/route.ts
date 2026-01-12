@@ -492,14 +492,35 @@ async function processJob(jobId: string): Promise<JobResult> {
         // Create batched prompt
         const batchPrompt = createBatchPrompt(config.prompt || '', batch);
         
+        console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Batch prompt (first 300 chars): ${batchPrompt.substring(0, 300)}`);
+        
         // Call AI with batched prompt - optimized token limit based on batch size
         const estimatedOutputTokens = Math.min(batch.length * 150, 4000); // ~150 tokens per row max
-        const { text, usage } = await generateText({
-          model: getModel(config.model, config.specificModel, apiKey),
-          system: systemPrompt + '\n\nIMPORTANT: Process each numbered item and return results in the same numbered format. Each result should be on its own line starting with the number.',
-          messages: [{ role: 'user', content: batchPrompt }],
-          maxOutputTokens: estimatedOutputTokens,
-        });
+        
+        let text = '';
+        let usage: { inputTokens?: number; outputTokens?: number } = {};
+        
+        try {
+          const result = await generateText({
+            model: getModel(config.model, config.specificModel, apiKey),
+            system: systemPrompt + '\n\nIMPORTANT: Process each numbered item and return results in the same numbered format. Each result should be on its own line starting with the number.',
+            messages: [{ role: 'user', content: batchPrompt }],
+            maxOutputTokens: estimatedOutputTokens,
+          });
+          text = result.text || '';
+          usage = result.usage || {};
+          
+          console.log(`[Worker] Job ${jobId} batch ${batchIndex}: AI response length=${text.length}, tokens=${(usage.inputTokens || 0) + (usage.outputTokens || 0)}`);
+        } catch (aiError: any) {
+          console.error(`[Worker] Job ${jobId} batch ${batchIndex}: AI call failed:`, aiError.message);
+          throw new Error(`AI_CALL_FAILED: ${aiError.message}`);
+        }
+
+        // Check for empty response
+        if (!text || text.trim().length === 0) {
+          console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Empty response from AI, falling back to individual`);
+          throw new Error('EMPTY_RESPONSE');
+        }
 
         const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
         batchTokens = tokens;

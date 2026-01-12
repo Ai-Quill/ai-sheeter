@@ -172,8 +172,25 @@ export async function POST(request: NextRequest) {
                      context?.selectionInfo?.sourceColumn;
     const outputCol = context?.selectionInfo?.emptyColumns?.[0]?.column ||
                       (inputCol ? String.fromCharCode(inputCol.charCodeAt(0) + 1) : 'B');
-    const inputRange = context?.columnDataRanges?.[inputCol]?.range;
-    const rowCount = context?.columnDataRanges?.[inputCol]?.rowCount || 10;
+    
+    // FIXED: Use selectionInfo's dataStartRow/dataEndRow (excludes header) 
+    // instead of columnDataRanges which may include header row as data
+    const selInfo = context?.selectionInfo;
+    let inputRange: string | undefined;
+    let rowCount: number;
+    
+    if (selInfo?.dataStartRow && selInfo?.dataEndRow && inputCol) {
+      // Use corrected range that excludes header
+      inputRange = `${inputCol}${selInfo.dataStartRow}:${inputCol}${selInfo.dataEndRow}`;
+      rowCount = selInfo.dataRowCount || (selInfo.dataEndRow - selInfo.dataStartRow + 1);
+      console.log('[Parse] Using selectionInfo range (header-excluded):', inputRange, 'rows:', rowCount);
+    } else {
+      // Fallback to columnDataRanges
+      inputRange = context?.columnDataRanges?.[inputCol]?.range;
+      rowCount = context?.columnDataRanges?.[inputCol]?.rowCount || 10;
+      console.log('[Parse] Fallback to columnDataRanges:', inputRange, 'rows:', rowCount);
+    }
+    
     const today = new Date().toISOString().split('T')[0];
     
     // ============================================

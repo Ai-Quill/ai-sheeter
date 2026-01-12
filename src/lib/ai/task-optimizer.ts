@@ -412,6 +412,10 @@ export function buildOptimizedPrompt(
   const { config, extractedParams } = detected;
   let prompt = config.promptTemplate;
   
+  console.log('[BuildPrompt] Starting with template:', prompt);
+  console.log('[BuildPrompt] ExtractedParams:', extractedParams);
+  console.log('[BuildPrompt] Context:', context);
+  
   // Fill in extracted parameters
   for (const [key, value] of Object.entries(extractedParams)) {
     prompt = prompt.replace(`{${key}}`, value);
@@ -447,19 +451,26 @@ export function buildOptimizedPrompt(
         extractedParams.calculation = calcMatch?.[1] || 'value';
       }
       
+      console.log('[BuildPrompt:calculate] calculation =', extractedParams.calculation);
+      
       // Fill in calculation
       prompt = prompt.replace('{calculation}', extractedParams.calculation);
+      console.log('[BuildPrompt:calculate] after calc:', prompt);
       
       // Fill in header name for context (e.g., "employee start date")
       const headerLabel = context?.headerName || 'Input';
+      console.log('[BuildPrompt:calculate] headerLabel =', headerLabel);
       prompt = prompt.replace('{headerName}', headerLabel);
+      console.log('[BuildPrompt:calculate] after header:', prompt);
       
       // Set default format if not specified
       prompt = prompt.replace('{format}', 'X years, Y months');
+      console.log('[BuildPrompt:calculate] after format:', prompt);
       
       // Fill in today if available
       if (context?.today) {
         prompt = prompt.replace('{today}', context.today);
+        console.log('[BuildPrompt:calculate] after today:', prompt);
       }
       break;
       
@@ -477,8 +488,14 @@ export function buildOptimizedPrompt(
   
   // Clean up any remaining single-brace placeholders (NOT double braces like {{input}})
   // Use negative lookbehind/lookahead to avoid matching {{input}}
+  const beforeCleanup = prompt;
   prompt = prompt.replace(/(?<!\{)\{[^{}]+\}(?!\})/g, '');
   
+  if (beforeCleanup !== prompt) {
+    console.log('[BuildPrompt] Cleanup removed placeholders:', beforeCleanup, '->', prompt);
+  }
+  
+  console.log('[BuildPrompt] Final prompt:', prompt.trim());
   return prompt.trim();
 }
 
