@@ -323,7 +323,8 @@ async function markJobFailed(jobId: string, errorMessage: string): Promise<void>
 
 // Configuration for Pro environments
 const PARALLEL_JOBS = 5;  // Process up to 5 jobs simultaneously
-const BATCH_SIZE = 12;    // Rows per AI call (optimized for Pro)
+const BATCH_SIZE = 15;    // Rows per AI call (optimized for GPT/Gemini)
+const PARALLEL_BATCHES = 3; // Process up to 3 batches in parallel within a job
 
 interface JobResult {
   jobId: string;
@@ -395,27 +396,35 @@ async function processJob(jobId: string): Promise<JobResult> {
       batches.push(pendingInputs.slice(i, i + BATCH_SIZE));
     }
     
-    console.log(`[Worker] Job ${jobId}: Processing ${pendingInputs.length} items in ${batches.length} batch(es)`);
+    console.log(`[Worker] Job ${jobId}: Processing ${pendingInputs.length} items in ${batches.length} batch(es), parallel: ${Math.min(PARALLEL_BATCHES, batches.length)}`);
     
-    for (const batch of batches) {
-      // Check if job was cancelled
-      const { data: checkJob } = await supabaseAdmin
-        .from('jobs')
-        .select('status')
-        .eq('id', jobId)
-        .single();
-      
-      if (checkJob?.status === 'cancelled') {
-        return { 
-          jobId, 
-          status: 'failed', 
-          processedRows: processedCount, 
-          totalTokens, 
-          elapsedMs: Date.now() - jobStartTime,
-          error: 'Job cancelled' 
-        };
-      }
+    // Check if job was cancelled before starting
+    const { data: checkJob } = await supabaseAdmin
+      .from('jobs')
+      .select('status')
+      .eq('id', jobId)
+      .single();
+    
+    if (checkJob?.status === 'cancelled') {
+      return { 
+        jobId, 
+        status: 'failed', 
+        processedRows: processedCount, 
+        totalTokens, 
+        elapsedMs: Date.now() - jobStartTime,
+        error: 'Job cancelled' 
+      };
+    }
 
+    // Process a single batch (arrow function for use in parallel processing)
+    const processSingleBatch = async (batch: InputRow[], batchIndex: number): Promise<{
+      results: ResultRow[];
+      tokens: number;
+      error?: string;
+    }> => {
+      const batchResults: ResultRow[] = [];
+      let batchTokens = 0;
+      
       try {
         // Create batched prompt
         const batchPrompt = createBatchPrompt(config.prompt || '', batch);
@@ -429,34 +438,23 @@ async function processJob(jobId: string): Promise<JobResult> {
         });
 
         const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
-        totalTokens += tokens;
+        batchTokens = tokens;
         
         // Parse batch response
-        const batchResults = parseBatchResponse(text, batch);
+        const parsed = parseBatchResponse(text, batch);
         
-        for (const result of batchResults) {
-          results.push({
+        for (const result of parsed) {
+          batchResults.push({
             ...result,
             tokens: Math.ceil(tokens / batch.length),
             cached: false
           });
-          processedCount++;
         }
         
-        // Update progress after each batch
-        const progress = Math.round((processedCount / inputs.length) * 100);
-        await supabaseAdmin
-          .from('jobs')
-          .update({
-            progress,
-            processed_rows: processedCount,
-            results,
-            credits_used: Math.ceil(totalTokens * 0.001)
-          })
-          .eq('id', jobId);
-
+        return { results: batchResults, tokens: batchTokens };
+        
       } catch (batchError) {
-        console.error(`[Worker] Job ${jobId} batch error, fallback to individual:`, batchError);
+        console.error(`[Worker] Job ${jobId} batch ${batchIndex} error, processing individually`);
         
         // Fallback: process items individually if batch fails
         for (const row of batch) {
@@ -473,9 +471,9 @@ async function processJob(jobId: string): Promise<JobResult> {
             });
 
             const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
-            totalTokens += tokens;
+            batchTokens += tokens;
             
-            results.push({
+            batchResults.push({
               index: row.index,
               input: row.input,
               output: text,
@@ -483,7 +481,7 @@ async function processJob(jobId: string): Promise<JobResult> {
               cached: false
             });
           } catch (rowError) {
-            results.push({
+            batchResults.push({
               index: row.index,
               input: row.input,
               output: '',
@@ -492,21 +490,39 @@ async function processJob(jobId: string): Promise<JobResult> {
               error: rowError instanceof Error ? rowError.message : 'Processing failed'
             });
           }
-          processedCount++;
         }
         
-        // Update progress
-        const progress = Math.round((processedCount / inputs.length) * 100);
-        await supabaseAdmin
-          .from('jobs')
-          .update({
-            progress,
-            processed_rows: processedCount,
-            results,
-            credits_used: Math.ceil(totalTokens * 0.001)
-          })
-          .eq('id', jobId);
+        return { results: batchResults, tokens: batchTokens };
       }
+    };
+
+    // Process batches in parallel chunks
+    for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
+      const batchChunk = batches.slice(i, i + PARALLEL_BATCHES);
+      
+      // Process chunk in parallel
+      const chunkResults = await Promise.all(
+        batchChunk.map((batch, idx) => processSingleBatch(batch, i + idx))
+      );
+      
+      // Collect results from parallel batches
+      for (const chunkResult of chunkResults) {
+        results.push(...chunkResult.results);
+        totalTokens += chunkResult.tokens;
+        processedCount += chunkResult.results.length;
+      }
+      
+      // Update progress after each parallel chunk
+      const progress = Math.round((processedCount / inputs.length) * 100);
+      await supabaseAdmin
+        .from('jobs')
+        .update({
+          progress,
+          processed_rows: processedCount,
+          results,
+          credits_used: Math.ceil(totalTokens * 0.001)
+        })
+        .eq('id', jobId);
     }
 
     // Mark job as completed
