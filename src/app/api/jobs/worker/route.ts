@@ -87,7 +87,10 @@ function parseBatchResponse(response: string, batch: InputRow[]): Array<{index: 
   const results: Array<{index: number; input: string; output: string}> = [];
   const lines = response.split('\n').filter(l => l.trim());
   
-  // Try to match numbered responses
+  console.log(`[BatchParse] Response length: ${response.length}, Lines: ${lines.length}, Batch: ${batch.length}`);
+  console.log(`[BatchParse] First 200 chars: ${response.substring(0, 200)}`);
+  
+  // Try to match numbered responses (e.g., "1. result", "1) result", "1: result")
   const numberedPattern = /^(\d+)[.\):\s]+(.+)$/;
   const parsedLines: Map<number, string> = new Map();
   
@@ -114,6 +117,8 @@ function parseBatchResponse(response: string, batch: InputRow[]): Array<{index: 
     parsedLines.set(currentNum, currentContent.trim());
   }
   
+  console.log(`[BatchParse] Parsed ${parsedLines.size} numbered items`);
+  
   // Map back to batch items
   for (let i = 0; i < batch.length; i++) {
     const row = batch[i];
@@ -125,13 +130,25 @@ function parseBatchResponse(response: string, batch: InputRow[]): Array<{index: 
     });
   }
   
+  // Count empty results
+  const emptyCount = results.filter(r => !r.output).length;
+  
   // Fallback: if no numbered responses found, try splitting by lines
-  if (results.every(r => !r.output) && lines.length >= batch.length) {
+  if (emptyCount === batch.length && lines.length >= batch.length) {
+    console.log(`[BatchParse] Using line-by-line fallback`);
     for (let i = 0; i < batch.length; i++) {
       results[i].output = lines[i]?.trim() || '';
     }
   }
   
+  // If still too many empty, throw to trigger individual processing
+  const finalEmptyCount = results.filter(r => !r.output).length;
+  if (finalEmptyCount > batch.length / 2) {
+    console.log(`[BatchParse] FAILED: ${finalEmptyCount}/${batch.length} empty, triggering individual fallback`);
+    throw new Error('BATCH_PARSE_FAILED: Too many empty results');
+  }
+  
+  console.log(`[BatchParse] Success: ${batch.length - finalEmptyCount}/${batch.length} with output`);
   return results;
 }
 
@@ -420,6 +437,17 @@ async function processJob(jobId: string): Promise<JobResult> {
     }
 
     // Process a single batch (arrow function for use in parallel processing)
+    // For complex prompts, process individually to ensure accurate results
+    const isComplexPrompt = config.prompt && (
+      config.prompt.toLowerCase().includes('summary') ||
+      config.prompt.toLowerCase().includes('analyze') ||
+      config.prompt.toLowerCase().includes('extract') ||
+      config.prompt.toLowerCase().includes('write') ||
+      config.prompt.toLowerCase().includes('generate') ||
+      config.prompt.toLowerCase().includes('email') ||
+      config.prompt.length > 200
+    );
+    
     const processSingleBatch = async (batch: InputRow[], batchIndex: number): Promise<{
       results: ResultRow[];
       tokens: number;
@@ -427,6 +455,12 @@ async function processJob(jobId: string): Promise<JobResult> {
     }> => {
       const batchResults: ResultRow[] = [];
       let batchTokens = 0;
+      
+      // For complex prompts, skip batch processing entirely
+      if (isComplexPrompt) {
+        console.log(`[Worker] Job ${jobId} using individual processing (complex prompt detected)`);
+        throw new Error('COMPLEX_PROMPT');
+      }
       
       try {
         // Create batched prompt
