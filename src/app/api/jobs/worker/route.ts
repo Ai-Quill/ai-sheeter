@@ -71,15 +71,32 @@ function createBatchPrompt(promptTemplate: string, batch: InputRow[]): string {
   const lines = batch.map((row, i) => `${i + 1}. ${row.input}`).join('\n');
   
   if (promptTemplate && (promptTemplate.includes('{input}') || promptTemplate.includes('{{input}}'))) {
-    // Template-based prompt
+    // Extract the instruction part, keeping {{input}} context
+    // Replace {{input}} with "each item" for batch context
     const instruction = promptTemplate
-      .replace('{input}', '')
-      .replace('{{input}}', '')
+      .replace(/\{\{input\}\}/g, 'each item below')
+      .replace(/\{input\}/g, 'each item below')
       .trim();
-    return `${instruction}\n\nProcess each item below and return results in the same numbered format:\n\n${lines}`;
+    
+    return `${instruction}
+
+Items to process (reply with same numbered format):
+${lines}
+
+Reply format:
+1. [result]
+2. [result]
+...`;
   }
   
-  return `Process each item below and return results in the same numbered format:\n\n${lines}`;
+  return `Process each item and return numbered results:
+
+${lines}
+
+Reply:
+1. [result]
+2. [result]
+...`;
 }
 
 // Parse batched response back into individual results

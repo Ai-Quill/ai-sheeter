@@ -96,7 +96,8 @@ const TASK_CONFIGS: Record<TaskType, TaskConfig> = {
     batchable: true,
     recommendedModel: 'fast',
     avgTokensPerRow: 35,
-    promptTemplate: 'Calculate {calculation} from date {{input}} to today ({today}). Reply with ONLY the result in format: {format}',
+    // Use {headerName} for context, {{input}} for value
+    promptTemplate: 'Calculate {calculation}. {headerName}: {{input}}. Today: {today}. Output format: {format}',
     formulaAlternative: '={formula}',
     systemPromptAddition: 'Return ONLY the calculated value. No explanations, no formulas, just the result.',
   },
@@ -443,16 +444,18 @@ export function buildOptimizedPrompt(
       if (!extractedParams.calculation) {
         // Extract what we're calculating from the command
         const calcMatch = command.match(/(seniority|age|years|months|days|difference)/i);
-        extractedParams.calculation = calcMatch?.[1] || 'time';
-      }
-      
-      // Set default format if not specified
-      if (!extractedParams.format) {
-        prompt = prompt.replace('{format}', 'X years, Y months');
+        extractedParams.calculation = calcMatch?.[1] || 'value';
       }
       
       // Fill in calculation
       prompt = prompt.replace('{calculation}', extractedParams.calculation);
+      
+      // Fill in header name for context (e.g., "employee start date")
+      const headerLabel = context?.headerName || 'Input';
+      prompt = prompt.replace('{headerName}', headerLabel);
+      
+      // Set default format if not specified
+      prompt = prompt.replace('{format}', 'X years, Y months');
       
       // Fill in today if available
       if (context?.today) {

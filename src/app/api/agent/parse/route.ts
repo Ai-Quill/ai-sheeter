@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
             taskType: detected.type,
             inputRange,
             outputColumns: [outputCol],
-            prompt: taskOptimizer.buildOptimizedPrompt(command, detected, { today }),
+            prompt: taskOptimizer.buildOptimizedPrompt(command, detected, { headerName: context?.headerRow?.[inputCol], today }),
             summary: `${formula.description} (${inputRange} → ${outputCol})`,
             confidence: 'high',
           },
