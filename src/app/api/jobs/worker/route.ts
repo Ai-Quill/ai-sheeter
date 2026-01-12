@@ -437,16 +437,25 @@ async function processJob(jobId: string): Promise<JobResult> {
     }
 
     // Process a single batch (arrow function for use in parallel processing)
-    // For complex prompts, process individually to ensure accurate results
+    // Only mark as complex if the task truly requires individual context
+    // Simple tasks (calculations, translations, classifications) can be batched
+    const promptLower = (config.prompt || '').toLowerCase();
     const isComplexPrompt = config.prompt && (
-      config.prompt.toLowerCase().includes('summary') ||
-      config.prompt.toLowerCase().includes('analyze') ||
-      config.prompt.toLowerCase().includes('extract') ||
-      config.prompt.toLowerCase().includes('write') ||
-      config.prompt.toLowerCase().includes('generate') ||
-      config.prompt.toLowerCase().includes('email') ||
-      config.prompt.length > 200
+      // Tasks that need full context per item (can't batch)
+      promptLower.includes('summarize the entire') ||
+      promptLower.includes('analyze in detail') ||
+      promptLower.includes('write a full') ||
+      promptLower.includes('generate a complete') ||
+      // Very long prompts with multi-step instructions
+      (config.prompt.length > 500 && (
+        promptLower.includes('step 1') ||
+        promptLower.includes('first,') ||
+        promptLower.includes('then,')
+      ))
     );
+    
+    // Log batch decision for debugging
+    console.log(`[Worker] Job ${jobId}: Prompt length=${config.prompt?.length}, isComplex=${isComplexPrompt}`);
     
     const processSingleBatch = async (batch: InputRow[], batchIndex: number): Promise<{
       results: ResultRow[];

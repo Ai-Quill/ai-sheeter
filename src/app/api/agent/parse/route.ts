@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateText, Output, NoObjectGeneratedError } from 'ai';
 import { z } from 'zod';
 import { getModel, AIProvider, getDefaultModel } from '@/lib/ai/models';
+import { taskOptimizer, DetectedTask } from '@/lib/ai/task-optimizer';
 
 // ============================================
 // STRUCTURED OUTPUT SCHEMA
@@ -74,18 +75,20 @@ The user wants to process data in a spreadsheet. Parse their command into a stru
    - If not specified, use empty columns from context, or next column after input.
    - Look at empty columns in context to suggest appropriate outputs.
 
-4. **prompt**: CRITICAL - Create a specific, actionable instruction for the AI to run on each cell's data.
-   - Look at the HEADER NAMES in context to understand what the data represents
+4. **prompt**: CRITICAL - Create a CONCISE, actionable instruction. Shorter prompts = faster processing.
    - Use {{input}} as placeholder for each cell's data
-   - Be specific about the expected output format
+   - Keep prompts SHORT (under 100 chars if possible)
+   - Be specific about output format in ONE sentence
    
-   Examples:
-   - "Calculate employee seniority" with header "employee start date" → 
-     "Calculate years of employment from this start date to today. Today is ${new Date().toISOString().split('T')[0]}. Return ONLY the number like '5 years'.\\n\\nStart date: {{input}}"
+   Examples (notice how concise):
+   - "Calculate employee seniority" → 
+     "Years since {{input}} to ${new Date().toISOString().split('T')[0]}. Format: X years, Y months"
    - "Categorize sentiment" → 
-     "Analyze the sentiment of this text. Return exactly one of: Positive, Negative, or Neutral.\\n\\nText: {{input}}"
+     "Sentiment of: {{input}}. Reply: Positive/Negative/Neutral only"
    - "Extract emails" → 
-     "Extract all email addresses from this text. Return emails separated by commas, or 'None' if no emails found.\\n\\nText: {{input}}"
+     "Extract emails from: {{input}}. Return comma-separated or 'None'"
+   - "Translate to Spanish" →
+     "Spanish: {{input}}"
    
 5. **summary**: Write a clear human-readable summary of what will happen
 
@@ -103,14 +106,14 @@ The user wants to process data in a spreadsheet. Parse their command into a stru
 - If there are empty columns, those are likely outputs.
 - Only ask for clarification if you truly can't figure out what the user wants.
 
-## Examples with Context
+## Examples with Context (notice CONCISE prompts)
 
 Command: "Calculate employee seniority"
 Context: Column B has header "employee start date", Column C is empty
 → taskType: "custom"
 → inputRange: "B2:B100" (from context)
 → outputColumns: ["C"]
-→ prompt: "Calculate years of employment from this start date to today (${new Date().toISOString().split('T')[0]}). Return only a number like '5 years'.\\n\\nStart date: {{input}}"
+→ prompt: "Years since {{input}} to ${new Date().toISOString().split('T')[0]}. Format: X years, Y months"
 → confidence: "medium"
 
 Command: "Fill in the product descriptions"  
@@ -118,8 +121,16 @@ Context: Column A has "product name", Column B is empty with header "description
 → taskType: "generate"
 → inputRange: "A2:A50"
 → outputColumns: ["B"]
-→ prompt: "Generate a compelling product description for this product.\\n\\nProduct: {{input}}"
-→ confidence: "medium"`;
+→ prompt: "Product description for: {{input}}. 1-2 sentences, engaging."
+→ confidence: "medium"
+
+Command: "Classify as urgent or normal"
+Context: Column A has "support ticket", Column B is empty
+→ taskType: "classify"
+→ inputRange: "A2:A100"
+→ outputColumns: ["B"]
+→ prompt: "{{input}} → Urgent or Normal?"
+→ confidence: "high"`;
 
 // ============================================
 // API HANDLER
@@ -150,6 +161,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ============================================
+    // FAST PATH: Task Optimizer (no API call)
+    // ============================================
+    const detected = taskOptimizer.detectTaskType(command);
+    console.log('Task detection:', detected.type, 'confidence:', detected.confidence);
+    
+    // If high confidence detection, we can build plan locally without AI
+    if (detected.confidence === 'high' && context?.selectionInfo) {
+      const today = new Date().toISOString().split('T')[0];
+      const inputCol = context.selectionInfo.columnsWithData?.[0] || 
+                       context.selectionInfo.sourceColumn;
+      const outputCol = context.selectionInfo.emptyColumns?.[0]?.column ||
+                        (inputCol ? String.fromCharCode(inputCol.charCodeAt(0) + 1) : 'B');
+      const inputRange = context.columnDataRanges?.[inputCol]?.range;
+      const rowCount = context.columnDataRanges?.[inputCol]?.rowCount || 10;
+      
+      if (inputCol && inputRange) {
+        const optimizedPrompt = taskOptimizer.buildOptimizedPrompt(
+          command,
+          detected,
+          { headerName: context.headerRow?.[inputCol], today }
+        );
+        
+        const strategy = taskOptimizer.getProcessingStrategy(detected, rowCount);
+        
+        console.log('Fast path: Using task optimizer (no AI call)');
+        console.log('Optimized prompt:', optimizedPrompt);
+        
+        return NextResponse.json({
+          success: true,
+          plan: {
+            taskType: detected.type,
+            inputRange,
+            outputColumns: [outputCol],
+            prompt: optimizedPrompt,
+            summary: `${detected.type.charAt(0).toUpperCase() + detected.type.slice(1)} ${inputRange} → column ${outputCol}`,
+            confidence: detected.confidence,
+          },
+          // Include optimization hints for the worker
+          _optimization: {
+            batchable: strategy.batchable,
+            recommendedBatchSize: strategy.recommendedBatchSize,
+            estimatedTokens: strategy.estimatedTokensPerRow * rowCount,
+            systemPromptAddition: strategy.systemPrompt,
+            formulaAlternative: detected.formulaAlternative,
+          },
+        });
+      }
+    }
+
+    // ============================================
+    // STANDARD PATH: AI Parsing
+    // ============================================
+    
     // Build context string if provided
     let contextInfo = '';
     if (context) {
@@ -175,10 +240,18 @@ export async function POST(request: NextRequest) {
         contextInfo += `\n\nDetailed context:\n${context.contextDescription}`;
       }
     }
+    
+    // Include task detection hints for AI
+    if (detected.confidence !== 'low') {
+      contextInfo += `\n\nTask hint: Detected as "${detected.type}" task.`;
+      if (detected.formulaAlternative) {
+        contextInfo += ` (Formula alternative available: ${detected.formulaAlternative.description})`;
+      }
+    }
 
     const userMessage = `Parse this command: "${command}"${contextInfo}`;
 
-    console.log('Parsing command:', command);
+    console.log('Standard path: Using AI parsing');
     console.log('Using model:', aiProvider, modelId);
     
     // Get the model using the unified factory
