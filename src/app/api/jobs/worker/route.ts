@@ -492,10 +492,10 @@ async function processJob(jobId: string): Promise<JobResult> {
         return { results: batchResults, tokens: batchTokens };
         
       } catch (batchError) {
-        console.error(`[Worker] Job ${jobId} batch ${batchIndex} error, processing individually`);
+        console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Processing ${batch.length} items in PARALLEL`);
         
-        // Fallback: process items individually if batch fails
-        for (const row of batch) {
+        // Fallback: process items individually IN PARALLEL for speed
+        const rowPromises = batch.map(async (row) => {
           try {
             const userInput = config.prompt 
               ? config.prompt.replace('{input}', row.input).replace('{{input}}', row.input)
@@ -509,25 +509,32 @@ async function processJob(jobId: string): Promise<JobResult> {
             });
 
             const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
-            batchTokens += tokens;
             
-            batchResults.push({
+            return {
               index: row.index,
               input: row.input,
               output: text,
               tokens,
               cached: false
-            });
+            };
           } catch (rowError) {
-            batchResults.push({
+            return {
               index: row.index,
               input: row.input,
               output: '',
               tokens: 0,
               cached: false,
               error: rowError instanceof Error ? rowError.message : 'Processing failed'
-            });
+            };
           }
+        });
+        
+        // Wait for all rows to complete in parallel
+        const parallelResults = await Promise.all(rowPromises);
+        
+        for (const result of parallelResults) {
+          batchResults.push(result);
+          batchTokens += result.tokens;
         }
         
         return { results: batchResults, tokens: batchTokens };
