@@ -9,15 +9,17 @@
  * 1. Claim multiple jobs atomically (parallel processing)
  * 2. Process all jobs concurrently with Promise.allSettled
  * 3. Each job processes rows in batches
- * 4. Update progress/results in real-time via Supabase
+ * 4. Update progress/results via Supabase (batched updates)
  * 
- * Performance (Vercel Pro + Supabase Pro):
- * - PARALLEL_JOBS: Process up to 5 jobs simultaneously
- * - BATCH_SIZE: 10-15 rows per API call
+ * Performance (Optimized for GPT-5 Mini):
+ * - PARALLEL_JOBS: 5 jobs simultaneously
+ * - BATCH_SIZE: 25 rows per AI call
+ * - PARALLEL_BATCHES: 5 batches in parallel per job
+ * - UPDATE_FREQUENCY: DB update every 2 batch chunks
  * - Cron frequency: Every 10 seconds recommended
  * 
  * @see vercel.json for cron config
- * @version 2.0.0 - Parallel job processing
+ * @version 2.1.0 - Optimized batch processing for speed
  */
 
 import { NextResponse } from 'next/server';
@@ -321,10 +323,11 @@ async function markJobFailed(jobId: string, errorMessage: string): Promise<void>
 // PARALLEL JOB PROCESSING (Vercel Pro)
 // ============================================
 
-// Configuration for Pro environments
-const PARALLEL_JOBS = 5;  // Process up to 5 jobs simultaneously
-const BATCH_SIZE = 15;    // Rows per AI call (optimized for GPT/Gemini)
-const PARALLEL_BATCHES = 3; // Process up to 3 batches in parallel within a job
+// Configuration for Pro environments - Optimized for speed
+const PARALLEL_JOBS = 5;    // Process up to 5 jobs simultaneously
+const BATCH_SIZE = 25;      // Rows per AI call (GPT-5 Mini handles larger batches well)
+const PARALLEL_BATCHES = 5; // Process up to 5 batches in parallel within a job
+const UPDATE_FREQUENCY = 2; // Update DB every N batch chunks (reduces latency)
 
 interface JobResult {
   jobId: string;
@@ -429,12 +432,13 @@ async function processJob(jobId: string): Promise<JobResult> {
         // Create batched prompt
         const batchPrompt = createBatchPrompt(config.prompt || '', batch);
         
-        // Call AI with batched prompt
+        // Call AI with batched prompt - optimized token limit based on batch size
+        const estimatedOutputTokens = Math.min(batch.length * 150, 4000); // ~150 tokens per row max
         const { text, usage } = await generateText({
           model: getModel(config.model, config.specificModel, apiKey),
           system: systemPrompt + '\n\nIMPORTANT: Process each numbered item and return results in the same numbered format. Each result should be on its own line starting with the number.',
           messages: [{ role: 'user', content: batchPrompt }],
-          maxOutputTokens: 4000,
+          maxOutputTokens: estimatedOutputTokens,
         });
 
         const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
@@ -497,6 +501,7 @@ async function processJob(jobId: string): Promise<JobResult> {
     };
 
     // Process batches in parallel chunks
+    let chunkIndex = 0;
     for (let i = 0; i < batches.length; i += PARALLEL_BATCHES) {
       const batchChunk = batches.slice(i, i + PARALLEL_BATCHES);
       
@@ -512,17 +517,22 @@ async function processJob(jobId: string): Promise<JobResult> {
         processedCount += chunkResult.results.length;
       }
       
-      // Update progress after each parallel chunk
-      const progress = Math.round((processedCount / inputs.length) * 100);
-      await supabaseAdmin
-        .from('jobs')
-        .update({
-          progress,
-          processed_rows: processedCount,
-          results,
-          credits_used: Math.ceil(totalTokens * 0.001)
-        })
-        .eq('id', jobId);
+      chunkIndex++;
+      
+      // Update progress less frequently to reduce latency
+      const isLastChunk = i + PARALLEL_BATCHES >= batches.length;
+      if (isLastChunk || chunkIndex % UPDATE_FREQUENCY === 0) {
+        const progress = Math.round((processedCount / inputs.length) * 100);
+        await supabaseAdmin
+          .from('jobs')
+          .update({
+            progress,
+            processed_rows: processedCount,
+            results,
+            credits_used: Math.ceil(totalTokens * 0.001)
+          })
+          .eq('id', jobId);
+      }
     }
 
     // Mark job as completed

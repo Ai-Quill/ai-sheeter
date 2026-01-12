@@ -89,12 +89,28 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
     }
 
+    // Trigger worker immediately (fire-and-forget)
+    // This reduces latency vs waiting for cron
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    
+    fetch(`${baseUrl}/api/jobs/worker`, {
+      method: 'GET',
+      headers: process.env.CRON_SECRET 
+        ? { 'Authorization': `Bearer ${process.env.CRON_SECRET}` }
+        : {}
+    }).catch(err => {
+      // Silently ignore - cron will pick it up anyway
+      console.log('[Jobs] Worker trigger (fire-and-forget) failed:', err.message);
+    });
+
     return NextResponse.json({ 
       jobId,
       status: 'queued',
       totalRows: inputs.length,
       creditsEstimated,
-      message: 'Job created. Poll GET /api/jobs?id=<jobId> for status.'
+      message: 'Job created and worker triggered.'
     });
 
   } catch (error) {
