@@ -1,12 +1,15 @@
 /**
- * Feature Gating & Credit Management
+ * Feature Gating & Request Management
  * 
  * Controls access to features based on user's subscription tier.
- * Enforces credit limits for non-BYOK users.
+ * Enforces request limits per tier:
+ * - Free: 500 requests/month
+ * - Pro: Unlimited
+ * - Legacy: Unlimited (grandfathered)
  */
 
 import { supabaseAdmin } from '@/lib/supabase';
-import { getCreditsForTier, hasBYOKPrivileges, type PlanTier } from '@/lib/stripe';
+import { getCreditsForTier, hasBYOKPrivileges, getRequestLimitForTier, hasUnlimitedAccess, type PlanTier } from '@/lib/stripe';
 
 export interface UserAccess {
   userId: string;
@@ -194,4 +197,93 @@ export function canUseModel(tier: PlanTier, model: string): boolean {
 
   // All paid tiers get all models
   return true;
+}
+
+/**
+ * Check if user can perform a request (new request-based system)
+ * Returns: { allowed: boolean, remaining: number, limit: number, tier: PlanTier }
+ */
+export async function canPerformRequest(
+  userIdOrEmail: string
+): Promise<{
+  allowed: boolean;
+  reason?: string;
+  remaining: number;
+  limit: number;
+  tier: PlanTier;
+}> {
+  const isEmail = userIdOrEmail.includes('@');
+  
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .select('id, email, plan_tier, is_legacy_user, requests_this_period, period_end')
+    .eq(isEmail ? 'email' : 'id', userIdOrEmail)
+    .single();
+
+  if (error || !data) {
+    return { 
+      allowed: false, 
+      reason: 'User not found',
+      remaining: 0,
+      limit: 0,
+      tier: 'free'
+    };
+  }
+
+  const tier = (data.plan_tier || 'free') as PlanTier;
+  const limit = getRequestLimitForTier(tier);
+
+  // Legacy and Pro users have unlimited
+  if (tier === 'legacy' || tier === 'pro' || hasUnlimitedAccess(tier)) {
+    return { 
+      allowed: true,
+      remaining: -1,  // Unlimited
+      limit: -1,
+      tier
+    };
+  }
+
+  // Check if period has ended (auto-reset happens in database function)
+  const periodEnd = new Date(data.period_end);
+  const now = new Date();
+  
+  let used = data.requests_this_period || 0;
+  
+  // If period ended, count will be reset by database function
+  if (periodEnd < now) {
+    used = 0;
+  }
+
+  const remaining = Math.max(0, limit - used);
+  const canProceed = used < limit;
+
+  if (!canProceed) {
+    return { 
+      allowed: false, 
+      reason: `Monthly limit reached (${limit} requests). Upgrade to Pro for unlimited access!`,
+      remaining: 0,
+      limit,
+      tier
+    };
+  }
+
+  return { 
+    allowed: true,
+    remaining,
+    limit,
+    tier
+  };
+}
+
+/**
+ * Increment user's request count
+ */
+export async function incrementRequestCount(userId: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc('increment_request_count', {
+    p_user_id: userId
+  });
+
+  if (error) {
+    console.error('Failed to increment request count:', error);
+  }
 }

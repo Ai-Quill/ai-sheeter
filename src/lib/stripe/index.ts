@@ -4,12 +4,13 @@
  * Environment Variables Required:
  * - STRIPE_SECRET_KEY: Stripe API key
  * - STRIPE_WEBHOOK_SECRET: Webhook signature verification
+ * - STRIPE_PRICE_ID_PRO: Price ID for Pro tier
  * - NEXT_PUBLIC_APP_URL: Base URL for redirects
  * 
  * Pricing Tiers:
- * - Starter: $9/mo - 1,000 credits
- * - Pro: $29/mo - 5,000 credits  
- * - Power: $79/mo - Unlimited
+ * - Free: 500 requests/month - All features, BYOK
+ * - Pro: $14.99/mo - Unlimited requests, All features, BYOK
+ * - Legacy: Unlimited free forever (existing users)
  */
 
 import Stripe from 'stripe';
@@ -27,41 +28,54 @@ export const stripe = process.env.STRIPE_SECRET_KEY
 
 // Pricing configuration
 export const PRICING_TIERS = {
-  starter: {
-    name: 'Starter',
-    priceMonthly: 9,
-    credits: 1000,
-    features: ['Basic AI queries', 'Email support', '10 async jobs/day']
+  free: {
+    name: 'Free',
+    priceMonthly: 0,
+    priceId: null,
+    requestLimit: 500,
+    features: ['500 queries/month', 'All features included', 'BYOK (your own API keys)', 'Community support']
   },
   pro: {
     name: 'Pro',
-    priceMonthly: 29,
-    credits: 5000,
-    features: ['All AI models', 'Priority support', '100 async jobs/day', 'Response caching']
+    priceMonthly: 14.99,
+    priceId: process.env.STRIPE_PRICE_ID_PRO || null,
+    requestLimit: -1,  // Unlimited
+    features: ['Unlimited queries', 'All features included', 'BYOK (your own API keys)', 'Priority email support', 'Early access to new features']
   },
-  power: {
-    name: 'Power',
-    priceMonthly: 79,
-    credits: -1,  // Unlimited
-    features: ['Unlimited credits (BYOK)', 'Dedicated support', 'Unlimited async jobs', 'Custom prompts']
+  legacy: {
+    name: 'Legacy',
+    priceMonthly: 0,
+    priceId: null,
+    requestLimit: -1,  // Unlimited
+    features: ['Grandfathered unlimited access', 'All features included', 'Thank you for being an early user! ❤️']
   }
 } as const;
 
-export type PlanTier = keyof typeof PRICING_TIERS | 'free' | 'legacy';
+export type PlanTier = 'free' | 'pro' | 'legacy';
 
-// Credit limits per tier
-export function getCreditsForTier(tier: PlanTier): number {
+// Request limits per tier
+export function getRequestLimitForTier(tier: PlanTier): number {
   switch (tier) {
-    case 'starter': return 1000;
-    case 'pro': return 5000;
-    case 'power': return -1;  // Unlimited
-    case 'legacy': return -1;  // Grandfathered unlimited BYOK
-    case 'free': return 100;   // Trial credits
+    case 'free': return 500;
+    case 'pro': return -1;     // Unlimited
+    case 'legacy': return -1;  // Unlimited
     default: return 0;
   }
 }
 
-// Check if tier has BYOK privileges
-export function hasBYOKPrivileges(tier: PlanTier): boolean {
-  return tier === 'legacy' || tier === 'power';
+// Check if tier has unlimited access
+export function hasUnlimitedAccess(tier: PlanTier): boolean {
+  return tier === 'legacy' || tier === 'pro';
+}
+
+// Legacy function - kept for backward compatibility
+export function getCreditsForTier(tier: PlanTier | 'starter' | 'power'): number {
+  if (tier === 'starter') return 1000;
+  if (tier === 'power') return -1;
+  return getRequestLimitForTier(tier as PlanTier);
+}
+
+// Legacy function - kept for backward compatibility  
+export function hasBYOKPrivileges(tier: PlanTier | 'starter' | 'power'): boolean {
+  return true; // All tiers use BYOK now
 }
