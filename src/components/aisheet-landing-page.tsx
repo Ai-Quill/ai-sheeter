@@ -51,7 +51,6 @@ export function AisheetLandingPage() {
             {/* CTA Buttons - 8px spacing */}
             <div className="flex flex-col sm:flex-row gap-4 mt-8">
               <Button 
-                size="lg"
                 className="bg-blue-600 text-white hover:bg-blue-700 text-lg px-8 py-6 shadow-lg shadow-blue-600/20" 
                 onClick={() => window.open('https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853', '_blank')}
               >
@@ -59,7 +58,6 @@ export function AisheetLandingPage() {
                 <ChevronRight className="ml-2 h-5 w-5" />
               </Button>
               <Button 
-                size="lg"
                 variant="outline"
                 className="text-gray-700 border-2 border-gray-300 hover:bg-gray-50 text-lg px-8 py-6" 
                 onClick={() => setIsVideoOpen(true)}
@@ -461,7 +459,6 @@ export function AisheetLandingPage() {
             </div>
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
               <Button
-                size="lg"
                 className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-6 shadow-xl"
                 onClick={() => window.open('https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853', '_blank')}
               >
@@ -469,7 +466,6 @@ export function AisheetLandingPage() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
-                size="lg"
                 variant="outline"
                 className="bg-transparent text-white border-2 border-white hover:bg-white/10 text-lg px-8 py-6"
                 onClick={() => setIsVideoOpen(true)}
