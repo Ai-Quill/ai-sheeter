@@ -87,12 +87,14 @@ function createBatchPrompt(promptTemplate: string, batch: InputRow[]): string {
     
     return `${instruction}
 
-Items to process (reply with same numbered format):
+Items to process:
 ${lines}
 
-Reply format:
-1. [result]
-2. [result]
+IMPORTANT: Return ONLY the result for each item. No confirmations, no "Yes", no "|||" separators.
+
+Reply format (numbered, one result per line):
+1. [result only]
+2. [result only]
 ...`;
   }
   
@@ -100,10 +102,42 @@ Reply format:
 
 ${lines}
 
+IMPORTANT: Return ONLY the result for each item. No confirmations, no "Yes", no extra text.
+
 Reply:
-1. [result]
-2. [result]
+1. [result only]
+2. [result only]
 ...`;
+}
+
+// Clean up AI output - remove unwanted suffixes that some models add
+// IMPORTANT: Only removes confirmation words when they appear AFTER a separator,
+// not when they ARE the legitimate answer (e.g., "Is this valid?" → "Yes")
+function cleanOutput(output: string): string {
+  if (!output) return output;
+  
+  const trimmed = output.trim();
+  
+  // Don't clean if the entire output is a simple confirmation word
+  // These could be legitimate yes/no/done answers to classification questions
+  const simpleAnswers = /^(Yes|No|Done|Completed|OK|True|False|Sí|Non|Oui|Ja|Nein|はい|いいえ|예|아니요|是|否|Да|Нет)\.?$/i;
+  if (simpleAnswers.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // Only clean patterns where a separator is followed by confirmation words
+  // This targets unwanted suffixes like "analysis text ||| Yes" or "result; Done"
+  let cleaned = trimmed
+    // Remove "|||" separator patterns with text after (e.g., "result ||| Yes", "text ||| Done")
+    // Only if there's actual content before the separator
+    .replace(/(.+?)\s*\|\|\|\s*(Yes|No|Done|Completed|OK|True|False)?\s*$/i, '$1')
+    // Remove trailing "|" or ";" followed by confirmation word (e.g., "text | Yes", "result; Done")
+    .replace(/(.+?)\s*[|;]\s*(Yes|No|Done|Completed|OK|True|False)\s*$/i, '$1')
+    // Clean up orphaned trailing separators
+    .replace(/\s*\|+\s*$/, '')
+    .trim();
+  
+  return cleaned;
 }
 
 // Parse batched response back into individual results
@@ -143,14 +177,14 @@ function parseBatchResponse(response: string, batch: InputRow[]): Array<{index: 
   
   console.log(`[BatchParse] Parsed ${parsedLines.size} numbered items`);
   
-  // Map back to batch items
+  // Map back to batch items with cleanup
   for (let i = 0; i < batch.length; i++) {
     const row = batch[i];
-    const output = parsedLines.get(i + 1) || '';
+    const rawOutput = parsedLines.get(i + 1) || '';
     results.push({
       index: row.index,
       input: row.input,
-      output
+      output: cleanOutput(rawOutput)
     });
   }
   
@@ -161,7 +195,7 @@ function parseBatchResponse(response: string, batch: InputRow[]): Array<{index: 
   if (emptyCount === batch.length && lines.length >= batch.length) {
     console.log(`[BatchParse] Using line-by-line fallback`);
     for (let i = 0; i < batch.length; i++) {
-      results[i].output = lines[i]?.trim() || '';
+      results[i].output = cleanOutput(lines[i]?.trim() || '');
     }
   }
   
@@ -272,7 +306,7 @@ export async function POST(req: Request): Promise<Response> {
         results.push({
           index: row.index,
           input: row.input,
-          output,
+          output: cleanOutput(output),
           tokens,
           cached
         });
@@ -580,7 +614,7 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
             return {
               index: row.index,
               input: row.input,
-              output: text,
+              output: cleanOutput(text),
               tokens,
               cached: false
             };
