@@ -32,8 +32,8 @@ export const PRICING_TIERS = {
     name: 'Free',
     priceMonthly: 0,
     priceId: null,
-    requestLimit: 500,
-    features: ['500 queries/month', 'All features included', 'BYOK (your own API keys)', 'Community support']
+    requestLimit: 300,
+    features: ['300 queries/month', 'All features included', 'BYOK (your own API keys)', 'Community support']
   },
   pro: {
     name: 'Pro',
