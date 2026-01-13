@@ -23,8 +23,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { generateText, generateObject } from 'ai';
-import { z } from 'zod';
+import { generateText } from 'ai';
+// Note: Removed zod + generateObject - using generateText for speed
 import { supabaseAdmin } from '@/lib/supabase';
 import { decryptApiKey } from '@/utils/encryption';
 import { getModel, type AIProvider } from '@/lib/ai/models';
@@ -32,21 +32,10 @@ import { getSystemPrompt, type TaskType } from '@/lib/prompts';
 import { generateCacheKey, getFromCache, setCache } from '@/lib/cache';
 
 // ============================================
-// STRUCTURED OUTPUT SCHEMAS
-// Using Zod for guaranteed response format
-// @see https://ai-sdk.dev/docs/reference/ai-sdk-core/zod-schema
+// BATCH PROCESSING STRATEGY
+// Using generateText + parsing instead of generateObject for 2-3x speed improvement
+// generateObject's JSON schema enforcement adds significant overhead
 // ============================================
-
-/**
- * Schema for batch processing results
- * Forces the model to return structured array of results
- */
-const BatchResultSchema = z.object({
-  results: z.array(z.object({
-    index: z.number().describe('1-based index matching input item number (just the number)'),
-    output: z.string().describe('ONLY the processed result - do NOT include index numbers, prefixes, or bullet points'),
-  })).describe('Array of processed results, one per input item'),
-});
 
 // Vercel Pro: Extended timeout for parallel job processing (5 min)
 export const maxDuration = 300;
@@ -501,82 +490,70 @@ async function processJob(jobId: string): Promise<JobResult> {
       let batchTokens = 0;
       
       try {
-        // For complex prompts, skip batch processing and use individual
-        if (isComplexPrompt) {
-          console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Complex prompt detected, using individual processing`);
-          throw new Error('COMPLEX_PROMPT');
+        // For complex prompts OR small batches, use parallel individual processing
+        // This is actually FASTER than structured output due to JSON schema overhead
+        const useParallel = isComplexPrompt || batch.length <= 15;
+        
+        if (useParallel) {
+          console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Using PARALLEL processing (${isComplexPrompt ? 'complex prompt' : 'small batch'})`);
+          throw new Error('USE_PARALLEL');
         }
         
-        // Create structured batch prompt for generateObject
+        // For large batches, use generateText with numbered format (faster than generateObject)
         const batchItems = batch.map((row, i) => `${i + 1}. ${row.input}`).join('\n');
         const taskInstruction = config.prompt
           ? config.prompt.replace(/\{\{?input\}?\}/g, 'each item')
           : 'Process each item';
         
         console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Model=${config.model}, specificModel=${config.specificModel}`);
-        console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Using STRUCTURED OUTPUT (generateObject)`);
+        console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Using TEXT BATCH (generateText)`);
         console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Task: ${taskInstruction}`);
         console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Items: ${batch.length}`);
         
         try {
-          // Use generateObject for guaranteed structured response
-          // @see https://ai-sdk.dev/docs/reference/ai-sdk-core/zod-schema
-          const result = await generateObject({
+          // Use generateText instead of generateObject - much faster!
+          const result = await generateText({
             model: getModel(config.model, config.specificModel, apiKey),
-            schema: BatchResultSchema,
             system: systemPrompt,
             prompt: `${taskInstruction}
 
-Process each numbered item:
+Process each numbered item and respond with ONLY the results in the same numbered format:
 
 ${batchItems}
 
-For each item, return its index number in the "index" field and ONLY the result in the "output" field. Do NOT include the index number or any prefix in the output text.`,
+Reply with numbered results (1. result, 2. result, etc). Give ONLY the result for each item, no explanations.`,
           });
           
           const usage = result.usage || {};
           const tokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
           batchTokens = tokens;
           
-          console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Structured response received, ${result.object.results.length} results, ${tokens} tokens`);
+          // Parse the text response into individual results
+          const parsedResults = parseBatchResponse(result.text, batch);
           
-          // Map structured results to our format
-          for (const item of result.object.results) {
-            // Find the corresponding input row (index is 1-based)
-            const inputRow = batch[item.index - 1];
-            if (inputRow) {
-              batchResults.push({
-                index: inputRow.index,
-                input: inputRow.input,
-                output: item.output,
-                tokens: Math.ceil(tokens / batch.length),
-                cached: false
-              });
-            }
+          console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Text batch response received, ${parsedResults.length} results, ${tokens} tokens`);
+          
+          // Map parsed results to our format
+          for (const item of parsedResults) {
+            batchResults.push({
+              index: item.index,
+              input: item.input,
+              output: item.output,
+              tokens: Math.ceil(tokens / batch.length),
+              cached: false
+            });
           }
           
-          // Check if we got all results
-          if (batchResults.length < batch.length) {
-            console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Only got ${batchResults.length}/${batch.length} results`);
-            // Fill missing with empty results (will be retried individually)
-            const gotIndices = new Set(batchResults.map(r => r.index));
-            for (const row of batch) {
-              if (!gotIndices.has(row.index)) {
-                batchResults.push({
-                  index: row.index,
-                  input: row.input,
-                  output: '',
-                  tokens: 0,
-                  cached: false,
-                  error: 'Missing from batch response'
-                });
-              }
-            }
+          // Check for empty results - if too many, fall back to parallel
+          const emptyCount = batchResults.filter(r => !r.output).length;
+          if (emptyCount > batch.length * 0.3) {
+            console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Too many empty results (${emptyCount}/${batch.length}), falling back to parallel`);
+            throw new Error('TOO_MANY_EMPTY');
           }
           
         } catch (aiError: any) {
-          console.error(`[Worker] Job ${jobId} batch ${batchIndex}: Structured output failed:`, aiError.message);
-          throw new Error(`STRUCTURED_OUTPUT_FAILED: ${aiError.message}`);
+          console.error(`[Worker] Job ${jobId} batch ${batchIndex}: Text batch failed:`, aiError.message);
+          throw new Error(`TEXT_BATCH_FAILED: ${aiError.message}`);
         }
         
         return { results: batchResults, tokens: batchTokens };
