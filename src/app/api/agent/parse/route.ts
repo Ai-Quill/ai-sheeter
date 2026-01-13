@@ -44,6 +44,12 @@ const ParsedPlanSchema = z.object({
     summary: z.string().describe('Human-readable summary of what will happen'),
     confidence: z.enum(['high', 'medium', 'low']).describe('Confidence level: high if all fields clear, medium if inferred, low if ambiguous')
   }).nullable().describe('Parsed execution plan, null if clarification needed'),
+  formulaSuggestion: z.object({
+    formula: z.string().describe('Google Sheets formula using {input} as cell reference placeholder, e.g. =UPPER({input}) or =DATEDIF({input},TODAY(),"Y")'),
+    description: z.string().describe('Brief description of what this formula does'),
+    reliability: z.enum(['guaranteed', 'conditional']).describe('guaranteed = simple text/math formulas that always work; conditional = date/regex formulas that depend on data format'),
+    warning: z.string().nullable().describe('Warning for conditional formulas explaining what could fail, e.g. "Requires valid date format"'),
+  }).nullable().describe('If the task can be solved with a native Google Sheets formula, suggest it here. Formulas are instant and free. Null if AI is needed (translation, summarization, sentiment, creative tasks).'),
   clarification: z.object({
     question: z.string().describe('Question to ask the user'),
     suggestions: z.array(z.string()).describe('Example commands to help the user')
@@ -80,22 +86,48 @@ The user wants to process data in a spreadsheet. Parse their command into a stru
    - Keep prompts SHORT (under 100 chars if possible)
    - Be specific about output format in ONE sentence
    
-   Examples (notice how concise):
-   - "Calculate employee seniority" → 
-     "Years since {{input}} to ${new Date().toISOString().split('T')[0]}. Format: X years, Y months"
-   - "Categorize sentiment" → 
-     "Sentiment of: {{input}}. Reply: Positive/Negative/Neutral only"
-   - "Extract emails" → 
-     "Extract emails from: {{input}}. Return comma-separated or 'None'"
-   - "Translate to Spanish" →
-     "Spanish: {{input}}"
-   
 5. **summary**: Write a clear human-readable summary of what will happen
 
 6. **confidence**: 
    - 'high' if command explicitly specifies input/output columns
    - 'medium' if inferred from context (e.g., auto-detected data)
    - 'low' if ambiguous or missing critical info
+
+7. **formulaSuggestion**: IMPORTANT - Check if a native Google Sheets formula can solve this task!
+   Formulas are INSTANT and FREE. Always prefer formulas over AI when possible.
+   
+   Use {input} as the cell reference placeholder (e.g., =UPPER({input}))
+   
+   **GUARANTEED formulas** (always work, reliability: "guaranteed"):
+   - Text: UPPER, LOWER, PROPER, TRIM, LEN, LEFT, RIGHT, MID, SUBSTITUTE, CONCATENATE
+   - Math: SUM, AVERAGE, ROUND, ABS, MAX, MIN, basic arithmetic
+   - Logic: IF, IFS, SWITCH, AND, OR
+   
+   **CONDITIONAL formulas** (depend on data format, reliability: "conditional"):
+   - Dates: DATEDIF, YEAR, MONTH, DAY, TODAY, NETWORKDAYS, EDATE
+     → Warning: "Requires valid date format"
+   - Regex: REGEXEXTRACT, REGEXMATCH, REGEXREPLACE
+     → Warning: "Pattern may not match all variations"
+   - Lookup: VLOOKUP, HLOOKUP, INDEX/MATCH
+     → Warning: "Requires matching values to exist"
+   
+   **DO NOT suggest formulas for** (set formulaSuggestion to null):
+   - Translation (requires language understanding)
+   - Summarization (requires comprehension)
+   - Sentiment analysis (requires understanding)
+   - Creative writing/generation
+   - Classification into custom categories
+   - Anything requiring reasoning or context
+   
+   Examples:
+   - "Calculate seniority" → =DATEDIF({input},TODAY(),"Y")&" years, "&DATEDIF({input},TODAY(),"YM")&" months" (conditional, date-dependent)
+   - "Convert to uppercase" → =UPPER({input}) (guaranteed)
+   - "Extract domain from email" → =REGEXEXTRACT({input},"@(.+)$") (conditional, regex-dependent)
+   - "Count characters" → =LEN({input}) (guaranteed)
+   - "Calculate age" → =DATEDIF({input},TODAY(),"Y") (conditional, date-dependent)
+   - "Add 10%" → ={input}*1.1 (guaranteed, if numeric)
+   - "Translate to Spanish" → null (requires AI)
+   - "Summarize this text" → null (requires AI)
 
 ## Important Rules
 
@@ -106,30 +138,42 @@ The user wants to process data in a spreadsheet. Parse their command into a stru
 - If there are empty columns, those are likely outputs.
 - Only ask for clarification if you truly can't figure out what the user wants.
 
-## Examples with Context (notice CONCISE prompts)
+## Examples with Context
 
 Command: "Calculate employee seniority"
 Context: Column B has header "employee start date", Column C is empty
 → taskType: "custom"
-→ inputRange: "B2:B100" (from context)
+→ inputRange: "B2:B100"
 → outputColumns: ["C"]
-→ prompt: "Years since {{input}} to ${new Date().toISOString().split('T')[0]}. Format: X years, Y months"
+→ prompt: "Calculate years and months since {{input}}. Format: X years, Y months"
+→ formulaSuggestion: { formula: "=DATEDIF({input},TODAY(),\\"Y\\")&\\" years, \\"&DATEDIF({input},TODAY(),\\"YM\\")&\\" months\\"", description: "Calculate years and months since date", reliability: "conditional", warning: "Requires valid date format" }
 → confidence: "medium"
 
-Command: "Fill in the product descriptions"  
-Context: Column A has "product name", Column B is empty with header "description"
-→ taskType: "generate"
-→ inputRange: "A2:A50"
-→ outputColumns: ["B"]
-→ prompt: "Product description for: {{input}}. 1-2 sentences, engaging."
-→ confidence: "medium"
-
-Command: "Classify as urgent or normal"
-Context: Column A has "support ticket", Column B is empty
-→ taskType: "classify"
+Command: "Convert to uppercase"
+Context: Column A has "names", Column B is empty
+→ taskType: "clean"
 → inputRange: "A2:A100"
 → outputColumns: ["B"]
-→ prompt: "{{input}} → Urgent or Normal?"
+→ prompt: "Convert to uppercase: {{input}}"
+→ formulaSuggestion: { formula: "=UPPER({input})", description: "Convert to uppercase", reliability: "guaranteed", warning: null }
+→ confidence: "high"
+
+Command: "Translate to Spanish"
+Context: Column A has "English text", Column B is empty
+→ taskType: "translate"
+→ inputRange: "A2:A50"
+→ outputColumns: ["B"]
+→ prompt: "Translate to Spanish: {{input}}"
+→ formulaSuggestion: null (requires AI - no formula can translate)
+→ confidence: "high"
+
+Command: "Summarize each review"
+Context: Column A has "customer reviews", Column B is empty
+→ taskType: "summarize"
+→ inputRange: "A2:A100"
+→ outputColumns: ["B"]
+→ prompt: "Summarize in 1 sentence: {{input}}"
+→ formulaSuggestion: null (requires AI understanding)
 → confidence: "high"`;
 
 // ============================================
@@ -282,7 +326,7 @@ export async function POST(request: NextRequest) {
     }
     
     // ============================================
-    // FAST AI PATH: High confidence, no formula available
+    // FAST AI PATH: High confidence, with or without formula option
     // ============================================
     if (detected.confidence === 'high' && inputCol && inputRange) {
       const optimizedPrompt = taskOptimizer.buildOptimizedPrompt(
@@ -296,7 +340,8 @@ export async function POST(request: NextRequest) {
       console.log('⚡ Fast AI path: Using task optimizer (no API call for parsing)');
       console.log('Optimized prompt:', optimizedPrompt);
       
-      return NextResponse.json({
+      // Build response with optional formula
+      const response: any = {
         success: true,
         useFormula: false,
         plan: {
@@ -315,9 +360,29 @@ export async function POST(request: NextRequest) {
         },
         _meta: {
           recommendation: 'ai',
-          reason: 'No formula alternative available',
+          reason: detected.formulaAlternative 
+            ? `Formula available but ${detected.formulaAlternative.warning || 'may fail on some data'}. AI is more robust.`
+            : 'No formula alternative available',
         },
-      });
+      };
+      
+      // Include formula option if available (conditional formulas)
+      if (detected.formulaAlternative && detected.formulaAlternative.reliability === 'conditional') {
+        response._formulaOption = {
+          template: detected.formulaAlternative.formula,
+          description: detected.formulaAlternative.description,
+          reliability: detected.formulaAlternative.reliability,
+          warning: detected.formulaAlternative.warning,
+          inputColumn: inputCol,
+          outputColumn: outputCol,
+          startRow: parseInt(inputRange.match(/\d+/)?.[0] || '2'),
+          endRow: parseInt(inputRange.match(/:.*?(\d+)/)?.[1] || '100'),
+          rowCount,
+        };
+        console.log('📋 Including formula option (conditional):', detected.formulaAlternative.warning);
+      }
+      
+      return NextResponse.json(response);
     }
 
     // ============================================
@@ -380,8 +445,56 @@ export async function POST(request: NextRequest) {
     
     console.log('AI output:', JSON.stringify(output, null, 2));
 
-    // Output is guaranteed to match schema or throw NoObjectGeneratedError
-    return NextResponse.json(output);
+    // Process AI response - handle formula suggestions
+    const response: any = { ...output };
+    
+    // If AI suggested a formula, transform it for the frontend
+    if (output?.formulaSuggestion && output?.plan && inputCol && inputRange) {
+      const fs = output.formulaSuggestion;
+      console.log('🧮 AI suggested formula:', fs.formula, 'reliability:', fs.reliability);
+      
+      if (fs.reliability === 'guaranteed') {
+        // Guaranteed formula - offer as primary action
+        response.useFormula = true;
+        response.formula = {
+          template: fs.formula,
+          description: fs.description,
+          reliability: fs.reliability,
+          inputColumn: inputCol,
+          outputColumn: outputCol,
+          startRow: parseInt(inputRange.match(/\d+/)?.[0] || '2'),
+          endRow: parseInt(inputRange.match(/:.*?(\d+)/)?.[1] || '100'),
+          rowCount,
+        };
+        response._meta = {
+          recommendation: 'formula',
+          reason: 'Formula is 100% reliable for this task - instant and free!',
+        };
+      } else {
+        // Conditional formula - show as option, AI is default
+        response.useFormula = false;
+        response._formulaOption = {
+          template: fs.formula,
+          description: fs.description,
+          reliability: fs.reliability,
+          warning: fs.warning,
+          inputColumn: inputCol,
+          outputColumn: outputCol,
+          startRow: parseInt(inputRange.match(/\d+/)?.[0] || '2'),
+          endRow: parseInt(inputRange.match(/:.*?(\d+)/)?.[1] || '100'),
+          rowCount,
+        };
+        response._meta = {
+          recommendation: 'ai',
+          reason: `Formula available but ${fs.warning || 'may fail on some data'}. AI is more robust.`,
+        };
+      }
+    }
+    
+    // Clean up - don't send raw formulaSuggestion to frontend
+    delete response.formulaSuggestion;
+
+    return NextResponse.json(response);
 
   } catch (error: any) {
     console.error('Agent parse error:', error);
