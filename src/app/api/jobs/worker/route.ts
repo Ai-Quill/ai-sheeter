@@ -43,8 +43,8 @@ import { generateCacheKey, getFromCache, setCache } from '@/lib/cache';
  */
 const BatchResultSchema = z.object({
   results: z.array(z.object({
-    index: z.number().describe('1-based index matching input item number'),
-    output: z.string().describe('The processed result for this item'),
+    index: z.number().describe('1-based index matching input item number (just the number)'),
+    output: z.string().describe('ONLY the processed result - do NOT include index numbers, prefixes, or bullet points'),
   })).describe('Array of processed results, one per input item'),
 });
 
@@ -527,11 +527,11 @@ async function processJob(jobId: string): Promise<JobResult> {
             system: systemPrompt,
             prompt: `${taskInstruction}
 
-Process each numbered item and return results:
+Process each numbered item:
 
 ${batchItems}
 
-Return a result for each item with its 1-based index number.`,
+For each item, return its index number in the "index" field and ONLY the result in the "output" field. Do NOT include the index number or any prefix in the output text.`,
           });
           
           const usage = result.usage || {};
