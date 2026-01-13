@@ -58,7 +58,6 @@ export function AisheetLandingPage() {
                 <ChevronRight className="ml-2 h-5 w-5" />
               </Button>
               <Button 
-                variant="outline"
                 className="text-gray-700 border-2 border-gray-300 hover:bg-gray-50 text-lg px-8 py-6" 
                 onClick={() => setIsVideoOpen(true)}
               >
@@ -466,7 +465,6 @@ export function AisheetLandingPage() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
-                variant="outline"
                 className="bg-transparent text-white border-2 border-white hover:bg-white/10 text-lg px-8 py-6"
                 onClick={() => setIsVideoOpen(true)}
               >
