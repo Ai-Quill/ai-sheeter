@@ -69,13 +69,11 @@ export function hasUnlimitedAccess(tier: PlanTier): boolean {
 }
 
 // Legacy function - kept for backward compatibility
-export function getCreditsForTier(tier: PlanTier | 'starter' | 'power'): number {
-  if (tier === 'starter') return 1000;
-  if (tier === 'power') return -1;
-  return getRequestLimitForTier(tier as PlanTier);
+export function getCreditsForTier(tier: PlanTier): number {
+  return getRequestLimitForTier(tier);
 }
 
 // Legacy function - kept for backward compatibility  
-export function hasBYOKPrivileges(tier: PlanTier | 'starter' | 'power'): boolean {
+export function hasBYOKPrivileges(tier: PlanTier): boolean {
   return true; // All tiers use BYOK now
 }

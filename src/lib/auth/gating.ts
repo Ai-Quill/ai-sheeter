@@ -3,7 +3,7 @@
  * 
  * Controls access to features based on user's subscription tier.
  * Enforces request limits per tier:
- * - Free: 500 requests/month
+ * - Free: 300 requests/month
  * - Pro: Unlimited
  * - Legacy: Unlimited (grandfathered)
  */
@@ -70,7 +70,7 @@ export async function canPerformQuery(
     return { allowed: false, reason: 'User not found' };
   }
 
-  // BYOK users (legacy, power) have unlimited access
+  // BYOK users (legacy, pro) have unlimited access
   if (access.hasBYOK) {
     return { allowed: true, userAccess: access };
   }
@@ -100,13 +100,11 @@ export async function canCreateJob(
     return { allowed: false, reason: 'User not found' };
   }
 
-  // Job limits by tier
+  // Job limits by tier (simplified to free/pro/legacy)
   const dailyJobLimits: Record<PlanTier, number> = {
-    free: 0,       // No async jobs on free tier
-    legacy: -1,    // Unlimited
-    starter: 10,
-    pro: 100,
-    power: -1      // Unlimited
+    free: 3,       // Limited async jobs on free tier
+    pro: -1,       // Unlimited
+    legacy: -1     // Unlimited
   };
 
   const jobLimit = dailyJobLimits[access.tier];
@@ -139,13 +137,11 @@ export async function canCreateJob(
     }
   }
 
-  // Row count limits
+  // Row count limits (simplified to free/pro/legacy)
   const maxRowsPerJob: Record<PlanTier, number> = {
-    free: 0,
-    legacy: 1000,
-    starter: 100,
-    pro: 500,
-    power: 1000
+    free: 50,      // Limited rows on free tier
+    pro: 1000,     // Pro users get more
+    legacy: 1000   // Legacy users grandfathered
   };
 
   if (rowCount > maxRowsPerJob[access.tier]) {

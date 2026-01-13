@@ -21,11 +21,16 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'userEmail and tier required' }, { status: 400 });
     }
 
-    if (!['starter', 'pro', 'power'].includes(tier)) {
+    if (!['free', 'pro', 'legacy'].includes(tier)) {
       return NextResponse.json({ error: 'Invalid tier' }, { status: 400 });
     }
 
-    const tierConfig = PRICING_TIERS[tier as keyof typeof PRICING_TIERS];
+    // Pro is the only purchasable tier
+    if (tier !== 'pro') {
+      return NextResponse.json({ error: 'Only pro tier is available for purchase' }, { status: 400 });
+    }
+
+    const tierConfig = PRICING_TIERS.pro;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aisheet.vercel.app';
 
     // Get or create Stripe customer
@@ -89,7 +94,8 @@ export async function POST(req: Request): Promise<Response> {
     });
 
     return NextResponse.json({ 
-      checkoutUrl: session.url,
+      url: session.url,
+      checkoutUrl: session.url,  // Keep for backwards compatibility
       sessionId: session.id
     });
 
