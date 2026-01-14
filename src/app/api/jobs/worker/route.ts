@@ -200,9 +200,10 @@ function parseBatchResponse(response: string, batch: InputRow[]): Array<{index: 
   }
   
   // If still too many empty, throw to trigger individual processing
+  // Use 20% threshold - allows 1 empty result, but catches patterns where multiple fail
   const finalEmptyCount = results.filter(r => !r.output).length;
-  if (finalEmptyCount > batch.length / 2) {
-    console.log(`[BatchParse] FAILED: ${finalEmptyCount}/${batch.length} empty, triggering individual fallback`);
+  if (finalEmptyCount > batch.length * 0.2) {
+    console.log(`[BatchParse] FAILED: ${finalEmptyCount}/${batch.length} empty (>${Math.ceil(batch.length * 0.2)}), triggering individual fallback`);
     throw new Error('BATCH_PARSE_FAILED: Too many empty results');
   }
   
@@ -579,9 +580,10 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
           }
           
           // Check for empty results - if too many, fall back to parallel
+          // 20% threshold: allows 1 empty, catches 2+ empty
           const emptyCount = batchResults.filter(r => !r.output).length;
-          if (emptyCount > batch.length * 0.3) {
-            console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Too many empty results (${emptyCount}/${batch.length}), falling back to parallel`);
+          if (emptyCount > batch.length * 0.2) {
+            console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Too many empty results (${emptyCount}/${batch.length} > 20%), falling back to parallel`);
             throw new Error('TOO_MANY_EMPTY');
           }
           
@@ -596,7 +598,11 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
         console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Processing ${batch.length} items in PARALLEL`);
         
         // Fallback: process items individually IN PARALLEL for speed
-        const rowPromises = batch.map(async (row) => {
+        // With retry logic for failed items
+        const MAX_RETRIES = 2;
+        const RETRY_DELAY_MS = 1000;
+        
+        const processRowWithRetry = async (row: InputRow, retryCount = 0): Promise<ResultRow> => {
           try {
             const userInput = config.prompt 
               ? config.prompt.replace('{input}', row.input).replace('{{input}}', row.input)
@@ -610,25 +616,54 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
             });
 
             const tokens = (usage?.inputTokens || 0) + (usage?.outputTokens || 0);
+            const output = cleanOutput(text);
+            
+            // Check if output is empty/too short - might need retry
+            if (!output || output.length < 5) {
+              if (retryCount < MAX_RETRIES) {
+                console.log(`[Worker] Job ${jobId} row ${row.index}: Empty/short output (${output.length} chars), retrying (${retryCount + 1}/${MAX_RETRIES})`);
+                await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (retryCount + 1)));
+                return processRowWithRetry(row, retryCount + 1);
+              }
+              console.warn(`[Worker] Job ${jobId} row ${row.index}: Empty output after ${MAX_RETRIES} retries`);
+            }
             
             return {
               index: row.index,
               input: row.input,
-              output: cleanOutput(text),
+              output,
               tokens,
               cached: false
             };
-          } catch (rowError) {
+          } catch (rowError: any) {
+            const errorMsg = rowError?.message || 'Unknown error';
+            
+            // Retry on certain errors
+            if (retryCount < MAX_RETRIES && (
+              errorMsg.includes('rate') || 
+              errorMsg.includes('timeout') || 
+              errorMsg.includes('429') ||
+              errorMsg.includes('500') ||
+              errorMsg.includes('503')
+            )) {
+              console.log(`[Worker] Job ${jobId} row ${row.index}: Error "${errorMsg.slice(0, 50)}", retrying (${retryCount + 1}/${MAX_RETRIES})`);
+              await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (retryCount + 1) * 2)); // Longer delay for errors
+              return processRowWithRetry(row, retryCount + 1);
+            }
+            
+            console.error(`[Worker] Job ${jobId} row ${row.index}: FAILED - ${errorMsg.slice(0, 100)}`);
             return {
               index: row.index,
               input: row.input,
               output: '',
               tokens: 0,
               cached: false,
-              error: rowError instanceof Error ? rowError.message : 'Processing failed'
+              error: errorMsg
             };
           }
-        });
+        };
+        
+        const rowPromises = batch.map(row => processRowWithRetry(row));
         
         // Wait for all rows to complete in parallel
         const parallelResults = await Promise.all(rowPromises);
@@ -677,8 +712,14 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
       }
     }
 
+    // Log any empty results before completing
+    const emptyResults = results.filter(r => !r.output || r.output.trim() === '');
+    if (emptyResults.length > 0) {
+      console.warn(`[Worker] Job ${jobId}: ${emptyResults.length}/${results.length} rows have EMPTY output at indices: ${emptyResults.map(r => r.index).join(', ')}`);
+    }
+    
     // Mark job as completed
-    console.log(`[Worker] Job ${jobId} completing: ${processedCount} rows, ${totalTokens} tokens`);
+    console.log(`[Worker] Job ${jobId} completing: ${processedCount} rows, ${totalTokens} tokens${emptyResults.length > 0 ? ` (${emptyResults.length} empty)` : ''}`);
     await supabaseAdmin
       .from('jobs')
       .update({
