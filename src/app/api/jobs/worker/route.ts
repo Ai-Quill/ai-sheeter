@@ -595,14 +595,20 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
         return { results: batchResults, tokens: batchTokens };
         
       } catch (batchError) {
-        console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Processing ${batch.length} items in PARALLEL`);
+        console.log(`[Worker] Job ${jobId} batch ${batchIndex}: Processing ${batch.length} items with STAGGERED PARALLEL`);
         
-        // Fallback: process items individually IN PARALLEL for speed
-        // With retry logic for failed items
-        const MAX_RETRIES = 3; // Increased from 2 to 3
-        const RETRY_DELAY_MS = 1500; // Increased from 1000 to 1500ms
+        // Fallback: process items with staggered start times to avoid rate limits
+        // Each row starts with a small delay to prevent overwhelming the API
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY_MS = 2000; // Increased to 2s for more breathing room
+        const STAGGER_DELAY_MS = 200; // 200ms between each row start
         
-        const processRowWithRetry = async (row: InputRow, retryCount = 0): Promise<ResultRow> => {
+        const processRowWithRetry = async (row: InputRow, retryCount = 0, rowIndex = 0): Promise<ResultRow> => {
+          // Stagger the initial request to avoid rate limits
+          if (retryCount === 0 && rowIndex > 0) {
+            await new Promise(r => setTimeout(r, STAGGER_DELAY_MS * rowIndex));
+          }
+          
           try {
             const userInput = config.prompt 
               ? config.prompt.replace('{input}', row.input).replace('{{input}}', row.input)
@@ -650,7 +656,7 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
                   console.log(`[Worker] Job ${jobId} row ${row.index}: Input preview: "${inputPreview}..."`);
                 }
                 await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (retryCount + 1)));
-                return processRowWithRetry(row, retryCount + 1);
+                return processRowWithRetry(row, retryCount + 1, rowIndex);
               }
               // After all retries failed, provide a meaningful fallback message
               const inputPreview = row.input.substring(0, 50).replace(/\n/g, ' ');
@@ -679,16 +685,16 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
             const errorMsg = rowError?.message || 'Unknown error';
             
             // Retry on certain errors
-            if (retryCount < MAX_RETRIES && (
-              errorMsg.includes('rate') || 
-              errorMsg.includes('timeout') || 
-              errorMsg.includes('429') ||
-              errorMsg.includes('500') ||
-              errorMsg.includes('503')
-            )) {
-              console.log(`[Worker] Job ${jobId} row ${row.index}: Error "${errorMsg.slice(0, 50)}", retrying (${retryCount + 1}/${MAX_RETRIES})`);
-              await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (retryCount + 1) * 2)); // Longer delay for errors
-              return processRowWithRetry(row, retryCount + 1);
+            const isRateLimit = errorMsg.includes('rate') || errorMsg.includes('429');
+            const isServerError = errorMsg.includes('timeout') || errorMsg.includes('500') || errorMsg.includes('503');
+            
+            if (retryCount < MAX_RETRIES && (isRateLimit || isServerError)) {
+              // Much longer delay for rate limits (5s, 10s, 15s)
+              const baseDelay = isRateLimit ? 5000 : RETRY_DELAY_MS;
+              const delay = baseDelay * (retryCount + 1);
+              console.log(`[Worker] Job ${jobId} row ${row.index}: ${isRateLimit ? 'RATE LIMITED' : 'Error'} "${errorMsg.slice(0, 50)}", waiting ${delay/1000}s... (${retryCount + 1}/${MAX_RETRIES})`);
+              await new Promise(r => setTimeout(r, delay));
+              return processRowWithRetry(row, retryCount + 1, rowIndex);
             }
             
             console.error(`[Worker] Job ${jobId} row ${row.index}: FAILED - ${errorMsg.slice(0, 100)}`);
@@ -705,7 +711,7 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
           }
         };
         
-        const rowPromises = batch.map(row => processRowWithRetry(row));
+        const rowPromises = batch.map((row, idx) => processRowWithRetry(row, 0, idx));
         
         // Wait for all rows to complete in parallel
         const parallelResults = await Promise.all(rowPromises);
@@ -872,11 +878,27 @@ export async function GET(req: Request): Promise<Response> {
       });
     }
 
-    console.log(`[Worker] Processing ${jobIds.length} job(s) in parallel: ${jobIds.join(', ')}`);
+    console.log(`[Worker] Processing ${jobIds.length} job(s) with staggered starts: ${jobIds.join(', ')}`);
 
-    // Process all jobs in parallel
+    // Process jobs with staggered starts to avoid rate limits
+    // Each job starts 2 seconds after the previous one
+    const JOB_STAGGER_DELAY_MS = 2000;
+    
     const jobResults = await Promise.allSettled(
-      jobIds.map(jobId => processJob(jobId))
+      jobIds.map((jobId, index) => 
+        new Promise<JobResult>(async (resolve, reject) => {
+          // Stagger job starts to avoid overwhelming the AI provider
+          if (index > 0) {
+            await new Promise(r => setTimeout(r, JOB_STAGGER_DELAY_MS * index));
+          }
+          try {
+            const result = await processJob(jobId);
+            resolve(result);
+          } catch (e) {
+            reject(e);
+          }
+        })
+      )
     );
 
     // Aggregate results
