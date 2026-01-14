@@ -608,6 +608,28 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
               ? config.prompt.replace('{input}', row.input).replace('{{input}}', row.input)
               : row.input;
 
+            // Log input data for debugging - especially for empty/short inputs
+            if (retryCount === 0) {
+              const inputLen = row.input?.length || 0;
+              if (row.index < 3 || inputLen < 20) {
+                const inputPreview = row.input?.substring(0, 150).replace(/\n/g, ' | ') || '(empty)';
+                console.log(`[Worker] Job ${jobId} row ${row.index}: INPUT (${inputLen} chars) = "${inputPreview}"`);
+              }
+            }
+            
+            // Check for empty/malformed input
+            if (!row.input || row.input.trim().length < 5) {
+              console.warn(`[Worker] Job ${jobId} row ${row.index}: EMPTY/SHORT INPUT - "${row.input?.substring(0, 50) || '(null)'}"`);
+              return {
+                index: row.index,
+                input: row.input || '',
+                output: `Input data missing or too short`,
+                tokens: 0,
+                cached: false,
+                error: 'Empty input data'
+              };
+            }
+
             const { text, usage } = await generateText({
               model: getModel(config.model, config.specificModel, apiKey),
               system: systemPrompt,
