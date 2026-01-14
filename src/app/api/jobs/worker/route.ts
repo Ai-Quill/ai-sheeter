@@ -599,8 +599,8 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
         
         // Fallback: process items individually IN PARALLEL for speed
         // With retry logic for failed items
-        const MAX_RETRIES = 2;
-        const RETRY_DELAY_MS = 1000;
+        const MAX_RETRIES = 3; // Increased from 2 to 3
+        const RETRY_DELAY_MS = 1500; // Increased from 1000 to 1500ms
         
         const processRowWithRetry = async (row: InputRow, retryCount = 0): Promise<ResultRow> => {
           try {
@@ -622,10 +622,28 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
             if (!output || output.length < 5) {
               if (retryCount < MAX_RETRIES) {
                 console.log(`[Worker] Job ${jobId} row ${row.index}: Empty/short output (${output.length} chars), retrying (${retryCount + 1}/${MAX_RETRIES})`);
+                // Log input on first retry to help debug
+                if (retryCount === 0) {
+                  const inputPreview = row.input.substring(0, 100).replace(/\n/g, ' ');
+                  console.log(`[Worker] Job ${jobId} row ${row.index}: Input preview: "${inputPreview}..."`);
+                }
                 await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (retryCount + 1)));
                 return processRowWithRetry(row, retryCount + 1);
               }
-              console.warn(`[Worker] Job ${jobId} row ${row.index}: Empty output after ${MAX_RETRIES} retries`);
+              // After all retries failed, provide a meaningful fallback message
+              const inputPreview = row.input.substring(0, 50).replace(/\n/g, ' ');
+              console.warn(`[Worker] Job ${jobId} row ${row.index}: Empty output after ${MAX_RETRIES} retries. Input: "${inputPreview}..."`);
+              
+              // Return a fallback message instead of empty string
+              const fallbackOutput = `Unable to generate content for: ${inputPreview.substring(0, 30)}...`;
+              return {
+                index: row.index,
+                input: row.input,
+                output: fallbackOutput,
+                tokens,
+                cached: false,
+                error: 'AI returned empty response after retries'
+              };
             }
             
             return {
@@ -652,10 +670,12 @@ Reply with numbered results (1. result, 2. result, etc). Give ONLY the result fo
             }
             
             console.error(`[Worker] Job ${jobId} row ${row.index}: FAILED - ${errorMsg.slice(0, 100)}`);
+            // Provide fallback message for errors too
+            const inputPreview = row.input.substring(0, 30).replace(/\n/g, ' ');
             return {
               index: row.index,
               input: row.input,
-              output: '',
+              output: `Error processing: ${inputPreview}...`,
               tokens: 0,
               cached: false,
               error: errorMsg
