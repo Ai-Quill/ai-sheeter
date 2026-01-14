@@ -93,41 +93,49 @@ The user wants to process data in a spreadsheet. Parse their command into a stru
    - 'medium' if inferred from context (e.g., auto-detected data)
    - 'low' if ambiguous or missing critical info
 
-7. **formulaSuggestion**: IMPORTANT - Check if a native Google Sheets formula can solve this task!
+7. **formulaSuggestion**: CRITICAL - Always check if a native Google Sheets formula can solve this task!
    Formulas are INSTANT and FREE. Always prefer formulas over AI when possible.
    
    Use {input} as the cell reference placeholder (e.g., =UPPER({input}))
    
-   **GUARANTEED formulas** (always work, reliability: "guaranteed"):
-   - Text: UPPER, LOWER, PROPER, TRIM, LEN, LEFT, RIGHT, MID, SUBSTITUTE, CONCATENATE
-   - Math: SUM, AVERAGE, ROUND, ABS, MAX, MIN, basic arithmetic
-   - Logic: IF, IFS, SWITCH, AND, OR
+   **THINK CONCEPTUALLY** - Don't just match keywords. Understand WHAT the user wants:
    
-   **CONDITIONAL formulas** (depend on data format, reliability: "conditional"):
-   - Dates: DATEDIF, YEAR, MONTH, DAY, TODAY, NETWORKDAYS, EDATE
-     → Warning: "Requires valid date format"
-   - Regex: REGEXEXTRACT, REGEXMATCH, REGEXREPLACE
-     → Warning: "Pattern may not match all variations"
-   - Lookup: VLOOKUP, HLOOKUP, INDEX/MATCH
-     → Warning: "Requires matching values to exist"
+   **Date/Time Calculations** (reliability: "conditional", warning: "Requires valid date format"):
+   - "Days since/elapsed/outstanding/overdue" → =TODAY()-{input} (simple subtraction)
+   - "Days until/remaining/left" → ={input}-TODAY() (reverse subtraction)
+   - "Years since/seniority/tenure/age" → =DATEDIF({input},TODAY(),"Y") or with months: =DATEDIF({input},TODAY(),"Y")&" years, "&DATEDIF({input},TODAY(),"YM")&" months"
+   - "Months between dates" → =DATEDIF({input},TODAY(),"M")
+   - "Is date in past/future" → =IF({input}<TODAY(),"Past","Future")
+   - Extract date parts: =YEAR({input}), =MONTH({input}), =DAY({input})
+   
+   **Text Operations** (reliability: "guaranteed"):
+   - Case changes: =UPPER({input}), =LOWER({input}), =PROPER({input})
+   - Trim whitespace: =TRIM({input})
+   - Count: =LEN({input}), =LEN({input})-LEN(SUBSTITUTE({input}," ",""))+1 (word count)
+   - Extract: =LEFT({input},N), =RIGHT({input},N), =MID({input},start,len)
+   - Replace: =SUBSTITUTE({input},"old","new")
+   
+   **Math Operations** (reliability: "guaranteed" for numeric data):
+   - Arithmetic: ={input}*1.1 (add 10%), ={input}/2, =ROUND({input},2)
+   - Absolute value: =ABS({input})
+   - Format currency: =TEXT({input},"$#,##0.00")
+   
+   **Pattern Extraction** (reliability: "conditional", warning: "Pattern may not match all variations"):
+   - Email domain: =REGEXEXTRACT({input},"@([^@]+)$")
+   - Numbers from text: =REGEXEXTRACT({input},"[0-9]+")
+   - First word: =REGEXEXTRACT({input},"^(\S+)")
    
    **DO NOT suggest formulas for** (set formulaSuggestion to null):
    - Translation (requires language understanding)
    - Summarization (requires comprehension)
    - Sentiment analysis (requires understanding)
    - Creative writing/generation
-   - Classification into custom categories
-   - Anything requiring reasoning or context
+   - Classification into semantic categories
+   - Anything requiring reasoning, context, or world knowledge
    
-   Examples:
-   - "Calculate seniority" → =DATEDIF({input},TODAY(),"Y")&" years, "&DATEDIF({input},TODAY(),"YM")&" months" (conditional, date-dependent)
-   - "Convert to uppercase" → =UPPER({input}) (guaranteed)
-   - "Extract domain from email" → =REGEXEXTRACT({input},"@(.+)$") (conditional, regex-dependent)
-   - "Count characters" → =LEN({input}) (guaranteed)
-   - "Calculate age" → =DATEDIF({input},TODAY(),"Y") (conditional, date-dependent)
-   - "Add 10%" → ={input}*1.1 (guaranteed, if numeric)
-   - "Translate to Spanish" → null (requires AI)
-   - "Summarize this text" → null (requires AI)
+   **KEY INSIGHT**: If the task is purely computational (dates, math, text manipulation), 
+   there's almost always a formula. Think about what mathematical/logical operation 
+   achieves the goal, then find the Google Sheets function for it.
 
 ## Important Rules
 
@@ -140,6 +148,15 @@ The user wants to process data in a spreadsheet. Parse their command into a stru
 
 ## Examples with Context
 
+Command: "Calculate outstanding days on these invoices"
+Context: Column C has header "Date Issued", Column D is empty
+→ taskType: "custom"
+→ inputRange: "C4:C100"
+→ outputColumns: ["D"]
+→ prompt: "Calculate days since {{input}}"
+→ formulaSuggestion: { formula: "=TODAY()-{input}", description: "Calculate days since date (outstanding days)", reliability: "conditional", warning: "Requires valid date format. Returns negative for future dates." }
+→ confidence: "medium"
+
 Command: "Calculate employee seniority"
 Context: Column B has header "employee start date", Column C is empty
 → taskType: "custom"
@@ -147,6 +164,15 @@ Context: Column B has header "employee start date", Column C is empty
 → outputColumns: ["C"]
 → prompt: "Calculate years and months since {{input}}. Format: X years, Y months"
 → formulaSuggestion: { formula: "=DATEDIF({input},TODAY(),\\"Y\\")&\\" years, \\"&DATEDIF({input},TODAY(),\\"YM\\")&\\" months\\"", description: "Calculate years and months since date", reliability: "conditional", warning: "Requires valid date format" }
+→ confidence: "medium"
+
+Command: "how many days until deadline"
+Context: Column A has header "Deadline", Column B is empty
+→ taskType: "custom"
+→ inputRange: "A2:A50"
+→ outputColumns: ["B"]
+→ prompt: "Calculate days until {{input}}"
+→ formulaSuggestion: { formula: "={input}-TODAY()", description: "Calculate days remaining until date", reliability: "conditional", warning: "Requires valid date format. Returns negative for past dates." }
 → confidence: "medium"
 
 Command: "Convert to uppercase"
@@ -210,6 +236,7 @@ export async function POST(request: NextRequest) {
     // ============================================
     const detected = taskOptimizer.detectTaskType(command);
     console.log('Task detection:', detected.type, 'confidence:', detected.confidence);
+    console.log('Formula alternative:', detected.formulaAlternative ? detected.formulaAlternative.description : 'none');
     
     // Get context info
     const inputCol = context?.selectionInfo?.columnsWithData?.[0] || 
@@ -327,8 +354,9 @@ export async function POST(request: NextRequest) {
     
     // ============================================
     // FAST AI PATH: High confidence, with or without formula option
+    // Skip for 'calculate' type - let AI do smart formula detection
     // ============================================
-    if (detected.confidence === 'high' && inputCol && inputRange) {
+    if (detected.confidence === 'high' && inputCol && inputRange && detected.type !== 'calculate') {
       const optimizedPrompt = taskOptimizer.buildOptimizedPrompt(
         command,
         detected,

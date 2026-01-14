@@ -311,6 +311,27 @@ const FORMULA_PATTERNS: FormulaPattern[] = [
     warning: 'Requires valid date format.',
   },
   {
+    taskMatch: /outstanding|overdue|days? (since|outstanding|overdue|elapsed)/i,
+    formula: '=TODAY()-{input}',
+    description: 'Calculate days since date (outstanding/overdue days)',
+    reliability: 'conditional',
+    warning: 'Requires valid date format. Returns negative if date is in future.',
+  },
+  {
+    taskMatch: /days? (until|remaining|left|to)/i,
+    formula: '={input}-TODAY()',
+    description: 'Calculate days until date',
+    reliability: 'conditional',
+    warning: 'Requires valid date format. Returns negative if date is in past.',
+  },
+  {
+    taskMatch: /days? between|date diff/i,
+    formula: '=DATEDIF({input}, TODAY(), "D")',
+    description: 'Calculate days between dates',
+    reliability: 'conditional',
+    warning: 'Requires valid date format.',
+  },
+  {
     taskMatch: /extract email/i,
     formula: '=REGEXEXTRACT({input}, "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")',
     description: 'Extract email address',
@@ -447,7 +468,7 @@ export function buildOptimizedPrompt(
       // For calculate tasks, ensure we have good defaults
       if (!extractedParams.calculation) {
         // Extract what we're calculating from the command
-        const calcMatch = command.match(/(seniority|age|years|months|days|difference)/i);
+        const calcMatch = command.match(/(seniority|age|years|months|days?|outstanding|overdue|difference)/i);
         extractedParams.calculation = calcMatch?.[1] || 'value';
       }
       
@@ -463,8 +484,18 @@ export function buildOptimizedPrompt(
       prompt = prompt.replace('{headerName}', headerLabel);
       console.log('[BuildPrompt:calculate] after header:', prompt);
       
-      // Set default format if not specified
-      prompt = prompt.replace('{format}', 'X years, Y months');
+      // Set format based on calculation type
+      let defaultFormat = 'X years, Y months';
+      const lowerCalc = extractedParams.calculation?.toLowerCase() || '';
+      const lowerCommand = command.toLowerCase();
+      
+      if (lowerCalc.includes('day') || lowerCommand.includes('outstanding') || lowerCommand.includes('overdue') || lowerCommand.includes('days since') || lowerCommand.includes('days until')) {
+        defaultFormat = 'number of days (integer)';
+      } else if (lowerCalc === 'age') {
+        defaultFormat = 'age in years (integer)';
+      }
+      
+      prompt = prompt.replace('{format}', defaultFormat);
       console.log('[BuildPrompt:calculate] after format:', prompt);
       
       // Fill in today if available
