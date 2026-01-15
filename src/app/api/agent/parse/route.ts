@@ -76,7 +76,11 @@ The user wants to process data in a spreadsheet. Parse their command into a stru
 2. **inputRange**: Extract cell range like "A2:A100" or "B2:D100" for multi-column. 
    - If user says "column B", infer the range from context.
    - If AUTO-DETECTED context is provided, use the first column with data.
-   - **CRITICAL**: For tasks like classify, score, or analyze that need MULTIPLE fields, use ALL relevant columns (e.g., "B2:D100" not just "B2:B100"). This gives the AI full row context.
+   - **CRITICAL FOR CLASSIFICATION/SCORING**: When task needs MULTIPLE fields (classify, score, categorize, analyze, evaluate):
+     * MUST include ALL data columns in inputRange (e.g., "B2:D100" spans columns B through D)
+     * The AI needs the FULL ROW context to make decisions
+     * Example: To classify leads, need Name + Description + Size = "B2:D100" (NOT just "B2:B100")
+     * Single-column input will FAIL for tasks that reference multiple fields
 
 3. **outputColumns**: Extract output column letters like ["B", "C"]. 
    - If not specified, use empty columns from context, or next column after input.
