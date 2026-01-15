@@ -73,9 +73,10 @@ The user wants to process data in a spreadsheet. Parse their command into a stru
    - translate, summarize, extract, classify, generate, clean, rewrite (for standard tasks)
    - custom (for calculations, conversions, date operations, formatting, or anything else)
    
-2. **inputRange**: Extract cell range like "A2:A100". 
+2. **inputRange**: Extract cell range like "A2:A100" or "B2:D100" for multi-column. 
    - If user says "column B", infer the range from context.
    - If AUTO-DETECTED context is provided, use the first column with data.
+   - **CRITICAL**: For tasks like classify, score, or analyze that need MULTIPLE fields, use ALL relevant columns (e.g., "B2:D100" not just "B2:B100"). This gives the AI full row context.
 
 3. **outputColumns**: Extract output column letters like ["B", "C"]. 
    - If not specified, use empty columns from context, or next column after input.
@@ -191,6 +192,24 @@ Context: Column A has "English text", Column B is empty
 → outputColumns: ["B"]
 → prompt: "Translate to Spanish: {{input}}"
 → formulaSuggestion: null (requires AI - no formula can translate)
+→ confidence: "high"
+
+Command: "Classify leads as Hot/Warm/Cold based on company size and description"
+Context: Column B has "Company Name", Column C has "Description", Column D has "Size", Column E is empty
+→ taskType: "classify"
+→ inputRange: "B2:D100" (MULTI-COLUMN: includes ALL columns needed for classification)
+→ outputColumns: ["E"]
+→ prompt: "Based on this lead data, classify as Hot, Warm, or Cold: {{input}}"
+→ formulaSuggestion: null (requires AI reasoning)
+→ confidence: "high"
+
+Command: "Score these candidates based on experience and skills"
+Context: Column A has "Name", Column B has "Experience", Column C has "Skills", Column D is empty
+→ taskType: "classify"
+→ inputRange: "A2:C50" (MULTI-COLUMN: combine all relevant data for scoring)
+→ outputColumns: ["D"]
+→ prompt: "Score this candidate 1-10 based on: {{input}}"
+→ formulaSuggestion: null (requires AI reasoning)
 → confidence: "high"
 
 Command: "Summarize each review"
