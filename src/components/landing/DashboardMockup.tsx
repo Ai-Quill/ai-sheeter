@@ -9,8 +9,8 @@ const SCENARIOS = [
   {
     id: 'leads',
     sheetName: 'Q1 Lead Pipeline',
-    aiPrompt: "I found company descriptions in Column A. What should I extract?",
-    userCommand: "Qualify leads: company size, industry, and priority score",
+    aiPrompt: "💬 Welcome back! Last time we qualified 200 leads. Continue?",
+    userCommand: "Classify leads, then summarize by category",
     actions: [
       { text: "Extract company size to", col: "Col B" },
       { text: "Classify industry to", col: "Col C" },
@@ -39,7 +39,7 @@ const SCENARIOS = [
   {
     id: 'support',
     sheetName: 'Support Tickets',
-    aiPrompt: "These look like customer support tickets. How should I categorize them?",
+    aiPrompt: "💡 Found 47 uncategorized tickets. Quick actions: [Triage] [Escalate urgent]",
     userCommand: "Triage tickets: category, urgency level, and suggested action",
     actions: [
       { text: "Categorize issue to", col: "Col B" },

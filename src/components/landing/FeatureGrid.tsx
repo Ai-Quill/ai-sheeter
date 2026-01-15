@@ -32,8 +32,8 @@ const features = [
     colSpan: "md:col-span-2"
   },
   {
-    title: "Smart Agent Mode",
-    description: "Tell it what you want in plain English: \"Extract emails and classify sentiment.\" The agent plans the steps, picks columns, and executes.",
+    title: "Intelligent Agent Mode",
+    description: "An AI that remembers. Chain complex tasks: \"Classify leads, then summarize by category.\" The agent persists context across sessions, suggests actions based on your data, and shows you exactly what it sees.",
     icon: <Bot size={24} className="text-[#023047]" />,
     color: "bg-[#023047]",
     colSpan: "md:col-span-1"
