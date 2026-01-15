@@ -103,9 +103,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
                     <span className="italic text-[#FFB701]">remembers</span> your spreadsheet.
                 </h1>
                 
-                <p className="text-white text-lg md:text-2xl max-w-2xl mx-auto font-light mb-10 drop-shadow-xl leading-relaxed text-shadow-sm">
-                    Multi-step tasks. Persistent context. Proactive suggestions.<br className="hidden md:block" />
-                    Finally, an AI that actually understands your data.
+                <p className="text-white text-base md:text-lg max-w-xl mx-auto font-light mb-6 drop-shadow-xl">
+                    Persistent context. Multi-step tasks. Finally gets your data.
                 </p>
 
                 <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-12">
