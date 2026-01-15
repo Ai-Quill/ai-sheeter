@@ -2,6 +2,7 @@ export { HeroSection } from './HeroSection';
 export { Navbar } from './Navbar';
 export { LogoTicker } from './LogoTicker';
 export { ProblemSolution } from './ProblemSolution';
+export { ComparisonSection } from './ComparisonSection';
 export { FeatureGrid } from './FeatureGrid';
 export { UseCases } from './UseCases';
 export { VideoSection } from './VideoSection';

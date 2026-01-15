@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { LogoTicker } from '@/components/landing/LogoTicker';
 import { ProblemSolution } from '@/components/landing/ProblemSolution';
+import { ComparisonSection } from '@/components/landing/ComparisonSection';
 import { FeatureGrid } from '@/components/landing/FeatureGrid';
 import { UseCases } from '@/components/landing/UseCases';
 import { VideoSection } from '@/components/landing/VideoSection';
@@ -44,6 +45,7 @@ export default function LandingPage() {
           <div className="relative z-10 bg-[#FAFAFA]">
               <LogoTicker />
               <ProblemSolution />
+              <ComparisonSection />
               <UseCases />
               <FeatureGrid />
               <VideoSection />

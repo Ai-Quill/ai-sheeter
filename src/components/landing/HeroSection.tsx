@@ -99,12 +99,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
                 </div>
 
                 <h1 className="font-serif text-5xl md:text-8xl text-white drop-shadow-2xl mb-6 leading-[1.1] tracking-tight">
-                    Your spreadsheet <br />
-                    <span className="italic text-[#FFB701]">finally</span> has a brain.
+                    The AI that <br />
+                    <span className="italic text-[#FFB701]">remembers</span> your spreadsheet.
                 </h1>
                 
                 <p className="text-white text-lg md:text-2xl max-w-2xl mx-auto font-light mb-10 drop-shadow-xl leading-relaxed text-shadow-sm">
-                    Clean data, extract leads, and automate research directly inside Google Sheets.
+                    Multi-step tasks. Persistent context. Proactive suggestions.<br className="hidden md:block" />
+                    Finally, an AI that actually understands your data.
                 </p>
 
                 <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-12">
