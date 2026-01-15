@@ -89,65 +89,64 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
                 animate="visible"
                 className="max-w-5xl mx-auto"
             >
-                <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/40 text-white font-medium text-sm mb-8 shadow-sm">
-                    <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/40 text-white font-medium text-xs mb-5 shadow-sm">
+                    <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
                         GPT-4 • Claude • Gemini • Groq
                     </span>
-                    <span className="w-px h-4 bg-white/30"></span>
-                    <span className="text-[#FFB701] font-bold">380k+ queries processed</span>
+                    <span className="w-px h-3 bg-white/30"></span>
+                    <span className="text-[#FFB701] font-bold">380k+ queries</span>
                 </div>
 
-                <h1 className="font-serif text-5xl md:text-8xl text-white drop-shadow-2xl mb-6 leading-[1.1] tracking-tight">
-                    The AI that <br />
-                    <span className="italic text-[#FFB701]">remembers</span> your spreadsheet.
+                <h1 className="font-serif text-4xl md:text-6xl text-white drop-shadow-2xl mb-4 leading-[1.1] tracking-tight">
+                    The AI that <span className="italic text-[#FFB701]">remembers</span> your spreadsheet.
                 </h1>
                 
-                <p className="text-white text-base md:text-lg max-w-xl mx-auto font-light mb-6 drop-shadow-xl">
+                <p className="text-white text-sm md:text-base max-w-md mx-auto font-light mb-4 drop-shadow-xl">
                     Persistent context. Multi-step tasks. Finally gets your data.
                 </p>
 
-                <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-12">
+                <div className="flex flex-col md:flex-row gap-3 justify-center items-center mb-8">
                     <a 
                         href="https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-[#023047] text-white px-8 py-4 rounded-full hover:bg-[#023047]/90 transition-all shadow-xl font-semibold text-lg flex items-center gap-2 hover:scale-105 active:scale-95 duration-200"
+                        className="bg-[#023047] text-white px-6 py-3 rounded-full hover:bg-[#023047]/90 transition-all shadow-xl font-semibold text-base flex items-center gap-2 hover:scale-105 active:scale-95 duration-200"
                     >
-                        <Zap size={20} className="text-[#FFB701]" />
+                        <Zap size={18} className="text-[#FFB701]" />
                         Get Started Free
                     </a>
                     <a 
                         href="#demo"
-                        className="bg-white/20 backdrop-blur-md text-white border border-white/40 px-8 py-4 rounded-full hover:bg-white/30 transition-all shadow-xl font-medium text-lg"
+                        className="bg-white/20 backdrop-blur-md text-white border border-white/40 px-6 py-3 rounded-full hover:bg-white/30 transition-all shadow-xl font-medium text-base"
                     >
                         Watch Demo
                     </a>
                 </div>
 
                 {/* Social Proof */}
-                <div className="flex items-center justify-center gap-6 text-white/90 bg-black/30 backdrop-blur-md p-4 rounded-2xl border border-white/20 inline-flex shadow-lg">
-                    <div className="flex -space-x-3">
+                <div className="flex items-center justify-center gap-4 text-white/90 bg-black/30 backdrop-blur-md p-2.5 rounded-xl border border-white/20 inline-flex shadow-lg">
+                    <div className="flex -space-x-2">
                         {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="w-10 h-10 rounded-full border-2 border-white/50 overflow-hidden bg-gray-300">
+                            <div key={i} className="w-7 h-7 rounded-full border-2 border-white/50 overflow-hidden bg-gray-300">
                                 <img src={`https://i.pravatar.cc/100?img=${i + 15}`} alt="User" />
                             </div>
                         ))}
                     </div>
                     <div className="text-left">
-                        <div className="flex items-center gap-1 text-[#FFB701]">
-                            <Star size={14} fill="#FFB701" />
-                            <Star size={14} fill="#FFB701" />
-                            <Star size={14} fill="#FFB701" />
-                            <Star size={14} fill="#FFB701" />
-                            <Star size={14} fill="#FFB701" />
+                        <div className="flex items-center gap-0.5 text-[#FFB701]">
+                            <Star size={10} fill="#FFB701" />
+                            <Star size={10} fill="#FFB701" />
+                            <Star size={10} fill="#FFB701" />
+                            <Star size={10} fill="#FFB701" />
+                            <Star size={10} fill="#FFB701" />
                         </div>
-                        <p className="text-xs font-medium"><span className="font-bold">400+</span> Verified Users</p>
+                        <p className="text-[10px] font-medium"><span className="font-bold">400+</span> Users</p>
                     </div>
-                    <div className="h-8 w-[1px] bg-white/30 mx-2"></div>
+                    <div className="h-6 w-[1px] bg-white/30"></div>
                     <div className="text-left">
-                         <p className="text-lg font-bold leading-none">380k+</p>
-                         <p className="text-[10px] opacity-80 uppercase tracking-wider">Tasks Automated</p>
+                         <p className="text-sm font-bold leading-none">380k+</p>
+                         <p className="text-[8px] opacity-80 uppercase tracking-wider">Tasks Done</p>
                     </div>
                 </div>
             </motion.div>
