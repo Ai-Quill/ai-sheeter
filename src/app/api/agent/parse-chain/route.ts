@@ -44,17 +44,10 @@ interface TaskChain {
   estimatedTime: string;
 }
 
-// Keywords that indicate multi-step commands
-const CHAIN_INDICATORS = [
-  'then', 'and then', 'after that', 'next', 'finally',
-  'first', 'second', 'third', 
-  ', and ', ', then ',
-  'based on', 'using the results'
-];
-
 /**
  * POST /api/agent/parse-chain
  * Parse a command and detect if it's multi-step
+ * Uses AI to understand intent - not just pattern matching
  */
 export async function POST(request: NextRequest) {
   try {
@@ -68,22 +61,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Quick check: does this look like a multi-step command?
-    const lowerCommand = command.toLowerCase();
-    const hasChainIndicator = CHAIN_INDICATORS.some(ind => lowerCommand.includes(ind));
-    
-    if (!hasChainIndicator) {
-      // Single step - return simple response
-      return NextResponse.json({
-        isMultiStep: false,
-        steps: [],
-        summary: 'Single task detected',
-        reason: 'No chain indicators found'
-      });
-    }
-
-    // Use AI to parse the multi-step command
-    const chain = await parseMultiStepCommand(command, context, provider, apiKey);
+    // Use AI to analyze the command - let AI decide if it's multi-step
+    // AI is smarter than pattern matching for understanding natural language
+    const chain = await analyzeCommandWithAI(command, context, provider, apiKey);
     
     return NextResponse.json(chain);
 
@@ -97,61 +77,63 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Use AI to parse a multi-step command into individual tasks
+ * Use AI to analyze a command and determine if it's multi-step
+ * AI understands natural language better than pattern matching
  */
-async function parseMultiStepCommand(
+async function analyzeCommandWithAI(
   command: string, 
   context: any, 
   provider: string,
   apiKey?: string
 ): Promise<TaskChain> {
   
-  const systemPrompt = `You are a task decomposition expert. Parse the user's command into individual steps.
+  const systemPrompt = `You are an expert at understanding user intent for a Google Sheets AI assistant.
 
-CONTEXT:
-- This is for a Google Sheets AI agent
-- Each step should be a distinct, executable task
-- Steps can depend on previous steps' results
+Your job is to analyze user input and determine:
+1. Is this a command (action to perform) or just a description/explanation?
+2. If it's a command, is it single-step or multi-step?
+3. If multi-step, break it into individual executable steps.
+
+IMPORTANT DISTINCTIONS:
+- "Sales reps write notes but nobody reads them" → DESCRIPTION, not a command (isMultiStep: false)
+- "Extract signals from column F" → Single command (isMultiStep: false)
+- "Extract signals, then classify deals, then generate next steps" → Multi-step command (isMultiStep: true)
+- "Based on all the data, score win probability" → Single command (isMultiStep: false, even though complex)
 
 OUTPUT FORMAT (JSON):
 {
-  "isMultiStep": true,
-  "steps": [
-    {
-      "id": "step_1",
-      "order": 1,
-      "action": "classify|translate|summarize|extract|clean|generate",
-      "description": "Brief description of what this step does",
-      "dependsOn": null,
-      "usesResultOf": null,
-      "prompt": "The prompt to execute this step"
-    },
-    {
-      "id": "step_2", 
-      "order": 2,
-      "action": "...",
-      "description": "...",
-      "dependsOn": "step_1",
-      "usesResultOf": "step_1",
-      "prompt": "..."
-    }
-  ],
-  "summary": "One sentence summary of the full workflow"
+  "isMultiStep": boolean,
+  "isCommand": boolean,
+  "steps": [...],  // Only if isMultiStep is true
+  "summary": "What this does",
+  "clarification": "If not a command, suggest what they might want to do"
+}
+
+For multi-step commands, steps format:
+{
+  "id": "step_1",
+  "order": 1,
+  "action": "classify|translate|summarize|extract|clean|generate|analyze",
+  "description": "What this step does",
+  "dependsOn": null,
+  "usesResultOf": null,
+  "prompt": "The prompt for this step"
 }
 
 RULES:
-1. Maximum 5 steps (simplify if more)
-2. Each step must be a single, clear action
-3. Use dependsOn when step requires previous step to complete
-4. Use usesResultOf when step needs data from previous step
-5. Prompts should be specific and actionable`;
+1. Be conservative - only mark as multi-step if there are clearly SEPARATE actions
+2. "Extract X, Y, and Z" is ONE step with multiple outputs, not three steps
+3. Complex single commands (even with conditions) are still single-step
+4. Maximum 5 steps
+5. If input is a description, suggest a command they could use`;
 
-  const userPrompt = `Parse this command into steps:
+  const userPrompt = `Analyze this user input:
 
 "${command}"
 
 ${context?.headers ? `Available columns: ${JSON.stringify(context.headers)}` : ''}
-${context?.columnDataRanges ? `Data ranges: ${JSON.stringify(Object.keys(context.columnDataRanges))}` : ''}`;
+${context?.columnDataRanges ? `Data ranges: ${JSON.stringify(Object.keys(context.columnDataRanges))}` : ''}
+${context?.selectionInfo ? `Selection: ${context.selectionInfo.dataRange || 'none'}` : ''}`;
 
   try {
     // Get the appropriate model
@@ -161,34 +143,41 @@ ${context?.columnDataRanges ? `Data ranges: ${JSON.stringify(Object.keys(context
       model,
       system: systemPrompt,
       prompt: userPrompt,
-      temperature: 0.3, // Lower temp for structured output
+      temperature: 0.2, // Lower temp for consistent output
     });
+
+    console.log('[parse-chain] AI response:', result.text.substring(0, 200));
 
     // Parse the JSON response
     const jsonMatch = result.text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       
-      // Add estimated time based on step count
-      parsed.estimatedTime = estimateChainTime(parsed.steps?.length || 1);
+      // Add estimated time for multi-step
+      if (parsed.isMultiStep && parsed.steps?.length > 1) {
+        parsed.estimatedTime = estimateChainTime(parsed.steps.length);
+      }
       
       return parsed;
     }
     
-    // Fallback if parsing fails
+    // Fallback - assume single step
     return {
-      isMultiStep: true,
+      isMultiStep: false,
+      isCommand: true,
       steps: [],
-      summary: 'Failed to parse steps',
+      summary: 'Processing as single command',
       estimatedTime: 'Unknown'
     };
 
   } catch (error) {
-    console.error('AI parsing error:', error);
+    console.error('AI analysis error:', error);
+    // On error, fail open - process as single command
     return {
       isMultiStep: false,
+      isCommand: true,
       steps: [],
-      summary: 'Parsing failed',
+      summary: 'Analysis failed - processing as single command',
       estimatedTime: 'Unknown'
     };
   }
