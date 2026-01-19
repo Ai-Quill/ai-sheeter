@@ -43,7 +43,11 @@ interface TaskChain {
   steps: TaskStep[];
   summary: string;
   estimatedTime?: string;
-  clarification?: string;        // Suggestion if input is not a command
+  clarification?: string;        // Friendly message explaining the proposal
+  suggestedWorkflow?: {          // For descriptions, the proposed solution
+    description: string;
+    steps: string[];
+  };
 }
 
 /**
@@ -81,6 +85,8 @@ export async function POST(request: NextRequest) {
 /**
  * Use AI to analyze a command and determine if it's multi-step
  * AI understands natural language better than pattern matching
+ * 
+ * SMART FEATURE: When user describes a problem, AI proposes specific solutions
  */
 async function analyzeCommandWithAI(
   command: string, 
@@ -89,45 +95,62 @@ async function analyzeCommandWithAI(
   apiKey?: string
 ): Promise<TaskChain> {
   
-  const systemPrompt = `You are an expert at understanding user intent for a Google Sheets AI assistant.
+  const systemPrompt = `You are an expert AI assistant for Google Sheets that understands user intent deeply.
 
-Your job is to analyze user input and determine:
-1. Is this a command (action to perform) or just a description/explanation?
-2. If it's a command, is it single-step or multi-step?
-3. If multi-step, break it into individual executable steps.
+Your job is to analyze user input and:
+1. Determine if it's a COMMAND (action to perform) or a DESCRIPTION (problem/situation)
+2. If COMMAND: determine if single-step or multi-step
+3. If DESCRIPTION: **analyze what they want to achieve and propose a specific workflow**
 
-IMPORTANT DISTINCTIONS:
-- "Sales reps write notes but nobody reads them" → DESCRIPTION, not a command (isMultiStep: false)
-- "Extract signals from column F" → Single command (isMultiStep: false)
-- "Extract signals, then classify deals, then generate next steps" → Multi-step command (isMultiStep: true)
-- "Based on all the data, score win probability" → Single command (isMultiStep: false, even though complex)
+SMART BEHAVIOR FOR DESCRIPTIONS:
+When user describes a problem like "Sales reps write notes but nobody reads them, leadership wants insights, deals are falling through" - DON'T give generic suggestions!
+
+Instead, EXTRACT their actual needs and propose SPECIFIC actions:
+- "Leadership wants pipeline insights" → "Extract pipeline insights from sales notes"
+- "Reps need next steps" → "Generate specific next actions for each deal"
+- "Deals are falling through" → "Identify at-risk deals and flag urgent issues"
+
+Then offer these as a PROPOSED WORKFLOW they can run!
 
 OUTPUT FORMAT (JSON):
 {
   "isMultiStep": boolean,
   "isCommand": boolean,
-  "steps": [...],  // Only if isMultiStep is true
-  "summary": "What this does",
-  "clarification": "If not a command, suggest what they might want to do"
+  "steps": [...],
+  "summary": "What this workflow does",
+  "clarification": "Friendly message explaining the proposed solution",
+  "suggestedWorkflow": {
+    "description": "Based on your needs, here's what I can do:",
+    "steps": ["Step 1 description", "Step 2 description", "Step 3 description"]
+  }
 }
 
-For multi-step commands, steps format:
+For DESCRIPTIONS (isCommand: false):
+- Set isMultiStep: true if you're proposing a multi-step workflow
+- Fill in "steps" with the proposed workflow steps
+- Use "clarification" to explain the proposal in a friendly way
+- The user will see these steps and can click "Run All Steps" to execute
+
+For COMMANDS:
+- isMultiStep: true only if there are clearly SEPARATE sequential actions
+- "Extract X, Y, and Z" is ONE step with multiple outputs, not three steps
+
+Steps format:
 {
   "id": "step_1",
   "order": 1,
   "action": "classify|translate|summarize|extract|clean|generate|analyze",
-  "description": "What this step does",
+  "description": "Clear description of this step",
   "dependsOn": null,
   "usesResultOf": null,
-  "prompt": "The prompt for this step"
+  "prompt": "The specific prompt to execute"
 }
 
 RULES:
-1. Be conservative - only mark as multi-step if there are clearly SEPARATE actions
-2. "Extract X, Y, and Z" is ONE step with multiple outputs, not three steps
-3. Complex single commands (even with conditions) are still single-step
-4. Maximum 5 steps
-5. If input is a description, suggest a command they could use`;
+1. Maximum 5 steps
+2. Make steps actionable and specific to their data
+3. Reference actual columns if mentioned in context
+4. For descriptions, ALWAYS propose a helpful workflow - be proactive!`;
 
   const userPrompt = `Analyze this user input:
 
