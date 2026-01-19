@@ -27,7 +27,28 @@ type MessageContent =
 
 // For image processing, convert URLs to base64
 async function fetchImageAsBase64(url: string): Promise<string> {
+  // Validate URL before fetching
+  if (!url || typeof url !== 'string') {
+    throw new Error('Invalid image URL: URL is empty or not a string');
+  }
+  
+  // Check for Google Sheets error values
+  if (url.startsWith('#') || url === '#REF!' || url === '#VALUE!' || url === '#N/A' || url === '#ERROR!') {
+    throw new Error(`Invalid image URL: "${url}" appears to be a spreadsheet error value`);
+  }
+  
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch {
+    throw new Error(`Invalid image URL format: "${url.substring(0, 50)}..."`);
+  }
+  
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+  }
+  
   const arrayBuffer = await response.arrayBuffer();
   const base64 = Buffer.from(arrayBuffer).toString('base64');
   const mimeType = response.headers.get('content-type') || 'image/jpeg';
@@ -155,6 +176,13 @@ export async function POST(req: Request): Promise<Response> {
     let messageContent: MessageContent;
 
         if (imageUrl) {
+      // Validate imageUrl before processing
+      if (typeof imageUrl !== 'string' || imageUrl.startsWith('#')) {
+        return NextResponse.json({ 
+          error: `Invalid image URL: "${String(imageUrl).substring(0, 50)}" - this appears to be a spreadsheet error value` 
+        }, { status: 400 });
+      }
+      
       // Multi-modal: text + image
       const base64Image = await fetchImageAsBase64(imageUrl);
       messageContent = [
