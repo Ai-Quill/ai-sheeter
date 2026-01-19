@@ -39,9 +39,11 @@ interface TaskStep {
 
 interface TaskChain {
   isMultiStep: boolean;
+  isCommand?: boolean;           // Is this a command or just a description?
   steps: TaskStep[];
   summary: string;
-  estimatedTime: string;
+  estimatedTime?: string;
+  clarification?: string;        // Suggestion if input is not a command
 }
 
 /**
