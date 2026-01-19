@@ -11,20 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-// Lazy initialization to avoid build-time errors
-let supabase: SupabaseClient | null = null;
-
-function getSupabase(): SupabaseClient {
-  if (!supabase) {
-    supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-  }
-  return supabase;
-}
+import { supabaseAdmin } from '@/lib/supabase';
 
 interface ConversationMessage {
   role: 'user' | 'agent';
@@ -62,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch conversation
-    const { data, error } = await getSupabase()
+    const { data, error } = await supabaseAdmin
       .from('agent_conversations')
       .select('*')
       .eq('user_id', userId)
@@ -134,7 +121,7 @@ export async function POST(request: NextRequest) {
     const limitedMessages = (messages || []).slice(-50);
 
     // Upsert conversation (create or update)
-    const { data, error } = await getSupabase()
+    const { data, error } = await supabaseAdmin
       .from('agent_conversations')
       .upsert({
         user_id: userId,
@@ -192,7 +179,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete conversation
-    const { error } = await getSupabase()
+    const { error } = await supabaseAdmin
       .from('agent_conversations')
       .delete()
       .eq('user_id', userId)
