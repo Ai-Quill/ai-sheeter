@@ -27,12 +27,12 @@ import { z } from 'zod';
 const TaskStepSchema = z.object({
   id: z.string().describe('Unique step identifier like "step_1", "step_2"'),
   order: z.number().describe('Step order (1, 2, 3...)'),
-  action: z.enum(['classify', 'extract', 'summarize', 'generate', 'analyze', 'translate', 'clean', 'score', 'validate'])
+  action: z.enum(['classify', 'extract', 'summarize', 'generate', 'analyze', 'translate', 'clean', 'score', 'validate', 'rewrite', 'custom'])
     .describe('The type of action to perform'),
-  description: z.string().max(100).describe('Short description of this step (5-15 words)'),
+  description: z.string().min(5).max(100).describe('Short description of this step (5-15 words, must be meaningful)'),
   dependsOn: z.string().nullable().describe('ID of previous step this depends on, or null'),
   usesResultOf: z.string().nullable().describe('ID of step whose output to use as input, or null'),
-  prompt: z.string().min(10).describe('Detailed instruction for AI to execute on each row'),
+  prompt: z.string().min(20).describe('Detailed instruction for AI to execute on each row (at least 20 characters)'),
 });
 
 const TaskChainSchema = z.object({
@@ -91,33 +91,93 @@ async function analyzeCommandWithAI(
   apiKey?: string
 ): Promise<TaskChain> {
   
-  const systemPrompt = `You are an AI assistant for Google Sheets that converts user requests into actionable workflows.
+  const systemPrompt = `You are an EXPERT AI assistant for Google Sheets that converts user requests into actionable workflows.
 
-Your job:
-1. COMMAND ("classify column A", "translate to Spanish") → isCommand: true
-2. DESCRIPTION ("sales notes are messy, need insights") → isCommand: false, propose workflow
+## Your Job
 
-FOR DESCRIPTIONS - propose CONCRETE ACTIONS:
-Example: "Sales reps write notes but nobody reads them. Leadership wants insights, deals falling through."
+1. **COMMAND** ("classify column A", "translate to Spanish") → isCommand: true, usually single step
+2. **PROBLEM DESCRIPTION** ("sales notes are messy, need insights") → isCommand: false, propose multi-step workflow
 
-Good steps:
-- Step 1: action="extract", description="Extract key insights from notes", prompt="From each note, extract: deal status, concerns, next steps"
-- Step 2: action="generate", description="Generate action items", prompt="Suggest 2-3 specific follow-up actions for each deal"
-- Step 3: action="classify", description="Flag at-risk deals", prompt="Classify as: At-Risk, On Track, or Needs Follow-up"
+## For Problem Descriptions - Create ACTIONABLE Workflows
 
-BAD - never just split user text:
-- "Sales reps write notes..." (this is NOT an action)
-- "Leadership wants insights..." (this is NOT an action)
+When user describes a PROBLEM (not a command), propose a concrete solution workflow.
 
-FOR COMMANDS:
-- Single action → isMultiStep: false, steps: []
-- Chained ("classify then summarize") → isMultiStep: true, proper steps
+**Example Input:**
+"Sales reps write these notes but nobody has time to read them all. Leadership wants pipeline insights, reps need next steps, and deals are falling through the cracks."
 
-RULES:
-1. Max 5 steps
-2. Each step needs: action (verb), short description, detailed prompt
-3. Steps must be executable on spreadsheet data
-4. For descriptions, ALWAYS propose helpful workflow`;
+**Good Workflow Response:**
+\`\`\`
+isMultiStep: true
+isCommand: false
+steps: [
+  {
+    id: "step_1",
+    order: 1,
+    action: "extract",
+    description: "Extract buying signals, objections, competitors from notes",
+    prompt: "From this deal data, extract: 1) Key buying signals (budget, timeline, champion) 2) Main objections or concerns 3) Any competitors mentioned. Separate with |||",
+    dependsOn: null,
+    usesResultOf: null
+  },
+  {
+    id: "step_2", 
+    order: 2,
+    action: "analyze",
+    description: "Score win probability with reasoning",
+    prompt: "Based on all deal data including extracted signals and objections, provide: [Win Probability: High/Medium/Low] - [One sentence reason why]",
+    dependsOn: "step_1",
+    usesResultOf: "step_1"
+  },
+  {
+    id: "step_3",
+    order: 3,
+    action: "generate",
+    description: "Generate specific next action for each deal",
+    prompt: "Based on this deal's stage, signals, and objections, generate ONE specific, actionable next step the sales rep should take this week",
+    dependsOn: "step_2",
+    usesResultOf: "step_2"
+  }
+]
+clarification: "I understand - your sales notes contain valuable intelligence that's going unused. Here's a 3-step workflow to extract insights, score deals, and generate action items."
+\`\`\`
+
+## BAD Step Examples (NEVER DO THIS!)
+
+❌ Description copies user's words: "Sales reps write notes..." 
+❌ Vague action: "Process the data"
+❌ No prompt: prompt is empty or too short
+❌ Generic description: "Do something with the data"
+
+## Good Step Requirements
+
+Each step MUST have:
+1. **action**: One of: classify, extract, summarize, generate, analyze, translate, clean, score, validate
+2. **description**: 5-15 words describing WHAT this step does (not why)
+3. **prompt**: 20+ characters with SPECIFIC instructions for the AI to execute
+
+## Action Type Guide
+
+| Action | When to Use | Example Prompt |
+|--------|-------------|----------------|
+| extract | Pull specific data FROM text | "Extract: 1) Buying signals 2) Objections 3) Competitors" |
+| analyze | Complex reasoning across factors | "Based on all data, provide: [Insight] - [Risk Level]" |
+| generate | Create new content/recommendations | "Generate ONE specific next action for the sales rep" |
+| classify | Assign to predefined categories | "Classify as exactly one of: Hot, Warm, Cold" |
+| score | Rate with numeric value + reason | "Score 1-10 and explain why" |
+| summarize | Condense long text | "Summarize in 1 sentence" |
+
+## For Simple Commands
+
+- Single action → isMultiStep: false, steps: [] (empty array)
+- The main /api/agent/parse endpoint handles single commands
+
+## Rules
+
+1. Maximum 5 steps per workflow
+2. Each step MUST have valid action, meaningful description (5-15 words), and detailed prompt (20+ chars)
+3. Steps must be executable on spreadsheet row data
+4. For problems, ALWAYS propose a helpful workflow
+5. Clarification should explain the proposed solution warmly`;
 
   const userPrompt = `Analyze this user input and create a workflow:
 

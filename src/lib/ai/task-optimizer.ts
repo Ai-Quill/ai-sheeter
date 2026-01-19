@@ -24,6 +24,7 @@ export type TaskType =
   | 'calculate'
   | 'clean'
   | 'rewrite'
+  | 'analyze'  // NEW: Complex multi-factor reasoning tasks
   | 'custom';
 
 export interface TaskConfig {
@@ -120,6 +121,15 @@ const TASK_CONFIGS: Record<TaskType, TaskConfig> = {
     promptTemplate: 'Rewrite in {style}: {{input}}',
   },
   
+  analyze: {
+    type: 'analyze',
+    batchable: false, // Analysis needs individual attention for quality
+    recommendedModel: 'quality',
+    avgTokensPerRow: 200,
+    promptTemplate: 'Analyze {{input}} and provide: {outputs}',
+    systemPromptAddition: 'You are an expert analyst. Provide clear, structured insights. For multiple outputs, separate with |||.',
+  },
+  
   custom: {
     type: 'custom',
     batchable: true, // Assume batchable unless proven otherwise
@@ -140,6 +150,39 @@ interface TaskPattern {
 }
 
 const TASK_PATTERNS: TaskPattern[] = [
+  // ============================================
+  // ANALYZE - Must be checked BEFORE classify!
+  // Complex multi-factor reasoning tasks
+  // ============================================
+  {
+    type: 'analyze',
+    patterns: [
+      // Multi-output patterns (highest priority)
+      /return:?\s*\w+\s*\|\s*\w+/i,  // "return: X | Y | Z"
+      /provide:?\s*\w+[,\s]+\w+[,\s]+(?:and\s+)?\w+/i, // "provide X, Y, and Z"
+      /\w+\s*\|\|\|\s*\w+/i, // "X ||| Y ||| Z"
+      /columns?\s+[A-Z],?\s*[A-Z],?\s*(?:and\s+)?[A-Z]/i, // "columns G, H, and I"
+      
+      // Analysis keywords
+      /analyz(e|is)/i,
+      /insight/i,
+      /pipeline\s+(intelligence|insights?)/i,
+      /business\s+intelligence/i,
+      /deal\s+(health|status|analysis)/i,
+      
+      // Complex problem descriptions (need reasoning)
+      /nobody.*(time|read|understand)/i, // "nobody has time to read"
+      /leadership\s+wants/i,
+      /falling\s+through\s+(the\s+)?cracks/i,
+      
+      // Multi-stakeholder needs
+      /wants?\s+.+,\s*\w+\s+needs?\s+/i, // "X wants A, Y needs B"
+    ],
+    extractors: {
+      outputs: /(?:return|provide|generate):?\s*(.+?)(?:\.|$)/i,
+    },
+  },
+  
   {
     type: 'translate',
     patterns: [
@@ -166,25 +209,30 @@ const TASK_PATTERNS: TaskPattern[] = [
   {
     type: 'extract',
     patterns: [
+      /extract\s+(the\s+)?(key\s+)?(buying\s+)?signals?/i,
+      /extract\s+(the\s+)?objections?/i,
+      /extract\s+(the\s+)?competitors?/i,
       /extract/i,
       /find (all )?(email|phone|url|name|date|number)/i,
       /get (the )?(email|phone|url|name|date|number)/i,
       /pull out/i,
     ],
     extractors: {
-      target: /(email|phone|url|name|date|number|address)/i,
+      target: /(email|phone|url|name|date|number|address|signal|objection|competitor)/i,
     },
   },
   {
     type: 'classify',
     patterns: [
-      /classif(y|ication)/i,
-      /categoriz(e|ation)/i,
-      /label/i,
-      /sentiment/i,
-      /is it .+ or .+\?/i,
-      /positive.+negative/i,
-      /urgent.+normal/i,
+      // Simple classification patterns (NOT complex analysis)
+      /^classif(y|ication)\s+(as|into)\s+/i,  // "classify as Hot/Cold"
+      /^categoriz(e|ation)\s+(as|into)\s+/i, // "categorize into X/Y"
+      /^label\s+(as|each)\s+/i,
+      /^(is it|is this)\s+.+\s+or\s+.+\?/i,  // "is it X or Y?"
+      /sentiment\s+(analysis|score)/i,
+      /^(positive|negative)\s+or\s+/i,
+      /^(urgent|normal)\s+or\s+/i,
+      /\b(hot|warm|cold)\b.*\b(hot|warm|cold)\b/i, // "Hot/Warm/Cold" categories
     ],
     extractors: {
       categories: /(?:as |into |: ?)([^.]+)$/i,
@@ -193,9 +241,12 @@ const TASK_PATTERNS: TaskPattern[] = [
   {
     type: 'generate',
     patterns: [
-      /generat(e|ion)/i,
-      /creat(e|ion)/i,
-      /writ(e|ing) (?:a |an )/i,
+      /generat(e|ion)\s+(specific\s+)?(next\s+)?(action|step|recommendation)/i,
+      /suggest\s+(next\s+)?(action|step)/i,
+      /recommend\s+(next\s+)?(action|step)/i,
+      /what\s+should\s+(we|they|I)\s+do/i,
+      /creat(e|ion)\s+(?:a\s+)?recommendation/i,
+      /writ(e|ing)\s+(?:a |an )/i,
       /compose/i,
       /draft/i,
     ],
@@ -511,6 +562,16 @@ export function buildOptimizedPrompt(
       }
       break;
       
+    case 'analyze':
+      // For analysis tasks, create a structured prompt
+      if (extractedParams.outputs) {
+        prompt = prompt.replace('{outputs}', extractedParams.outputs);
+      } else {
+        // Create structured output format from command analysis
+        prompt = `Analyze this data and provide structured insights:\n${command}\n\nData: {{input}}\n\nProvide outputs separated by |||`;
+      }
+      break;
+      
     case 'custom':
       // For custom, use the original command as the prompt
       prompt = `${command}\n\nInput: {{input}}`;
@@ -547,8 +608,8 @@ export function getProcessingStrategy(detected: DetectedTask, rowCount: number):
   // Determine batch size based on task type and row count
   let batchSize = config.batchable ? Math.min(20, rowCount) : 1;
   
-  // Adjust for very long inputs (summarization)
-  if (detected.type === 'summarize' || detected.type === 'generate') {
+  // Adjust for very long inputs (summarization, generation, analysis)
+  if (detected.type === 'summarize' || detected.type === 'generate' || detected.type === 'analyze') {
     batchSize = 1; // Process individually for quality
   }
   
