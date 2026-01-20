@@ -16,12 +16,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 import { generateEmbedding } from '@/lib/ai/embeddings';
 import { findSimilarWorkflowsByEmbedding, StoredWorkflow } from '@/lib/workflow-memory';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getModel, AIProvider } from '@/lib/ai/models';
 
 // ============================================
 // TYPES
@@ -47,6 +46,10 @@ interface SuggestionsRequest {
     sampleData?: Record<string, string[]>;
   };
   command?: string;
+  
+  // User's AI model choice (use same model they selected)
+  provider?: AIProvider;
+  apiKey?: string;
   
   // Optional: workflow ID for recording successes
   workflowId?: string;
@@ -131,9 +134,15 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // Fallback: Generate with LLM
+    // Fallback: Generate with LLM using user's selected model
     console.log('[suggestions] Falling back to LLM generation');
-    const llmResult = await generateSuggestionsWithLLM(summaryText, body, similarWorkflows);
+    const llmResult = await generateSuggestionsWithLLM(
+      summaryText, 
+      body, 
+      similarWorkflows,
+      body.provider,
+      body.apiKey
+    );
     
     if (llmResult) {
       return NextResponse.json({
@@ -298,12 +307,27 @@ async function getSuggestionsFromMemory(
 async function generateSuggestionsWithLLM(
   summaryText: string,
   body: SuggestionsRequest,
-  similarWorkflows: StoredWorkflow[]
+  similarWorkflows: StoredWorkflow[],
+  provider?: AIProvider,
+  apiKey?: string
 ): Promise<Omit<SuggestionsResponse, 'source'> | null> {
   try {
-    const openai = createOpenAI({
-      apiKey: process.env.OPENAI_API_KEY!,
-    });
+    // Use user's selected model if provided, otherwise skip LLM (rely on fallback)
+    if (!provider || !apiKey) {
+      console.log('[suggestions] No provider/apiKey provided, skipping LLM generation');
+      return null;
+    }
+    
+    // Get the model using user's provider and API key
+    const defaultModels: Record<AIProvider, string> = {
+      CHATGPT: 'gpt-5-mini',
+      CLAUDE: 'claude-haiku-4-5',
+      GEMINI: 'gemini-2.5-flash',
+      GROQ: 'llama-3.3-70b-versatile',
+      STRATICO: 'stratico-default',  // Fallback for STRATICO
+    };
+    const model = getModel(provider, defaultModels[provider], apiKey);
+    console.log('[suggestions] Using user model:', provider);
     
     // Build context from steps or task
     const contextParts: string[] = [];
@@ -365,7 +389,7 @@ Respond in JSON format only:
 }`;
 
     const result = await generateText({
-      model: openai('gpt-5-mini'),
+      model,
       prompt,
       maxOutputTokens: 800,
     });
