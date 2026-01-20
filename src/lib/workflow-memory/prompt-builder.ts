@@ -68,6 +68,7 @@ export function buildFewShotPrompt(
   return `You are an expert workflow designer for spreadsheet data processing.
 
 TASK: Generate a multi-step workflow (2-4 steps) to accomplish the user's request.
+IMPORTANT: Study the SAMPLE DATA carefully to understand what type of content you're processing.
 
 ${formatExamples(examples)}
 
@@ -77,16 +78,28 @@ NOW GENERATE A WORKFLOW FOR THIS NEW REQUEST:
 
 User Request: "${command}"
 
-Data Context:
+=== DATA CONTEXT (STUDY THIS CAREFULLY) ===
 ${contextStr}
+===========================================
 
 Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ') || 'G, H, I, J'}
 
-IMPORTANT REQUIREMENTS:
-- Generate 2-4 steps that flow logically (each step's output feeds the next)
-- Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
-- Each step must have: action, description (5-15 words), prompt (detailed instructions 30+ chars), outputFormat
-- Follow the SAME STRUCTURE as the examples above
+CRITICAL REQUIREMENTS:
+1. ANALYZE THE SAMPLE DATA to understand:
+   - What type of content each column contains (text, numbers, categories, notes, etc.)
+   - What information can be extracted or analyzed from this specific data
+   - How the columns relate to each other
+
+2. Generate 2-4 steps that flow logically:
+   - Step 1 should extract/process from the SOURCE data columns
+   - Each subsequent step builds on previous results
+   - Final step produces actionable output
+
+3. Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
+
+4. Each step must have: action, description (5-15 words), prompt (detailed instructions referencing the actual data), outputFormat
+
+5. Reference ACTUAL COLUMN NAMES in your prompts (e.g., "Based on the Sales Notes in column F...")
 
 Return ONLY valid JSON matching the example format above. No markdown, no explanation.`;
 }
@@ -144,36 +157,45 @@ ${JSON.stringify(ex.workflow, null, 2)}
 
 /**
  * Format the data context for the prompt
+ * This is CRITICAL - the AI needs to understand the actual data to generate good workflows
  */
 function formatDataContext(ctx: DataContext): string {
   const parts: string[] = [];
   
-  // Columns
-  parts.push(`- Columns with data: ${ctx.dataColumns.join(', ')}`);
+  // Columns with headers
+  parts.push(`Columns with data: ${ctx.dataColumns.join(', ')}`);
   
-  // Headers if available
+  // Headers if available - show what each column represents
   if (Object.keys(ctx.headers).length > 0) {
-    const headerList = Object.entries(ctx.headers)
-      .map(([col, name]) => `${col}: "${name}"`)
-      .join(', ');
-    parts.push(`- Column headers: ${headerList}`);
+    parts.push('\nColumn headers:');
+    ctx.dataColumns.forEach(col => {
+      const header = ctx.headers[col];
+      if (header) {
+        parts.push(`  - ${col}: "${header}"`);
+      } else {
+        parts.push(`  - ${col}: (no header)`);
+      }
+    });
   }
   
-  // Sample data
+  // Sample data - THIS IS CRITICAL for understanding what the data actually contains
   if (Object.keys(ctx.sampleData).length > 0) {
-    parts.push('- Sample data:');
-    Object.entries(ctx.sampleData).forEach(([col, samples]) => {
+    parts.push('\nSample data (first rows):');
+    ctx.dataColumns.forEach(col => {
+      const samples = ctx.sampleData[col] || [];
       if (samples.length > 0) {
-        const truncated = samples.slice(0, 2).map(s => 
-          s.length > 60 ? s.substring(0, 60) + '...' : s
-        );
-        parts.push(`  ${col}: ${JSON.stringify(truncated)}`);
+        const header = ctx.headers[col] || col;
+        const truncated = samples.slice(0, 3).map(s => {
+          const str = String(s);
+          return str.length > 100 ? str.substring(0, 100) + '...' : str;
+        });
+        parts.push(`  ${header} (${col}): ${JSON.stringify(truncated)}`);
       }
     });
   }
   
   // Row count
-  parts.push(`- Total rows: ${ctx.rowCount}`);
+  parts.push(`\nTotal rows to process: ${ctx.rowCount}`);
   
   return parts.join('\n');
 }

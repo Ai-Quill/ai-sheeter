@@ -96,9 +96,19 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Starting workflow generation');
     console.log('[parse-chain] Command:', command.substring(0, 80) + '...');
 
+    // Log received context for debugging
+    console.log('[parse-chain] Context keys:', Object.keys(context || {}));
+    console.log('[parse-chain] Has selectionInfo:', !!context?.selectionInfo);
+    console.log('[parse-chain] Has columnDataRanges:', !!context?.columnDataRanges);
+    console.log('[parse-chain] Has sampleData:', !!context?.sampleData);
+    console.log('[parse-chain] Has headers:', Array.isArray(context?.headers) ? context.headers.length : !!context?.headerRow);
+    
     // 1. Extract data context
     const dataContext = extractDataContext(context);
     console.log('[parse-chain] Data columns:', dataContext.dataColumns.join(', '));
+    console.log('[parse-chain] Data range:', dataContext.dataRange || 'MISSING!');
+    console.log('[parse-chain] Row info: startRow=' + dataContext.startRow + ', endRow=' + dataContext.endRow + ', rowCount=' + dataContext.rowCount);
+    console.log('[parse-chain] Sample data columns:', Object.keys(dataContext.sampleData).join(', ') || 'none');
 
     // 2. Generate embedding for semantic search
     let embedding: number[] | null = null;
@@ -142,6 +152,7 @@ export async function POST(request: NextRequest) {
     
     // Debug: Log what we're returning
     console.log('[parse-chain] Returning steps:', chain.steps.map(s => ({ action: s.action, desc: s.description?.substring(0, 30) })));
+    console.log('[parse-chain] Returning input config: inputRange=' + chain.inputRange + ', inputColumn=' + chain.inputColumn + ', inputColumns=' + (chain.inputColumns?.join(',') || 'none'));
     
     const elapsed = Date.now() - startTime;
     console.log(`[parse-chain] Completed in ${elapsed}ms`);
@@ -149,9 +160,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(chain);
 
   } catch (error) {
-    console.error('[parse-chain] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[parse-chain] Error:', errorMessage);
+    console.error('[parse-chain] Stack:', error instanceof Error ? error.stack : 'N/A');
+    
     return NextResponse.json(
-      { error: 'Failed to generate workflow' },
+      { error: 'Failed to generate workflow: ' + errorMessage },
       { status: 500 }
     );
   }
@@ -178,23 +192,72 @@ function extractDataContext(context: any): ExtendedDataContext {
     ['G', 'H', 'I', 'J'];
   
   const headers: Record<string, string> = {};
-  if (context?.headers) {
+  // Check multiple locations for headers:
+  // 1. context.headers (array format from Agent.gs)
+  // 2. context.headerRow (object format)
+  // 3. selectionInfo.selectedHeaders
+  if (context?.headers && Array.isArray(context.headers)) {
     context.headers.forEach((h: any) => {
-      headers[h.column] = h.name;
+      if (h.column && h.name) {
+        headers[h.column] = h.name;
+      }
     });
   }
+  if (context?.headerRow && typeof context.headerRow === 'object') {
+    Object.entries(context.headerRow).forEach(([col, name]) => {
+      if (!headers[col] && name) {
+        headers[col] = String(name);
+      }
+    });
+  }
+  if (selInfo?.selectedHeaders && Array.isArray(selInfo.selectedHeaders)) {
+    selInfo.selectedHeaders.forEach((h: any) => {
+      if (h.column && h.name && !headers[h.column]) {
+        headers[h.column] = h.name;
+      }
+    });
+  }
+  
+  // Log headers for debugging
+  console.log('[parse-chain] Headers found:', Object.keys(headers).length > 0 ? JSON.stringify(headers) : 'none');
   
   const sampleData: Record<string, string[]> = {};
-  if (selInfo?.columnSamples) {
-    Object.entries(selInfo.columnSamples).forEach(([col, samples]: [string, any]) => {
-      sampleData[col] = Array.isArray(samples) ? samples.slice(0, 2) : [];
+  // Check multiple locations for sample data:
+  // 1. selectionInfo.columnSamples (newer format)
+  // 2. context.sampleData (older format from Agent.gs)
+  const sampleSource = selInfo?.columnSamples || context?.sampleData || {};
+  if (sampleSource && typeof sampleSource === 'object') {
+    Object.entries(sampleSource).forEach(([col, samples]: [string, any]) => {
+      if (Array.isArray(samples)) {
+        sampleData[col] = samples.slice(0, 3); // Include up to 3 samples for better context
+      }
     });
   }
   
-  // Extract row information
-  const startRow = selInfo?.dataStartRow || 2;
-  const endRow = selInfo?.dataEndRow || (startRow + 9);
-  const rowCount = selInfo?.dataRowCount || (endRow - startRow + 1);
+  // Log sample data for debugging
+  console.log('[parse-chain] Sample data available for columns:', Object.keys(sampleData).join(', ') || 'none');
+  
+  // Extract row information - IMPROVED: Use columnDataRanges as fallback
+  let startRow = selInfo?.dataStartRow;
+  let endRow = selInfo?.dataEndRow;
+  let rowCount = selInfo?.dataRowCount;
+  
+  // If selectionInfo doesn't have row info, try to get from columnDataRanges
+  if (!startRow && dataColumns.length > 0) {
+    const firstCol = dataColumns[0];
+    const colInfo = columnData[firstCol];
+    if (colInfo) {
+      startRow = colInfo.startRow || colInfo.dataStartRow;
+      endRow = colInfo.endRow || colInfo.dataEndRow || (startRow ? startRow + (colInfo.rowCount || 9) : undefined);
+      rowCount = colInfo.rowCount || colInfo.dataRowCount;
+      console.log('[parse-chain] Row info from columnDataRanges:', { col: firstCol, startRow, endRow, rowCount });
+    }
+  }
+  
+  // Final fallback to defaults
+  startRow = startRow || 2;
+  endRow = endRow || (startRow + 9);
+  rowCount = rowCount || (endRow - startRow + 1);
   
   // Build full data range in A1 notation
   let dataRange = selInfo?.dataRange || '';
