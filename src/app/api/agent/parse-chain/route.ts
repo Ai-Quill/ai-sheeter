@@ -150,9 +150,24 @@ export async function POST(request: NextRequest) {
     // 6. Parse and validate (lightly!)
     const chain = parseAndValidate(text, dataContext, command, embedding);
     
-    // Debug: Log what we're returning
-    console.log('[parse-chain] Returning steps:', chain.steps.map(s => ({ action: s.action, desc: s.description?.substring(0, 30) })));
+    // Debug: Log what we're returning - including per-step column assignments
+    console.log('[parse-chain] Returning steps:', chain.steps.map(s => ({ 
+      action: s.action, 
+      desc: s.description?.substring(0, 30),
+      inputCols: s.inputColumns?.join(',') || 'none',
+      outputCol: s.outputColumn || 'none'
+    })));
     console.log('[parse-chain] Returning input config: inputRange=' + chain.inputRange + ', inputColumn=' + chain.inputColumn + ', inputColumns=' + (chain.inputColumns?.join(',') || 'none'));
+    
+    // CRITICAL: Log the actual JSON being returned to verify it matches our expectation
+    const responseJson = JSON.stringify({
+      inputRange: chain.inputRange,
+      inputColumn: chain.inputColumn,
+      inputColumns: chain.inputColumns,
+      hasMultipleInputColumns: chain.hasMultipleInputColumns,
+      stepCount: chain.steps?.length
+    });
+    console.log('[parse-chain] Response JSON (input config):', responseJson);
     
     const elapsed = Date.now() - startTime;
     console.log(`[parse-chain] Completed in ${elapsed}ms`);
