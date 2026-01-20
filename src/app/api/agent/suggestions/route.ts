@@ -21,6 +21,7 @@ import { generateEmbedding } from '@/lib/ai/embeddings';
 import { findSimilarWorkflowsByEmbedding, StoredWorkflow } from '@/lib/workflow-memory';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getModel, AIProvider } from '@/lib/ai/models';
+import { decryptApiKey } from '@/utils/encryption';
 
 // ============================================
 // TYPES
@@ -49,7 +50,7 @@ interface SuggestionsRequest {
   
   // User's AI model choice (use same model they selected)
   provider?: AIProvider;
-  apiKey?: string;
+  encryptedApiKey?: string;  // Encrypted API key - backend decrypts
   
   // Optional: workflow ID for recording successes
   workflowId?: string;
@@ -88,13 +89,16 @@ export async function POST(request: NextRequest) {
   try {
     const body: SuggestionsRequest = await request.json();
     
+    // Decrypt API key on backend (consistent with jobs API pattern)
+    const apiKey = body.encryptedApiKey ? decryptApiKey(body.encryptedApiKey) : undefined;
+    
     console.log('[suggestions] Request received:', {
       hasSteps: !!body.steps?.length,
       hasTaskType: !!body.taskType,
       hasCommand: !!body.command,
       provider: body.provider || 'NOT_PROVIDED',
-      hasApiKey: !!body.apiKey,
-      apiKeyLength: body.apiKey?.length || 0,
+      hasEncryptedKey: !!body.encryptedApiKey,
+      decryptedKeyLength: apiKey?.length || 0,
     });
     
     // Build summary text from the request
@@ -144,7 +148,7 @@ export async function POST(request: NextRequest) {
       body, 
       similarWorkflows,
       body.provider,
-      body.apiKey
+      apiKey  // Use decrypted key
     );
     
     if (llmResult) {

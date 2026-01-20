@@ -22,6 +22,7 @@ import { generateText, Output, NoObjectGeneratedError } from 'ai';
 import { z } from 'zod';
 import { getModel, AIProvider, getDefaultModel } from '@/lib/ai/models';
 import { taskOptimizer, DetectedTask } from '@/lib/ai/task-optimizer';
+import { decryptApiKey } from '@/utils/encryption';
 
 // ============================================
 // STRUCTURED OUTPUT SCHEMA
@@ -251,7 +252,7 @@ Context: Column C: Invoice Date, D: empty
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { command, context, provider, apiKey } = body;
+    const { command, context, provider, encryptedApiKey } = body;
 
     if (!command || typeof command !== 'string') {
       return NextResponse.json(
@@ -260,15 +261,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine which model to use
-    // Priority: user's selected provider > fallback to server's Gemini
+    // Decrypt API key on backend (consistent with jobs API pattern)
+    const apiKey = encryptedApiKey ? decryptApiKey(encryptedApiKey) : undefined;
+
+    // Determine which model to use - user's BYOK key required
     const aiProvider = (provider as AIProvider) || 'GEMINI';
-    const modelApiKey = apiKey || process.env.GOOGLE_API_KEY || '';
     const modelId = getDefaultModel(aiProvider);
     
-    if (!modelApiKey) {
+    if (!apiKey) {
       return NextResponse.json(
-        { success: false, error: `No API key available for ${aiProvider}` },
+        { success: false, error: `No API key available for ${aiProvider}. Please configure your API key in Settings.` },
         { status: 400 }
       );
     }
@@ -544,7 +546,7 @@ export async function POST(request: NextRequest) {
     console.log('Using model:', aiProvider, modelId);
     
     // Get the model using the unified factory
-    const model = getModel(aiProvider, modelId, modelApiKey);
+    const model = getModel(aiProvider, modelId, apiKey);
     
     // Use structured output for reliable parsing
     // See: https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data

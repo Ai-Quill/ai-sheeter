@@ -34,6 +34,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateEmbedding } from '@/lib/ai/embeddings';
 import { findSimilarWorkflowsByEmbedding, StoredWorkflow } from '@/lib/workflow-memory';
 import { buildFewShotPrompt, DataContext } from '@/lib/workflow-memory/prompt-builder';
+import { decryptApiKey } from '@/utils/encryption';
 
 // ============================================
 // TYPES
@@ -87,11 +88,14 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { command, context, provider = 'GEMINI', apiKey } = body;
+    const { command, context, provider = 'GEMINI', encryptedApiKey } = body;
 
     if (!command) {
       return NextResponse.json({ error: 'Command is required' }, { status: 400 });
     }
+
+    // Decrypt API key on backend (consistent with jobs API pattern)
+    const apiKey = encryptedApiKey ? decryptApiKey(encryptedApiKey) : undefined;
 
     console.log('[parse-chain] Starting workflow generation');
     console.log('[parse-chain] Command:', command.substring(0, 80) + '...');
@@ -475,16 +479,22 @@ function createFallback(
 // ============================================
 
 function getModel(provider: string, apiKey?: string) {
+  // API key is required - no fallback to env vars
+  // This ensures we always use the user's own API key (BYOK)
+  if (!apiKey) {
+    throw new Error(`API key required for provider ${provider}`);
+  }
+  
   switch (provider.toUpperCase()) {
     case 'CHATGPT':
-      const openai = createOpenAI({ apiKey: apiKey || process.env.OPENAI_API_KEY });
+      const openai = createOpenAI({ apiKey });
       return openai('gpt-4o-mini');
     case 'CLAUDE':
-      const anthropic = createAnthropic({ apiKey: apiKey || process.env.ANTHROPIC_API_KEY });
+      const anthropic = createAnthropic({ apiKey });
       return anthropic('claude-3-haiku-20240307');
     case 'GEMINI':
     default:
-      const google = createGoogleGenerativeAI({ apiKey: apiKey || process.env.GOOGLE_API_KEY });
+      const google = createGoogleGenerativeAI({ apiKey });
       return google('gemini-1.5-flash');
   }
 }

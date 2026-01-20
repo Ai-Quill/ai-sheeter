@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { getModel, AIProvider, getDefaultModel } from '@/lib/ai/models';
+import { decryptApiKey } from '@/utils/encryption';
 
 // ============================================
 // STRUCTURED OUTPUT SCHEMA
@@ -126,7 +127,7 @@ Output:
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { columns, provider, apiKey } = body;
+    const { columns, provider, encryptedApiKey } = body;
 
     if (!columns || !Array.isArray(columns) || columns.length === 0) {
       return NextResponse.json(
@@ -135,14 +136,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine which model to use
+    // Decrypt API key on backend (consistent with jobs API pattern)
+    const apiKey = encryptedApiKey ? decryptApiKey(encryptedApiKey) : undefined;
+
+    // Determine which model to use - user's BYOK key required
     const aiProvider = (provider as AIProvider) || 'GEMINI';
-    const modelApiKey = apiKey || process.env.GOOGLE_API_KEY || '';
     const modelId = getDefaultModel(aiProvider);
     
-    if (!modelApiKey) {
+    if (!apiKey) {
       return NextResponse.json(
-        { success: false, error: `No API key available for ${aiProvider}` },
+        { success: false, error: `No API key available for ${aiProvider}. Please configure your API key in Settings.` },
         { status: 400 }
       );
     }
@@ -157,7 +160,7 @@ export async function POST(request: NextRequest) {
     console.log('[classify-options] Analyzing columns:', columns.map((c: any) => c.column).join(', '));
     
     // Get the model using the unified factory
-    const model = getModel(aiProvider, modelId, modelApiKey);
+    const model = getModel(aiProvider, modelId, apiKey);
     
     // Use structured output for reliable parsing
     const { output } = await generateText({
