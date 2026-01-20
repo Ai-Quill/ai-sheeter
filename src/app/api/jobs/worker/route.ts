@@ -26,7 +26,7 @@ import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
 // Note: Removed zod + generateObject - using generateText for speed
 import { supabaseAdmin } from '@/lib/supabase';
-import { decryptApiKey } from '@/utils/encryption';
+import { decryptApiKey, isValidDecryptedKey } from '@/utils/encryption';
 import { getModel, type AIProvider } from '@/lib/ai/models';
 import { getSystemPrompt, type TaskType } from '@/lib/prompts';
 import { generateCacheKey, getFromCache, setCache } from '@/lib/cache';
@@ -240,10 +240,10 @@ export async function POST(req: Request): Promise<Response> {
     const inputs: InputRow[] = job.input_data;
     const results: ResultRow[] = job.results || [];
     
-    // Decrypt API key
+    // Decrypt API key using centralized encryption utils
     const apiKey = decryptApiKey(config.encryptedApiKey);
-    if (!apiKey) {
-      await markJobFailed(jobId, 'Invalid API key');
+    if (!apiKey || !isValidDecryptedKey(apiKey)) {
+      await markJobFailed(jobId, 'Invalid or corrupted API key');
       return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
     }
 
@@ -446,10 +446,10 @@ async function processJob(jobId: string): Promise<JobResult> {
     const inputs: InputRow[] = job.input_data;
     const results: ResultRow[] = job.results || [];
     
-    // Decrypt API key
+    // Decrypt API key using centralized encryption utils
     const apiKey = decryptApiKey(config.encryptedApiKey);
-    if (!apiKey) {
-      await markJobFailed(jobId, 'Invalid API key');
+    if (!apiKey || !isValidDecryptedKey(apiKey)) {
+      await markJobFailed(jobId, 'Invalid or corrupted API key');
       return { 
         jobId, 
         status: 'failed', 

@@ -20,8 +20,8 @@ import { generateText } from 'ai';
 import { generateEmbedding } from '@/lib/ai/embeddings';
 import { findSimilarWorkflowsByEmbedding, StoredWorkflow } from '@/lib/workflow-memory';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getModel, AIProvider } from '@/lib/ai/models';
-import { decryptApiKey } from '@/utils/encryption';
+import { AIProvider } from '@/lib/ai/models';
+import { authenticateRequestOptional } from '@/lib/auth/auth-service';
 
 // ============================================
 // TYPES
@@ -89,16 +89,17 @@ export async function POST(request: NextRequest) {
   try {
     const body: SuggestionsRequest = await request.json();
     
-    // Decrypt API key on backend (consistent with jobs API pattern)
-    const apiKey = body.encryptedApiKey ? decryptApiKey(body.encryptedApiKey) : undefined;
+    // Authenticate request - API key is optional for suggestions (falls back to generic)
+    const auth = authenticateRequestOptional(body);
+    const { provider, apiKey, model } = auth;
     
     console.log('[suggestions] Request received:', {
       hasSteps: !!body.steps?.length,
       hasTaskType: !!body.taskType,
       hasCommand: !!body.command,
-      provider: body.provider || 'NOT_PROVIDED',
-      hasEncryptedKey: !!body.encryptedApiKey,
-      decryptedKeyLength: apiKey?.length || 0,
+      provider: provider,
+      hasApiKey: !!apiKey,
+      hasModel: !!model,
     });
     
     // Build summary text from the request
@@ -147,8 +148,7 @@ export async function POST(request: NextRequest) {
       summaryText, 
       body, 
       similarWorkflows,
-      body.provider,
-      apiKey  // Use decrypted key
+      model  // Model from authenticateRequestOptional
     );
     
     if (llmResult) {
@@ -310,33 +310,22 @@ async function getSuggestionsFromMemory(
 
 /**
  * Generate suggestions using LLM when no memory matches
+ * @param model - Pre-configured model from authenticateRequestOptional
  */
 async function generateSuggestionsWithLLM(
   summaryText: string,
   body: SuggestionsRequest,
   similarWorkflows: StoredWorkflow[],
-  provider?: AIProvider,
-  apiKey?: string
+  model?: import('ai').LanguageModel
 ): Promise<Omit<SuggestionsResponse, 'source'> | null> {
   try {
-    // Use user's selected model if provided, otherwise skip LLM (rely on fallback)
-    console.log('[suggestions] LLM check - provider:', provider, 'hasApiKey:', !!apiKey, 'apiKeyLength:', apiKey?.length || 0);
-    
-    if (!provider || !apiKey) {
-      console.log('[suggestions] No provider/apiKey provided, skipping LLM generation');
+    // Use user's model if provided, otherwise skip LLM (rely on fallback)
+    if (!model) {
+      console.log('[suggestions] No model provided, skipping LLM generation');
       return null;
     }
     
-    // Get the model using user's provider and API key
-    const defaultModels: Record<AIProvider, string> = {
-      CHATGPT: 'gpt-5-mini',
-      CLAUDE: 'claude-haiku-4-5',
-      GEMINI: 'gemini-2.5-flash',
-      GROQ: 'llama-3.3-70b-versatile',
-      STRATICO: 'stratico-default',  // Fallback for STRATICO
-    };
-    const model = getModel(provider, defaultModels[provider], apiKey);
-    console.log('[suggestions] Using user model:', provider);
+    console.log('[suggestions] Using authenticated model for suggestions');
     
     // Build context from steps or task
     const contextParts: string[] = [];

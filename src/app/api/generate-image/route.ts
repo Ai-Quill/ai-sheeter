@@ -12,7 +12,7 @@
 import { NextResponse } from 'next/server';
 import { generateImage } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { decryptApiKey } from '@/utils/encryption';
+import { decryptApiKey, isValidDecryptedKey } from '@/utils/encryption';
 import axios from 'axios';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import OpenAI from 'openai';
@@ -61,10 +61,14 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
+    // Decrypt API key using centralized encryption utils
     const decryptedApiKey = decryptApiKey(encryptedApiKey);
 
-    if (!decryptedApiKey) {
-      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
+    if (!decryptedApiKey || !isValidDecryptedKey(decryptedApiKey)) {
+      return NextResponse.json({ 
+        error: 'Invalid or corrupted API key. Please reconfigure your API key in Settings.',
+        code: 'DECRYPTION_FAILED'
+      }, { status: 401 });
     }
 
     let imageBuffer: Buffer;

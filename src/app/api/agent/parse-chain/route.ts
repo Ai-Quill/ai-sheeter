@@ -27,14 +27,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 import { generateEmbedding } from '@/lib/ai/embeddings';
 import { findSimilarWorkflowsByEmbedding, StoredWorkflow } from '@/lib/workflow-memory';
 import { buildFewShotPrompt, DataContext } from '@/lib/workflow-memory/prompt-builder';
-import { decryptApiKey } from '@/utils/encryption';
+import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
+import { getModel } from '@/lib/ai/models';
 
 // ============================================
 // TYPES
@@ -88,14 +86,22 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { command, context, provider = 'GEMINI', encryptedApiKey } = body;
+    const { command, context } = body;
 
     if (!command) {
       return NextResponse.json({ error: 'Command is required' }, { status: 400 });
     }
 
-    // Decrypt API key on backend (consistent with jobs API pattern)
-    const apiKey = encryptedApiKey ? decryptApiKey(encryptedApiKey) : undefined;
+    // Authenticate request using centralized auth service
+    const auth = authenticateRequest(body);
+    if (!auth.success) {
+      return NextResponse.json(
+        createAuthErrorResponse(auth),
+        { status: getAuthErrorStatus(auth.code) }
+      );
+    }
+    
+    const { provider, apiKey, modelId, model } = auth;
 
     console.log('[parse-chain] Starting workflow generation');
     console.log('[parse-chain] Command:', command.substring(0, 80) + '...');
@@ -140,8 +146,8 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Prompt preview (first 500):', prompt.substring(0, 500));
     
     // 5. Generate workflow with AI
-    console.log('[parse-chain] Using model provider:', provider);
-    const model = getModel(provider, apiKey);
+    console.log('[parse-chain] Using model provider:', provider, modelId);
+    // Model already obtained from authenticateRequest()
     
     const { text } = await generateText({
       model,
@@ -474,27 +480,4 @@ function createFallback(
   };
 }
 
-// ============================================
-// MODEL HELPER
-// ============================================
-
-function getModel(provider: string, apiKey?: string) {
-  // API key is required - no fallback to env vars
-  // This ensures we always use the user's own API key (BYOK)
-  if (!apiKey) {
-    throw new Error(`API key required for provider ${provider}`);
-  }
-  
-  switch (provider.toUpperCase()) {
-    case 'CHATGPT':
-      const openai = createOpenAI({ apiKey });
-      return openai('gpt-4o-mini');
-    case 'CLAUDE':
-      const anthropic = createAnthropic({ apiKey });
-      return anthropic('claude-3-haiku-20240307');
-    case 'GEMINI':
-    default:
-      const google = createGoogleGenerativeAI({ apiKey });
-      return google('gemini-1.5-flash');
-  }
-}
+// Model creation is now handled by authenticateRequest() from @/lib/auth/auth-service

@@ -14,11 +14,11 @@
 
 import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
-import { decryptApiKey } from '@/utils/encryption';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getModel, type AIProvider } from '@/lib/ai/models';
 import { getSystemPrompt, inferTaskType } from '@/lib/prompts';
 import { generateCacheKey, getFromCache, setCache } from '@/lib/cache';
+import { decryptApiKey, isValidDecryptedKey } from '@/utils/encryption';
 
 // Type for multi-modal message content
 type MessageContent = 
@@ -98,10 +98,13 @@ export async function POST(req: Request): Promise<Response> {
       }
     }
 
-    // Decrypt API key
+    // Decrypt API key using centralized encryption utils
     const apiKey = decryptApiKey(encryptedApiKey);
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
+    if (!apiKey || !isValidDecryptedKey(apiKey)) {
+      return NextResponse.json({ 
+        error: 'Invalid or corrupted API key. Please reconfigure your API key in Settings.',
+        code: 'DECRYPTION_FAILED'
+      }, { status: 401 });
     }
 
     // Resolve model

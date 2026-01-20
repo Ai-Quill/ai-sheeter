@@ -20,8 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
-import { getModel, AIProvider, getDefaultModel } from '@/lib/ai/models';
-import { decryptApiKey } from '@/utils/encryption';
+import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
 
 // ============================================
 // STRUCTURED OUTPUT SCHEMA
@@ -127,7 +126,7 @@ Output:
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { columns, provider, encryptedApiKey } = body;
+    const { columns } = body;
 
     if (!columns || !Array.isArray(columns) || columns.length === 0) {
       return NextResponse.json(
@@ -136,19 +135,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decrypt API key on backend (consistent with jobs API pattern)
-    const apiKey = encryptedApiKey ? decryptApiKey(encryptedApiKey) : undefined;
-
-    // Determine which model to use - user's BYOK key required
-    const aiProvider = (provider as AIProvider) || 'GEMINI';
-    const modelId = getDefaultModel(aiProvider);
-    
-    if (!apiKey) {
+    // Authenticate request using centralized auth service
+    const auth = authenticateRequest(body);
+    if (!auth.success) {
       return NextResponse.json(
-        { success: false, error: `No API key available for ${aiProvider}. Please configure your API key in Settings.` },
-        { status: 400 }
+        createAuthErrorResponse(auth),
+        { status: getAuthErrorStatus(auth.code) }
       );
     }
+    
+    const { provider: aiProvider, modelId, model } = auth;
 
     // Build prompt with column information
     const columnList = columns.map((col: any) => 
@@ -158,10 +154,9 @@ export async function POST(request: NextRequest) {
     const userMessage = `Analyze these spreadsheet columns and determine appropriate classification options:\n\n${columnList}`;
 
     console.log('[classify-options] Analyzing columns:', columns.map((c: any) => c.column).join(', '));
+    console.log('[classify-options] Using model:', aiProvider, modelId);
     
-    // Get the model using the unified factory
-    const model = getModel(aiProvider, modelId, apiKey);
-    
+    // Model already obtained from authenticateRequest()
     // Use structured output for reliable parsing
     const { output } = await generateText({
       model,
