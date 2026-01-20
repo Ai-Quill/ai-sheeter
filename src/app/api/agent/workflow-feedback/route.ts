@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { storeWorkflowWithEmbedding } from '@/lib/workflow-memory';
+import { DataContext } from '@/lib/workflow-memory/prompt-builder';
 import { generateEmbedding } from '@/lib/ai/embeddings';
 
 // ============================================
@@ -103,12 +104,21 @@ export async function POST(request: NextRequest) {
         }
         
         // Store for future matching
+        // Normalize dataContext to match expected type
+        const normalizedContext = dataContext ? {
+          dataColumns: dataContext.dataColumns || [],
+          emptyColumns: [],  // Not needed for storage matching
+          headers: dataContext.headers || {},
+          sampleData: {},    // Not stored
+          rowCount: 0,       // Not stored
+        } : undefined;
+        
         const storedId = await storeWorkflowWithEmbedding(
           command,
           workflowEmbedding,
           workflow,
           domain,
-          dataContext
+          normalizedContext
         );
         
         if (storedId) {
