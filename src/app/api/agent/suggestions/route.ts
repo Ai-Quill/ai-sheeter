@@ -33,6 +33,9 @@ interface SuggestionsRequest {
     action: string;
     description: string;
     outputFormat?: string;
+    inputColumns?: string[];
+    outputColumn?: string;
+    prompt?: string;
   }>;
   
   // Single task context
@@ -42,11 +45,14 @@ interface SuggestionsRequest {
   // Common context
   dataContext?: {
     columns?: string[];
+    inputColumns?: string[];
+    outputColumns?: string[];
     headers?: Record<string, string>;
     rowCount?: number;
     sampleData?: Record<string, string[]>;
   };
   command?: string;
+  summary?: string;  // Workflow summary
   
   // User's AI model choice (use same model they selected)
   provider?: AIProvider;
@@ -329,64 +335,94 @@ async function generateSuggestionsWithLLM(
     console.log('[suggestions] Model type:', typeof model);
     console.log('[suggestions] Model keys:', Object.keys(model || {}));
     
-    // Build context from steps or task
+    // Build rich context from steps or task
     const contextParts: string[] = [];
     
+    // Log received context for debugging
+    console.log('[suggestions] Building context from:', {
+      stepsCount: body.steps?.length || 0,
+      taskType: body.taskType,
+      command: body.command?.substring(0, 50),
+      summary: body.summary?.substring(0, 50),
+      hasDataContext: !!body.dataContext,
+      hasSampleData: !!body.dataContext?.sampleData,
+    });
+    
     if (body.steps?.length) {
-      contextParts.push('Completed workflow steps:');
+      contextParts.push('## Completed Workflow Steps:');
       body.steps.forEach((s, i) => {
-        contextParts.push(`${i + 1}. ${s.action}: ${s.description}`);
-        if (s.outputFormat) contextParts.push(`   Output: ${s.outputFormat}`);
+        contextParts.push(`${i + 1}. **${s.action}**: ${s.description}`);
+        if (s.inputColumns?.length) contextParts.push(`   Input columns: ${s.inputColumns.join(', ')}`);
+        if (s.outputColumn) contextParts.push(`   Output column: ${s.outputColumn}`);
+        if (s.prompt) contextParts.push(`   Prompt: "${s.prompt.substring(0, 100)}..."`);
       });
     }
     
     if (body.taskType) {
-      contextParts.push(`Task type: ${body.taskType}`);
+      contextParts.push(`\n## Task Type: ${body.taskType}`);
       if (body.taskDescription) {
         contextParts.push(`Task description: ${body.taskDescription}`);
       }
     }
     
-    if (body.dataContext?.headers) {
-      contextParts.push(`Data columns: ${Object.values(body.dataContext.headers).join(', ')}`);
+    if (body.summary) {
+      contextParts.push(`\n## Workflow Summary: ${body.summary}`);
     }
     
-    if (body.dataContext?.rowCount) {
-      contextParts.push(`Row count: ${body.dataContext.rowCount}`);
+    // Data context
+    if (body.dataContext) {
+      contextParts.push('\n## Data Context:');
+      if (body.dataContext.inputColumns?.length) {
+        contextParts.push(`Input columns: ${body.dataContext.inputColumns.join(', ')}`);
+      }
+      if (body.dataContext.outputColumns?.length) {
+        contextParts.push(`Output columns: ${body.dataContext.outputColumns.join(', ')}`);
+      }
+      if (body.dataContext.headers && Object.keys(body.dataContext.headers).length > 0) {
+        const headerList = Object.entries(body.dataContext.headers)
+          .map(([col, name]) => `${col}: "${name}"`)
+          .join(', ');
+        contextParts.push(`Column headers: ${headerList}`);
+      }
+      if (body.dataContext.rowCount) {
+        contextParts.push(`Rows processed: ${body.dataContext.rowCount}`);
+      }
+      
+      // Include sample data if available
+      if (body.dataContext.sampleData && Object.keys(body.dataContext.sampleData).length > 0) {
+        contextParts.push('\n## Sample Data:');
+        Object.entries(body.dataContext.sampleData).forEach(([col, samples]) => {
+          if (Array.isArray(samples) && samples.length > 0) {
+            contextParts.push(`Column ${col}: ${samples.slice(0, 2).map(s => `"${String(s).substring(0, 50)}"`).join(', ')}`);
+          }
+        });
+      }
     }
     
-    // Build prompt
-    const prompt = `You are an AI assistant helping users work with spreadsheet data. A user just completed a task and needs suggestions for what to do next.
+    // Build prompt with rich context
+    const contextText = contextParts.length > 0 ? contextParts.join('\n') : 'No specific context available';
+    
+    const prompt = `You are a helpful AI assistant for a Google Sheets automation tool. A user just completed a data processing task and needs smart suggestions for what to do next.
 
-${contextParts.join('\n')}
+# What the user just did:
+${contextText}
 
-Original command: ${body.command || 'Not provided'}
+# Original user command:
+"${body.command || body.taskDescription || 'Process data'}"
 
-Based on this completed task, suggest 3 logical next actions the user might want to take. Focus on actions that:
-1. Build on the results just generated
-2. Are commonly done after this type of task
-3. Would provide additional value from the data
+# Your task:
+Suggest exactly 3 logical next actions. These should:
+1. Build on the results just generated (use the output columns mentioned above)
+2. Be commonly useful after this type of task
+3. Provide additional value from the processed data
 
-IMPORTANT: Generate suggestions that make sense for spreadsheet data operations like: summarize, analyze patterns, create reports, export data, filter results, combine with other data, etc.
+Think about what a data analyst would naturally do next after this type of analysis.
 
-Respond in JSON format only:
-{
-  "domain": "detected domain (e.g., sales, hr, customer_feedback, product, marketing, or null)",
-  "domainLabel": "Human readable label (e.g., Sales Intelligence, HR Analytics)",
-  "insight": {
-    "icon": "emoji that represents the domain",
-    "message": "Brief encouraging message about what was accomplished (under 60 chars)",
-    "tip": "Optional helpful tip or null"
-  },
-  "suggestions": [
-    {
-      "icon": "emoji",
-      "title": "Short action title (under 30 chars)",
-      "command": "The actual command the user would type",
-      "reason": "Why this is useful (under 50 chars)"
-    }
-  ]
-}`;
+# Response format (JSON only, no markdown):
+{"domain":"sales","domainLabel":"Sales Intelligence","insight":{"icon":"📊","message":"Pipeline analysis complete for 8 deals","tip":"Results in columns G, H, I"},"suggestions":[{"icon":"📈","title":"Summarize key findings","command":"Summarize the key patterns and trends from columns G to I","reason":"Get executive overview"},{"icon":"🎯","title":"Identify top opportunities","command":"From the analysis results, identify the top 3 deals most likely to close","reason":"Focus on winners"},{"icon":"📋","title":"Create action report","command":"Create a brief report of recommended next steps for each deal","reason":"Actionable insights"}]}`;
+    
+    console.log('[suggestions] Prompt length:', prompt.length);
+    console.log('[suggestions] Context parts count:', contextParts.length);
 
     console.log('[suggestions] Calling generateText...');
     let result;
