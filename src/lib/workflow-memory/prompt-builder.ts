@@ -82,23 +82,26 @@ ${contextStr}
 
 Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ') || 'G, H, I, J'}
 
-Instructions:
+CRITICAL RULES:
 1. Create 2-4 steps that logically flow together
 2. Each step's output becomes input for the next step
-3. Be SPECIFIC in prompts - reference the actual data context
-4. Use clear output formats so results are consistent
+3. The "action" field MUST be one of EXACTLY these values: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
+4. The "description" MUST be 5-15 words (NOT the user's original request)
+5. The "prompt" MUST be detailed instructions (30+ chars), NOT just repeating the request
+
+INVALID actions (DO NOT USE): process, run, execute, do, handle, work
 
 Return ONLY valid JSON in this exact format:
 {
   "steps": [
     {
-      "action": "extract|analyze|classify|generate|summarize|score|clean|validate|translate|rewrite",
-      "description": "5-15 word description of what this step does",
-      "prompt": "Detailed instructions for processing each row (30+ chars)",
-      "outputFormat": "Expected format of output"
+      "action": "extract",
+      "description": "Extract key signals from sales notes",
+      "prompt": "Read the sales notes and identify: buying signals (budget, timeline, champion), blockers (objections, concerns), and competitor mentions.",
+      "outputFormat": "Signal | Blocker | Competitor"
     }
   ],
-  "summary": "One-line summary of the workflow",
+  "summary": "Brief workflow summary",
   "clarification": "Friendly explanation for the user"
 }`;
 }

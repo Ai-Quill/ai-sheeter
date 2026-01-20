@@ -132,9 +132,13 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('[parse-chain] AI response length:', text.length);
+    console.log('[parse-chain] AI raw response (first 500 chars):', text.substring(0, 500));
 
     // 6. Parse and validate (lightly!)
     const chain = parseAndValidate(text, dataContext, command, embedding);
+    
+    // Debug: Log what we're returning
+    console.log('[parse-chain] Returning steps:', chain.steps.map(s => ({ action: s.action, desc: s.description?.substring(0, 30) })));
     
     const elapsed = Date.now() - startTime;
     console.log(`[parse-chain] Completed in ${elapsed}ms`);
