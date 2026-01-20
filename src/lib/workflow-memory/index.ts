@@ -36,12 +36,8 @@ export interface WorkflowStep {
   outputFormat?: string;
 }
 
-export interface DataContext {
-  dataColumns: string[];
-  emptyColumns: string[];
-  headers: Record<string, string>;
-  sampleData: Record<string, string[]>;
-}
+// DataContext type is imported here and re-exported at the bottom for convenience
+import { type DataContext } from './prompt-builder';
 
 // ============================================
 // FIND SIMILAR WORKFLOWS
@@ -230,7 +226,8 @@ export async function recordWorkflowUsage(workflowId: string): Promise<void> {
 // ============================================
 
 // Re-export from prompt builder for convenience
-export { buildFewShotPrompt, DataContext } from './prompt-builder';
+export { buildFewShotPrompt } from './prompt-builder';
+export type { DataContext };  // Re-export the imported type
 export { BASE_EXAMPLES, getRelevantBaseExamples } from './base-examples';
 
 // ============================================

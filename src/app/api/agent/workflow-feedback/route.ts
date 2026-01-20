@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { storeWorkflowWithEmbedding } from '@/lib/workflow-memory';
-import { DataContext } from '@/lib/workflow-memory/prompt-builder';
+import type { DataContext } from '@/lib/workflow-memory/prompt-builder';
 import { generateEmbedding } from '@/lib/ai/embeddings';
 
 // ============================================
