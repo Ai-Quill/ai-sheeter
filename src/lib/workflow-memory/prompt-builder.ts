@@ -64,16 +64,16 @@ export function buildFewShotPrompt(
   // Format the data context
   const contextStr = formatDataContext(dataContext);
   
-  // Build the prompt
-  return `You are an expert at designing data processing workflows for spreadsheets.
+  // Build the prompt with clear examples
+  return `You are an expert workflow designer for spreadsheet data processing.
 
-Your task: Generate a workflow to accomplish the user's request.
+TASK: Generate a multi-step workflow (2-4 steps) to accomplish the user's request.
 
 ${formatExamples(examples)}
 
 ---
 
-NOW GENERATE A WORKFLOW FOR THIS REQUEST:
+NOW GENERATE A WORKFLOW FOR THIS NEW REQUEST:
 
 User Request: "${command}"
 
@@ -82,28 +82,13 @@ ${contextStr}
 
 Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ') || 'G, H, I, J'}
 
-CRITICAL RULES:
-1. Create 2-4 steps that logically flow together
-2. Each step's output becomes input for the next step
-3. The "action" field MUST be one of EXACTLY these values: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
-4. The "description" MUST be 5-15 words (NOT the user's original request)
-5. The "prompt" MUST be detailed instructions (30+ chars), NOT just repeating the request
+IMPORTANT REQUIREMENTS:
+- Generate 2-4 steps that flow logically (each step's output feeds the next)
+- Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
+- Each step must have: action, description (5-15 words), prompt (detailed instructions 30+ chars), outputFormat
+- Follow the SAME STRUCTURE as the examples above
 
-INVALID actions (DO NOT USE): process, run, execute, do, handle, work
-
-Return ONLY valid JSON in this exact format:
-{
-  "steps": [
-    {
-      "action": "extract",
-      "description": "Extract key signals from sales notes",
-      "prompt": "Read the sales notes and identify: buying signals (budget, timeline, champion), blockers (objections, concerns), and competitor mentions.",
-      "outputFormat": "Signal | Blocker | Competitor"
-    }
-  ],
-  "summary": "Brief workflow summary",
-  "clarification": "Friendly explanation for the user"
-}`;
+Return ONLY valid JSON matching the example format above. No markdown, no explanation.`;
 }
 
 // ============================================
@@ -124,8 +109,16 @@ function getExamples(command: string, similarWorkflows: StoredWorkflow[]): Workf
   }
   
   // Otherwise, use base examples (with keyword relevance)
-  console.log('[PromptBuilder] Using base examples (no similar workflows found)');
-  const relevantExamples = getRelevantBaseExamples(command, 3);
+  console.log('[PromptBuilder] Using base examples (no similar workflows in memory)');
+  const relevantExamples = getRelevantBaseExamples(command, 2); // Use top 2 most relevant
+  
+  // Log which examples were selected
+  console.log('[PromptBuilder] Selected examples:', relevantExamples.map(ex => ({
+    command: ex.command.substring(0, 50) + '...',
+    stepCount: ex.workflow.steps.length,
+    actions: ex.workflow.steps.map(s => s.action)
+  })));
+  
   return relevantExamples.map(ex => ({
     command: ex.command,
     context: ex.context,

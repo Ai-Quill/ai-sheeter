@@ -122,8 +122,11 @@ export async function POST(request: NextRequest) {
 
     // 4. Build few-shot prompt
     const prompt = buildFewShotPrompt(command, dataContext, similarWorkflows);
+    console.log('[parse-chain] Prompt length:', prompt.length, 'chars');
+    console.log('[parse-chain] Prompt preview (first 500):', prompt.substring(0, 500));
     
     // 5. Generate workflow with AI
+    console.log('[parse-chain] Using model provider:', provider);
     const model = getModel(provider, apiKey);
     
     const { text } = await generateText({
