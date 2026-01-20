@@ -1,57 +1,87 @@
 /**
  * @file /api/agent/parse-chain
- * @version 2.0.0
+ * @version 3.0.0
  * @updated 2026-01-19
  * @author AISheeter Team
  * 
  * CHANGELOG:
- * - 2.0.0 (2026-01-19): Use AI SDK structured output with Zod for guaranteed valid responses
+ * - 3.0.0 (2026-01-19): Switched from Zod structured output to standard JSON prompt
+ *   - Faster execution (no schema overhead)
+ *   - More reliable (models often ignore Zod constraints)
+ *   - Better control over sanitization and validation
+ * - 2.0.0 (2026-01-19): Use AI SDK structured output with Zod
  * - 1.0.0 (2026-01-15): Initial multi-step task chain parsing
  * 
  * ============================================
  * PARSE-CHAIN API - Multi-Step Task Detection
  * ============================================
  * 
- * Uses AI SDK's structured output feature to guarantee valid JSON responses.
- * No more hoping the AI returns proper JSON - the schema enforces it.
+ * Uses standard JSON prompt with manual parsing.
+ * Faster and more reliable than Zod structured output for this use case.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generateText, Output } from 'ai';
+import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { z } from 'zod';
 
-// Zod schema for structured output - AI SDK enforces this
-const TaskStepSchema = z.object({
-  id: z.string().describe('Unique step identifier like "step_1", "step_2"'),
-  order: z.number().describe('Step order (1, 2, 3...)'),
-  action: z.enum(['classify', 'extract', 'summarize', 'generate', 'analyze', 'translate', 'clean', 'score', 'validate', 'rewrite', 'custom'])
-    .describe('The type of action to perform'),
-  description: z.string().min(5).max(100).describe('Short description of this step (5-15 words, must be meaningful)'),
-  dependsOn: z.string().nullable().describe('ID of previous step this depends on, or null'),
-  usesResultOf: z.string().nullable().describe('ID of step whose output to use as input, or null'),
-  prompt: z.string().min(20).describe('Detailed instruction for AI to execute on each row (at least 20 characters)'),
-});
+// ============================================
+// TYPES (no Zod - just TypeScript)
+// ============================================
 
-const TaskChainSchema = z.object({
-  isMultiStep: z.boolean().describe('True if this is a multi-step workflow'),
-  isCommand: z.boolean().describe('True if user gave a command, false if they described a problem'),
-  steps: z.array(TaskStepSchema).max(5).describe('Array of workflow steps (max 5)'),
-  summary: z.string().describe('Brief summary of the entire workflow'),
-  clarification: z.string().describe('Friendly message explaining the proposed solution to the user'),
-  estimatedTime: z.string().optional().describe('Estimated time like "~4 minutes"'),
-});
+interface TaskStep {
+  id: string;
+  order: number;
+  action: string;
+  description: string;
+  dependsOn: string | null;
+  usesResultOf: string | null;
+  prompt: string;
+}
 
-// TypeScript types derived from Zod schema
-type TaskStep = z.infer<typeof TaskStepSchema>;
-type TaskChain = z.infer<typeof TaskChainSchema>;
+interface TaskChain {
+  isMultiStep: boolean;
+  isCommand: boolean;
+  steps: TaskStep[];
+  summary: string;
+  clarification: string;
+  estimatedTime?: string;
+}
+
+// Valid actions
+const VALID_ACTIONS = ['classify', 'extract', 'summarize', 'generate', 'analyze', 'translate', 'clean', 'score', 'validate', 'rewrite', 'custom'];
+
+// Action mapping for common mistakes
+const ACTION_MAP: Record<string, string> = {
+  'process': 'analyze',
+  'processing': 'analyze',
+  'analyse': 'analyze',
+  'categorize': 'classify',
+  'category': 'classify',
+  'label': 'classify',
+  'tag': 'classify',
+  'find': 'extract',
+  'get': 'extract',
+  'pull': 'extract',
+  'create': 'generate',
+  'write': 'generate',
+  'make': 'generate',
+  'produce': 'generate',
+  'condense': 'summarize',
+  'shorten': 'summarize',
+  'brief': 'summarize',
+  'fix': 'clean',
+  'correct': 'clean',
+  'rate': 'score',
+  'rank': 'score',
+  'check': 'validate',
+  'verify': 'validate',
+};
 
 /**
  * POST /api/agent/parse-chain
  * Parse a command and detect if it's multi-step
- * Uses AI to understand intent - not just pattern matching
  */
 export async function POST(request: NextRequest) {
   try {
@@ -65,10 +95,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use AI to analyze the command - let AI decide if it's multi-step
-    // AI is smarter than pattern matching for understanding natural language
     const chain = await analyzeCommandWithAI(command, context, provider, apiKey);
-    
     return NextResponse.json(chain);
 
   } catch (error) {
@@ -81,8 +108,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Use AI SDK structured output to analyze command
- * The Zod schema GUARANTEES valid response structure - no more JSON parsing issues!
+ * Analyze command using standard JSON prompt (faster than Zod)
  */
 async function analyzeCommandWithAI(
   command: string, 
@@ -91,144 +117,215 @@ async function analyzeCommandWithAI(
   apiKey?: string
 ): Promise<TaskChain> {
   
-  const systemPrompt = `You are an EXPERT AI assistant for Google Sheets that converts user requests into actionable workflows.
+  const systemPrompt = `You convert user requests into spreadsheet workflows. Return ONLY valid JSON.
 
-## Your Job
+RULES:
+1. COMMAND ("classify column A") → {"isCommand": true, "isMultiStep": false, "steps": []}
+2. PROBLEM DESCRIPTION → {"isCommand": false, "isMultiStep": true, "steps": [...]}
 
-1. **COMMAND** ("classify column A", "translate to Spanish") → isCommand: true, usually single step
-2. **PROBLEM DESCRIPTION** ("sales notes are messy, need insights") → isCommand: false, propose multi-step workflow
+VALID ACTIONS: extract, analyze, generate, classify, summarize, score, clean, translate, validate, rewrite
 
-## For Problem Descriptions - Create ACTIONABLE Workflows
+For problem descriptions, create 2-4 actionable steps. Each step:
+- action: One of the VALID ACTIONS (NOT "process"!)
+- description: 5-15 words about WHAT this step does (NOT user's words!)
+- prompt: 20+ char AI instruction for processing each row
 
-When user describes a PROBLEM (not a command), propose a concrete solution workflow.
+EXAMPLE INPUT: "Sales notes need insights, next steps, risk flags"
+EXAMPLE OUTPUT:
+{
+  "isMultiStep": true,
+  "isCommand": false,
+  "steps": [
+    {"id": "step_1", "order": 1, "action": "extract", "description": "Extract key insights from sales notes", "prompt": "Extract: 1) Buying signals 2) Concerns 3) Competitors", "dependsOn": null, "usesResultOf": null},
+    {"id": "step_2", "order": 2, "action": "generate", "description": "Generate recommended next action", "prompt": "Suggest ONE specific next step based on the signals", "dependsOn": "step_1", "usesResultOf": "step_1"},
+    {"id": "step_3", "order": 3, "action": "classify", "description": "Classify deal risk level", "prompt": "Classify as: High-Risk, Medium-Risk, or Low-Risk", "dependsOn": "step_2", "usesResultOf": "step_2"}
+  ],
+  "summary": "3-step workflow: extract insights, generate actions, classify risk",
+  "clarification": "I'll analyze your sales notes in 3 steps to extract insights, suggest next actions, and flag risk levels."
+}
 
-**Example Input:**
-"Sales reps write these notes but nobody has time to read them all. Leadership wants pipeline insights, reps need next steps, and deals are falling through the cracks."
+Return ONLY the JSON object, no markdown, no explanation.`;
 
-**Good Workflow Response:**
-\`\`\`
-isMultiStep: true
-isCommand: false
-steps: [
-  {
-    id: "step_1",
-    order: 1,
-    action: "extract",
-    description: "Extract buying signals, objections, competitors from notes",
-    prompt: "From this deal data, extract: 1) Key buying signals (budget, timeline, champion) 2) Main objections or concerns 3) Any competitors mentioned. Separate with |||",
-    dependsOn: null,
-    usesResultOf: null
-  },
-  {
-    id: "step_2", 
-    order: 2,
-    action: "analyze",
-    description: "Score win probability with reasoning",
-    prompt: "Based on all deal data including extracted signals and objections, provide: [Win Probability: High/Medium/Low] - [One sentence reason why]",
-    dependsOn: "step_1",
-    usesResultOf: "step_1"
-  },
-  {
-    id: "step_3",
-    order: 3,
-    action: "generate",
-    description: "Generate specific next action for each deal",
-    prompt: "Based on this deal's stage, signals, and objections, generate ONE specific, actionable next step the sales rep should take this week",
-    dependsOn: "step_2",
-    usesResultOf: "step_2"
-  }
-]
-clarification: "I understand - your sales notes contain valuable intelligence that's going unused. Here's a 3-step workflow to extract insights, score deals, and generate action items."
-\`\`\`
+  const userPrompt = `User input: "${command}"
+${context?.headers ? `Columns: ${JSON.stringify(context.headers)}` : ''}
+${context?.selectionInfo?.columnsWithData ? `Data in: ${context.selectionInfo.columnsWithData.join(', ')}` : ''}
 
-## BAD Step Examples (NEVER DO THIS!)
-
-❌ Description copies user's words: "Sales reps write notes..." 
-❌ Vague action: "Process the data"
-❌ No prompt: prompt is empty or too short
-❌ Generic description: "Do something with the data"
-
-## Good Step Requirements
-
-Each step MUST have:
-1. **action**: One of: classify, extract, summarize, generate, analyze, translate, clean, score, validate
-2. **description**: 5-15 words describing WHAT this step does (not why)
-3. **prompt**: 20+ characters with SPECIFIC instructions for the AI to execute
-
-## Action Type Guide
-
-| Action | When to Use | Example Prompt |
-|--------|-------------|----------------|
-| extract | Pull specific data FROM text | "Extract: 1) Buying signals 2) Objections 3) Competitors" |
-| analyze | Complex reasoning across factors | "Based on all data, provide: [Insight] - [Risk Level]" |
-| generate | Create new content/recommendations | "Generate ONE specific next action for the sales rep" |
-| classify | Assign to predefined categories | "Classify as exactly one of: Hot, Warm, Cold" |
-| score | Rate with numeric value + reason | "Score 1-10 and explain why" |
-| summarize | Condense long text | "Summarize in 1 sentence" |
-
-## For Simple Commands
-
-- Single action → isMultiStep: false, steps: [] (empty array)
-- The main /api/agent/parse endpoint handles single commands
-
-## Rules
-
-1. Maximum 5 steps per workflow
-2. Each step MUST have valid action, meaningful description (5-15 words), and detailed prompt (20+ chars)
-3. Steps must be executable on spreadsheet row data
-4. For problems, ALWAYS propose a helpful workflow
-5. Clarification should explain the proposed solution warmly`;
-
-  const userPrompt = `Analyze this user input and create a workflow:
-
-"${command}"
-
-${context?.headers ? `Available columns: ${JSON.stringify(context.headers)}` : ''}
-${context?.columnDataRanges ? `Data ranges: ${JSON.stringify(Object.keys(context.columnDataRanges))}` : ''}
-${context?.selectionInfo ? `Selection: ${context.selectionInfo.dataRange || 'none'}` : ''}`;
+Return JSON:`;
 
   try {
     const model = getModel(provider, apiKey);
     
-    // Use AI SDK structured output - schema enforces valid response!
-    const { output } = await generateText({
+    const { text } = await generateText({
       model,
       system: systemPrompt,
       prompt: userPrompt,
-      temperature: 0.2,
-      output: Output.object({
-        schema: TaskChainSchema,
-      }),
+      maxTokens: 1000,
     });
 
-    console.log('[parse-chain] Structured output:', JSON.stringify(output).substring(0, 300));
+    console.log('[parse-chain] Raw response:', text.substring(0, 500));
 
-    // Output is already validated by Zod schema!
-    const result = output as TaskChain;
+    // Parse JSON from response
+    const result = parseJsonResponse(text, command);
     
-    // Add estimated time if not provided
-    if (result.isMultiStep && result.steps.length > 1 && !result.estimatedTime) {
-      result.estimatedTime = estimateChainTime(result.steps.length);
-    }
-    
+    console.log('[parse-chain] ✅ Parsed result:', result.summary, 'steps:', result.steps.length);
     return result;
 
   } catch (error) {
-    console.error('[parse-chain] Structured output error:', error);
-    // Fallback - process as single command
-    return {
-      isMultiStep: false,
-      isCommand: true,
-      steps: [],
-      summary: 'Analysis failed - processing as single command',
-      clarification: 'I had trouble understanding that. Try a simpler command.',
-      estimatedTime: '< 1 minute'
-    };
+    console.error('[parse-chain] Error:', error);
+    return createFallbackResponse('API error');
   }
 }
 
 /**
- * Get the AI model based on provider
+ * Parse and validate JSON response from AI
+ */
+function parseJsonResponse(text: string, originalCommand: string): TaskChain {
+  try {
+    // Try to extract JSON from response (handle markdown code blocks)
+    let jsonStr = text.trim();
+    
+    // Remove markdown code blocks if present
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    }
+    
+    // Find JSON object in text
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[parse-chain] No JSON found in response');
+      return createFallbackResponse('No JSON in response');
+    }
+    
+    const parsed = JSON.parse(jsonMatch[0]);
+    
+    // Validate and sanitize
+    const isMultiStep = parsed.isMultiStep === true;
+    const isCommand = parsed.isCommand !== false;
+    
+    let steps: TaskStep[] = [];
+    if (Array.isArray(parsed.steps) && parsed.steps.length > 0) {
+      steps = sanitizeSteps(parsed.steps, originalCommand);
+    }
+    
+    // If we have valid steps, it's multi-step
+    const result: TaskChain = {
+      isMultiStep: steps.length > 1,
+      isCommand: steps.length === 0,
+      steps,
+      summary: parsed.summary || (steps.length > 0 ? `${steps.length}-step workflow` : 'Single command'),
+      clarification: parsed.clarification || "I'll help process this request.",
+      estimatedTime: steps.length > 1 ? `~${steps.length * 2} minutes` : '< 1 minute',
+    };
+    
+    return result;
+    
+  } catch (parseError) {
+    console.error('[parse-chain] JSON parse error:', parseError);
+    return createFallbackResponse('JSON parse failed');
+  }
+}
+
+/**
+ * Sanitize and fix steps that don't meet requirements
+ */
+function sanitizeSteps(steps: any[], originalCommand: string): TaskStep[] {
+  const sanitized: TaskStep[] = [];
+  
+  for (let idx = 0; idx < Math.min(steps.length, 5); idx++) {
+    const step = steps[idx];
+    if (!step) continue;
+    
+    let action = String(step.action || 'analyze').toLowerCase();
+    let description = String(step.description || '');
+    let prompt = String(step.prompt || '');
+    
+    // Fix invalid action
+    if (!VALID_ACTIONS.includes(action)) {
+      const mapped = ACTION_MAP[action];
+      if (mapped) {
+        console.log(`[parse-chain] Mapped: "${action}" → "${mapped}"`);
+        action = mapped;
+      } else {
+        console.log(`[parse-chain] Unknown action "${action}" → "analyze"`);
+        action = 'analyze';
+      }
+    }
+    
+    // Fix description that copies user text
+    const isCopiedText = description.length > 80 || 
+      originalCommand.toLowerCase().includes(description.toLowerCase().substring(0, 30));
+    
+    if (isCopiedText || description.length < 5) {
+      const defaults: Record<string, string> = {
+        'extract': 'Extract key information from data',
+        'analyze': 'Analyze data and provide insights',
+        'generate': 'Generate recommendations',
+        'classify': 'Classify into categories',
+        'summarize': 'Summarize key points',
+        'score': 'Score and rank items',
+        'clean': 'Clean and standardize data',
+        'translate': 'Translate content',
+        'validate': 'Validate data quality',
+        'rewrite': 'Rewrite content',
+        'custom': 'Process data',
+      };
+      description = defaults[action] || `Step ${idx + 1}: ${action}`;
+    }
+    
+    // Truncate if too long
+    if (description.length > 100) {
+      description = description.substring(0, 97) + '...';
+    }
+    
+    // Fix prompt
+    if (prompt.length < 20 || originalCommand.toLowerCase().includes(prompt.toLowerCase().substring(0, 20))) {
+      const defaultPrompts: Record<string, string> = {
+        'extract': 'Extract: 1) Key signals 2) Main concerns 3) Notable patterns',
+        'analyze': 'Analyze and provide: 1) Key insight 2) Main factors to consider',
+        'generate': 'Generate ONE specific, actionable recommendation',
+        'classify': 'Classify as exactly one of: High, Medium, or Low',
+        'summarize': 'Summarize the key points in 1-2 sentences',
+        'score': 'Score 1-10 and briefly explain the rating',
+        'clean': 'Clean and standardize this data',
+        'translate': 'Translate accurately while preserving meaning',
+        'validate': 'Check validity and note any issues',
+        'rewrite': 'Rewrite to be clearer and more professional',
+        'custom': 'Process according to requirements',
+      };
+      prompt = defaultPrompts[action] || 'Process: {{input}}';
+    }
+    
+    sanitized.push({
+      id: step.id || `step_${idx + 1}`,
+      order: idx + 1,
+      action,
+      description,
+      dependsOn: idx > 0 ? `step_${idx}` : null,
+      usesResultOf: idx > 0 ? `step_${idx}` : null,
+      prompt,
+    });
+  }
+  
+  return sanitized;
+}
+
+/**
+ * Create a fallback response
+ */
+function createFallbackResponse(reason: string): TaskChain {
+  console.log('[parse-chain] Fallback:', reason);
+  return {
+    isMultiStep: false,
+    isCommand: true,
+    steps: [],
+    summary: 'Processing as single command',
+    clarification: "I'll process this as a single action.",
+    estimatedTime: '< 1 minute'
+  };
+}
+
+/**
+ * Get AI model - use fast models for this task
  */
 function getModel(provider: string, apiKey?: string) {
   switch (provider.toUpperCase()) {
@@ -243,16 +340,6 @@ function getModel(provider: string, apiKey?: string) {
     case 'GEMINI':
     default:
       const google = createGoogleGenerativeAI({ apiKey: apiKey || process.env.GOOGLE_API_KEY });
-      return google('gemini-2.0-flash-exp');
+      return google('gemini-1.5-flash');
   }
-}
-
-/**
- * Estimate execution time based on number of steps
- */
-function estimateChainTime(stepCount: number): string {
-  const baseMinutes = stepCount * 2;
-  if (baseMinutes < 1) return '< 1 minute';
-  if (baseMinutes < 5) return `~${baseMinutes} minutes`;
-  return `${baseMinutes}-${baseMinutes + 2} minutes`;
 }

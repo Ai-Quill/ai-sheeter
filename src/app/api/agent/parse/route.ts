@@ -277,8 +277,33 @@ export async function POST(request: NextRequest) {
     // TASK DETECTION
     // ============================================
     const detected = taskOptimizer.detectTaskType(command);
-    console.log('Task detection:', detected.type, 'confidence:', detected.confidence);
-    console.log('Formula alternative:', detected.formulaAlternative ? detected.formulaAlternative.description : 'none');
+    console.log('[Parse] Task detection:', detected.type, 'confidence:', detected.confidence);
+    console.log('[Parse] Formula alternative:', detected.formulaAlternative ? detected.formulaAlternative.description : 'none');
+    
+    // ============================================
+    // SMART OVERRIDE: Detect complex problem descriptions
+    // These need multi-column analysis even if task detector returns 'custom'
+    // ============================================
+    const isComplexProblem = 
+      /nobody.*(time|read|understand)/i.test(command) ||
+      /leadership\s+wants/i.test(command) ||
+      /falling\s+through/i.test(command) ||
+      /insight/i.test(command) ||
+      /(wants|needs).+,\s*(reps?|team|they)\s+(want|need)/i.test(command) ||
+      /pipeline\s+(insight|intelligence)/i.test(command);
+    
+    const needsMultiOutput = 
+      /\|/i.test(command) ||  // Pipe separator
+      /(insight|next step|risk|action).+(insight|next step|risk|action)/i.test(command) ||
+      /columns?\s+[A-Z],?\s*[A-Z]/i.test(command);
+    
+    if (isComplexProblem && detected.type === 'custom') {
+      console.log('[Parse] 🔄 OVERRIDE: Detected complex problem description → changing to "analyze"');
+      detected.type = 'analyze' as any;
+      detected.confidence = 'medium';
+    }
+    
+    console.log('[Parse] Final task type:', detected.type, 'isComplexProblem:', isComplexProblem, 'needsMultiOutput:', needsMultiOutput);
     
     // Get context info
     const inputCol = context?.selectionInfo?.columnsWithData?.[0] || 
@@ -459,6 +484,10 @@ export async function POST(request: NextRequest) {
     // STANDARD PATH: AI Parsing
     // ============================================
     
+    // Get multiple empty columns for potential multi-output
+    const emptyColumns = context?.selectionInfo?.emptyColumns?.map((e: any) => e.column) || [];
+    const allDataColumns = context?.selectionInfo?.columnsWithData || [];
+    
     // Build context string if provided
     let contextInfo = '';
     if (context) {
@@ -492,8 +521,24 @@ export async function POST(request: NextRequest) {
         contextInfo += ` (Formula alternative available: ${detected.formulaAlternative.description})`;
       }
     }
+    
+    // ============================================
+    // SPECIAL HANDLING: Complex Problem Descriptions
+    // ============================================
+    if (isComplexProblem) {
+      console.log('[Parse] 🎯 Complex problem detected - adding multi-output hints');
+      contextInfo += `\n\n## IMPORTANT: This is a complex problem description!`;
+      contextInfo += `\nThe user is describing a PROBLEM, not giving a simple command.`;
+      contextInfo += `\nThey likely want MULTIPLE outputs. Use taskType "analyze" (NOT "custom" or "classify").`;
+      contextInfo += `\nAvailable empty columns for output: ${emptyColumns.slice(0, 3).join(', ') || 'G, H, I'}`;
+      contextInfo += `\nAll data columns (use as input): ${allDataColumns.join(', ') || 'C, D, E, F'}`;
+      contextInfo += `\nCreate a prompt that generates MULTIPLE outputs separated by |||`;
+      contextInfo += `\nSet outputColumns to multiple columns like ["G", "H", "I"] for: insight, next step, risk level`;
+    }
 
     const userMessage = `Parse this command: "${command}"${contextInfo}`;
+    
+    console.log('[Parse] AI prompt context length:', contextInfo.length);
 
     console.log('Standard path: Using AI parsing');
     console.log('Using model:', aiProvider, modelId);
@@ -513,10 +558,60 @@ export async function POST(request: NextRequest) {
       }),
     });
     
-    console.log('AI output:', JSON.stringify(output, null, 2));
+    console.log('[Parse] AI raw output:', JSON.stringify(output, null, 2));
 
     // Process AI response - handle formula suggestions
     const response: any = { ...output };
+    
+    // ============================================
+    // POST-PROCESSING: Fix AI response for complex problems
+    // ============================================
+    if (isComplexProblem && response.plan) {
+      console.log('[Parse] 🔧 Post-processing complex problem response...');
+      
+      // Fix task type if AI returned "custom" or "classify" for a complex problem
+      if (response.plan.taskType === 'custom' || response.plan.taskType === 'classify') {
+        console.log(`[Parse] Fixing taskType: ${response.plan.taskType} → analyze`);
+        response.plan.taskType = 'analyze';
+      }
+      
+      // Ensure multiple output columns for multi-output requests
+      if (response.plan.outputColumns?.length === 1 && needsMultiOutput) {
+        const baseCol = response.plan.outputColumns[0];
+        const colCode = baseCol.charCodeAt(0);
+        response.plan.outputColumns = [
+          baseCol,
+          String.fromCharCode(colCode + 1),
+          String.fromCharCode(colCode + 2)
+        ];
+        console.log(`[Parse] Expanded outputColumns: ${response.plan.outputColumns.join(', ')}`);
+      }
+      
+      // Ensure inputRange spans all data columns for complex analysis
+      if (allDataColumns.length > 1 && response.plan.inputRange) {
+        const firstCol = allDataColumns[0];
+        const lastCol = allDataColumns[allDataColumns.length - 1];
+        const rowMatch = response.plan.inputRange.match(/(\d+):.*?(\d+)/);
+        if (rowMatch) {
+          const startRow = rowMatch[1];
+          const endRow = rowMatch[2];
+          const newRange = `${firstCol}${startRow}:${lastCol}${endRow}`;
+          if (response.plan.inputRange !== newRange) {
+            console.log(`[Parse] Expanded inputRange: ${response.plan.inputRange} → ${newRange}`);
+            response.plan.inputRange = newRange;
+          }
+        }
+      }
+      
+      // Enhance prompt for multi-output if it doesn't have separators
+      if (response.plan.prompt && !response.plan.prompt.includes('|||')) {
+        console.log('[Parse] Adding ||| separator hint to prompt');
+        response.plan.prompt = response.plan.prompt.replace(
+          /{{input}}/g,
+          '{{input}}'
+        ) + '\n\nProvide outputs separated by ||| (triple pipes)';
+      }
+    }
     
     // If AI suggested a formula, transform it for the frontend
     if (output?.formulaSuggestion && output?.plan && inputCol && inputRange) {
