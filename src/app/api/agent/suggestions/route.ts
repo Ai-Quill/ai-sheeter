@@ -23,6 +23,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { AIProvider } from '@/lib/ai/models';
 import { authenticateRequestOptional } from '@/lib/auth/auth-service';
 
+// Extended timeout for suggestions - includes embedding + LLM inference
+export const maxDuration = 30;
+
 // ============================================
 // TYPES
 // ============================================
@@ -430,7 +433,8 @@ Think about what a data analyst would naturally do next after this type of analy
       result = await generateText({
         model,
         prompt,
-        maxOutputTokens: 800,
+        maxOutputTokens: 1500,  // Increased from 800 - JSON responses need more space
+        temperature: 0.7,  // Add some creativity for suggestions
       });
     } catch (genError) {
       console.error('[suggestions] generateText failed:', genError instanceof Error ? genError.message : genError);
@@ -441,9 +445,40 @@ Think about what a data analyst would naturally do next after this type of analy
     // Parse the response
     const text = result.text?.trim() || '';
     console.log('[suggestions] LLM response length:', text.length);
-    console.log('[suggestions] LLM response preview:', text.substring(0, 200));
+    console.log('[suggestions] LLM response preview:', text.substring(0, 300));
+    console.log('[suggestions] LLM full response:', text);  // Log full response for debugging
+    console.log('[suggestions] Result keys:', Object.keys(result));
+    console.log('[suggestions] Finish reason:', result.finishReason);
+    console.log('[suggestions] Usage:', JSON.stringify(result.usage));
     
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    // Try to find complete JSON first
+    let jsonMatch = text.match(/\{[\s\S]*\}/);
+    
+    // If no complete JSON found, try to fix truncated JSON
+    if (!jsonMatch && text.includes('{')) {
+      console.log('[suggestions] Attempting to fix truncated JSON...');
+      // Count open braces and add closing braces
+      const openBraces = (text.match(/\{/g) || []).length;
+      const closeBraces = (text.match(/\}/g) || []).length;
+      const missingBraces = openBraces - closeBraces;
+      
+      if (missingBraces > 0) {
+        // Try to fix by closing arrays and objects
+        let fixedText = text;
+        // Close any open strings
+        if ((fixedText.match(/"/g) || []).length % 2 !== 0) {
+          fixedText += '"';
+        }
+        // Close any open arrays
+        const openArrays = (fixedText.match(/\[/g) || []).length;
+        const closeArrays = (fixedText.match(/\]/g) || []).length;
+        fixedText += ']'.repeat(Math.max(0, openArrays - closeArrays));
+        // Close remaining braces
+        fixedText += '}'.repeat(missingBraces);
+        console.log('[suggestions] Fixed JSON attempt:', fixedText.substring(0, 300));
+        jsonMatch = fixedText.match(/\{[\s\S]*\}/);
+      }
+    }
     
     if (jsonMatch) {
       try {

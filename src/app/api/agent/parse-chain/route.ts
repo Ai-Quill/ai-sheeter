@@ -34,6 +34,9 @@ import { buildFewShotPrompt, DataContext } from '@/lib/workflow-memory/prompt-bu
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
 import { getModel } from '@/lib/ai/models';
 
+// Extended timeout for chain parsing - AI inference can take 30-60s for complex prompts
+export const maxDuration = 60;
+
 // ============================================
 // TYPES
 // ============================================
