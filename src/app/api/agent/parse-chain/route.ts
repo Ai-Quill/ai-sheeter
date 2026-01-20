@@ -260,11 +260,20 @@ function extractDataContext(context: any): ExtendedDataContext {
   rowCount = rowCount || (endRow - startRow + 1);
   
   // Build full data range in A1 notation
-  let dataRange = selInfo?.dataRange || '';
-  if (!dataRange && dataColumns.length > 0) {
+  // IMPORTANT: Always build the range to include ALL data columns, not just the auto-detected first column
+  let dataRange = '';
+  if (dataColumns.length > 0) {
     const firstCol = dataColumns[0];
     const lastCol = dataColumns[dataColumns.length - 1];
     dataRange = `${firstCol}${startRow}:${lastCol}${endRow}`;
+    
+    // Override any single-column dataRange from selInfo with multi-column range
+    if (selInfo?.dataRange && dataColumns.length > 1) {
+      console.log('[parse-chain] Overriding selInfo.dataRange', selInfo.dataRange, 'with full range', dataRange);
+    }
+  } else if (selInfo?.dataRange) {
+    // Fallback to selInfo.dataRange only if no dataColumns detected
+    dataRange = selInfo.dataRange;
   }
   
   return { dataColumns, emptyColumns, headers, sampleData, rowCount, startRow, endRow, dataRange };
