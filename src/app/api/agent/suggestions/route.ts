@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
       hasSteps: !!body.steps?.length,
       hasTaskType: !!body.taskType,
       hasCommand: !!body.command,
+      provider: body.provider || 'NOT_PROVIDED',
+      hasApiKey: !!body.apiKey,
+      apiKeyLength: body.apiKey?.length || 0,
     });
     
     // Build summary text from the request
@@ -313,6 +316,8 @@ async function generateSuggestionsWithLLM(
 ): Promise<Omit<SuggestionsResponse, 'source'> | null> {
   try {
     // Use user's selected model if provided, otherwise skip LLM (rely on fallback)
+    console.log('[suggestions] LLM check - provider:', provider, 'hasApiKey:', !!apiKey, 'apiKeyLength:', apiKey?.length || 0);
+    
     if (!provider || !apiKey) {
       console.log('[suggestions] No provider/apiKey provided, skipping LLM generation');
       return null;
