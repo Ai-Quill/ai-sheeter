@@ -326,6 +326,8 @@ async function generateSuggestionsWithLLM(
     }
     
     console.log('[suggestions] Using authenticated model for suggestions');
+    console.log('[suggestions] Model type:', typeof model);
+    console.log('[suggestions] Model keys:', Object.keys(model || {}));
     
     // Build context from steps or task
     const contextParts: string[] = [];
@@ -386,35 +388,55 @@ Respond in JSON format only:
   ]
 }`;
 
-    const result = await generateText({
-      model,
-      prompt,
-      maxOutputTokens: 800,
-    });
+    console.log('[suggestions] Calling generateText...');
+    let result;
+    try {
+      result = await generateText({
+        model,
+        prompt,
+        maxOutputTokens: 800,
+      });
+    } catch (genError) {
+      console.error('[suggestions] generateText failed:', genError instanceof Error ? genError.message : genError);
+      console.error('[suggestions] generateText error stack:', genError instanceof Error ? genError.stack : 'N/A');
+      throw genError; // re-throw to hit outer catch
+    }
     
     // Parse the response
-    const text = result.text.trim();
+    const text = result.text?.trim() || '';
+    console.log('[suggestions] LLM response length:', text.length);
+    console.log('[suggestions] LLM response preview:', text.substring(0, 200));
+    
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      
-      return {
-        domain: parsed.domain || null,
-        domainLabel: parsed.domainLabel || 'General',
-        insight: parsed.insight || {
-          icon: '✅',
-          message: 'Task completed',
-          tip: null,
-        },
-        suggestions: (parsed.suggestions || []).slice(0, 3),
-      };
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log('[suggestions] Parsed LLM response successfully');
+        
+        return {
+          domain: parsed.domain || null,
+          domainLabel: parsed.domainLabel || 'General',
+          insight: parsed.insight || {
+            icon: '✅',
+            message: 'Task completed',
+            tip: null,
+          },
+          suggestions: (parsed.suggestions || []).slice(0, 3),
+        };
+      } catch (parseError) {
+        console.error('[suggestions] JSON parse error:', parseError);
+        console.error('[suggestions] Failed JSON:', jsonMatch[0].substring(0, 300));
+      }
+    } else {
+      console.error('[suggestions] No JSON found in LLM response');
     }
     
   } catch (error) {
-    console.error('[suggestions] LLM generation error:', error);
+    console.error('[suggestions] LLM generation error:', error instanceof Error ? error.message : error);
   }
   
+  console.log('[suggestions] Using generic fallback');
   return null;
 }
 
