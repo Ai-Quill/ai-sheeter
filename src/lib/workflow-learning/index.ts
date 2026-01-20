@@ -1,21 +1,21 @@
 /**
- * Workflow Learning System
+ * @deprecated This module has been replaced by the semantic workflow system.
  * 
- * Learns from user interactions to improve workflow suggestions over time.
+ * NEW SYSTEM: Use @/lib/workflow-memory instead
+ * - Uses embeddings for semantic search (not regex patterns)
+ * - Few-shot learning with concrete examples
+ * - Stores successful workflows in workflow_memory table
  * 
- * Architecture:
- * 1. In-memory cache for fast lookups (refreshed periodically)
- * 2. Database for persistence and learning
- * 3. Base patterns as fallback (never removed)
+ * This file is kept for backward compatibility with the old database tables
+ * (workflow_actions, workflow_domains, workflow_templates).
  * 
- * Learning Flow:
- * 1. User submits request → match against learned patterns
- * 2. Return workflow → track if user accepts/modifies/rejects
- * 3. Successful workflows increase pattern weight
- * 4. Modified workflows create new patterns
+ * For new code, import from:
+ *   import { findSimilarWorkflows, storeWorkflow } from '@/lib/workflow-memory';
+ *   import { buildFewShotPrompt } from '@/lib/workflow-memory/prompt-builder';
  * 
- * @version 1.0.0
+ * @version 1.0.0 (DEPRECATED)
  * @updated 2026-01-19
+ * @deprecated 2026-01-20 - Use @/lib/workflow-memory instead
  */
 
 import { supabaseAdmin } from '@/lib/supabase';
