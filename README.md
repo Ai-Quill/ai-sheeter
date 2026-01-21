@@ -1,10 +1,88 @@
-# AI Sheet Backend
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16.1-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/TypeScript-5.x-blue?style=for-the-badge&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vercel_AI_SDK-6.0-black?style=for-the-badge" alt="Vercel AI SDK" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" />
+</p>
 
-> Next.js 16.1 API server for AISheeter - Multi-AI Agent for Google Sheets
+<h1 align="center">
+  <br>
+  AISheeter
+  <br>
+</h1>
 
-**Build Status:** ✅ Passing  
-**Last Build:** January 10, 2026  
-**Version:** 2.0.0
+<h3 align="center">
+  The only Google Sheets AI with multi-step workflows, conversation memory, and output control.
+</h3>
+
+<p align="center">
+  <a href="https://aisheet.vercel.app">Website</a> •
+  <a href="#demo">Demo</a> •
+  <a href="#features">Features</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#api-reference">API</a> •
+  <a href="#contributing">Contributing</a>
+</p>
+
+---
+
+## Demo
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=ZLjzE5s75Bg">
+    <img src="https://img.youtube.com/vi/ZLjzE5s75Bg/maxresdefault.jpg" alt="AISheeter Demo" width="600" />
+  </a>
+</p>
+
+<p align="center">
+  <strong>Click to watch the demo video</strong><br>
+  <em>See how AISheeter transforms messy CRM notes into actionable insights with a 3-step workflow</em>
+</p>
+
+---
+
+## Why AISheeter?
+
+Most AI spreadsheet tools are just fancy formulas. **AISheeter is different** — it's a true intelligent agent that:
+
+| Feature | AISheeter | Others |
+|---------|-----------|--------|
+| **Multi-Step Task Chains** | ✅ Execute complex workflows with one command | ❌ Single operations only |
+| **Conversation Memory** | ✅ Remembers context across queries | ❌ Stateless |
+| **Output Format Control** | ✅ JSON, lists, scores, custom formats | ❌ Plain text only |
+| **Proactive Suggestions** | ✅ AI recommends next steps | ❌ Passive |
+| **5+ AI Models** | ✅ GPT-4o, Claude, Gemini, Llama, DeepSeek | ⚠️ Limited |
+
+---
+
+## Features
+
+### 🔗 Multi-Step Task Chains
+Execute complex workflows with a single command:
+```
+"Analyze these sales notes → Extract buying signals → Score deal priority → Recommend actions"
+```
+
+### 💬 Conversation Persistence  
+Build on previous commands without repeating context:
+```
+User: "Analyze sentiment for column B"
+Agent: Done! Found 45% positive, 30% neutral, 25% negative.
+
+User: "Now categorize the negative ones by topic"  
+Agent: [Remembers context, processes only negative rows]
+```
+
+### 🎯 Output Format Control
+Get results exactly how you need them:
+- **JSON objects** for structured data
+- **Lists/Arrays** for multiple items
+- **Score + Reason** for evaluations
+- **Yes/No + Confidence** for decisions
+- **Custom formats** for specific needs
+
+### 🤖 Proactive Suggestions
+After each task, the agent suggests relevant follow-up actions based on your data and workflow.
 
 ---
 
@@ -17,20 +95,75 @@
 | Tailwind CSS | 4.1.18 | CSS-native config |
 | Vercel AI SDK | 6.0.26 | Unified multi-provider |
 | TypeScript | 5.x | Strict mode |
-| ESLint | 9.x | Next.js config |
+| Supabase | - | Database & Auth |
+| Stripe | - | Payments |
 
 ---
 
-## API Routes (18 endpoints)
+## Installation
 
-### Core AI
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- Supabase account
+- API keys for AI providers (OpenAI, Anthropic, etc.)
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/Ai-Quill/ai-sheeter.git
+cd ai-sheeter
+
+# Install dependencies
+npm install
+
+# Copy environment variables
+cp .env.example .env.local
+
+# Run development server
+npm run dev
+```
+
+### Environment Variables
+
+```bash
+# Supabase (REQUIRED)
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Encryption
+ENCRYPTION_SALT=your_encryption_salt
+
+# AWS S3 (for images)
+AWS_ACCESS_KEY_ID=xxx
+AWS_SECRET_ACCESS_KEY=xxx
+AWS_REGION=ap-southeast-1
+S3_BUCKET_NAME=xxx
+
+# Stripe (optional)
+STRIPE_SECRET_KEY=sk_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+
+# Cron
+CRON_SECRET=xxx
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
+
+---
+
+## API Reference
+
+### Core AI Endpoints
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/query` | POST | Main AI query endpoint |
+| `/api/query` | POST | Main AI query endpoint with multi-model support |
 | `/api/generate-image` | POST | DALL-E / Imagen image generation |
-| `/api/models` | GET | List available models |
+| `/api/models` | GET | List available AI models |
 
 ### User Management
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/get-or-create-user` | POST | Get or create user by email |
@@ -39,12 +172,8 @@
 | `/api/save-api-key` | POST | Save individual API key |
 | `/api/save-default-model` | POST | Set default model |
 
-### Prompts
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/prompts` | GET/POST/PUT/DELETE | Saved prompts CRUD |
-
 ### Async Jobs (Bulk Processing)
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/jobs` | POST | Create bulk job |
@@ -52,19 +181,13 @@
 | `/api/jobs` | DELETE | Cancel job |
 | `/api/jobs/worker` | POST | Background worker (Cron) |
 
-### Payments (Stripe)
+### Payments
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/stripe/checkout` | POST | Create checkout session |
 | `/api/stripe/webhook` | POST | Handle Stripe webhooks |
 | `/api/stripe/portal` | POST | Customer portal link |
-
-### Other
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/contact` | POST | Contact form |
-| `/api/join-waitlist` | POST | Waitlist signup |
-| `/api/test` | GET | Health check |
 
 ---
 
@@ -88,7 +211,7 @@ src/
 │   ├── cache/
 │   │   └── index.ts            # Response caching
 │   ├── prompts/
-│   │   └── index.ts            # System prompts (context engineering)
+│   │   └── index.ts            # System prompts
 │   ├── stripe/
 │   │   └── index.ts            # Stripe client & pricing
 │   └── supabase.ts             # Database client
@@ -98,75 +221,58 @@ src/
 
 ---
 
-## Environment Variables
+## Use Cases
 
-```bash
-# Supabase (REQUIRED)
-SUPABASE_URL=https://mewcmybmlcupfjnfomvb.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=xxx  # From Supabase Dashboard > Settings > API
+### 📊 Sales Pipeline Intelligence
+Turn messy CRM notes into actionable insights:
+- Extract buying signals and blockers
+- Score deal priority (Hot/Warm/Cold)
+- Generate personalized follow-up recommendations
 
-# NOTE: Anon key is NOT needed - we use service role for all server-side operations
+### 💬 Customer Feedback Mining
+Analyze feedback at scale:
+- Sentiment analysis (Positive/Neutral/Negative)
+- Theme extraction and categorization
+- Priority scoring for product roadmap
 
-# Encryption (KEEP EXISTING!)
-ENCRYPTION_SALT=xxx
-
-# AWS S3 (images)
-AWS_ACCESS_KEY_ID=xxx
-AWS_SECRET_ACCESS_KEY=xxx
-AWS_REGION=ap-southeast-1
-S3_BUCKET_NAME=xxx
-
-# Stripe (optional until launch)
-STRIPE_SECRET_KEY=sk_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-
-# Cron
-CRON_SECRET=xxx
-NEXT_PUBLIC_APP_URL=https://aisheet.vercel.app
-```
+### 🌍 Content Localization
+Streamline translation workflows:
+- Translate content to multiple languages
+- Adapt for cultural context
+- Quality assurance checks
 
 ---
 
-## Development
+## Contributing
 
-```bash
-# Install dependencies
-npm install
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Lint
-npm run lint
-```
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ---
 
-## Build Output
+## Support
 
-```
-▲ Next.js 16.1.1 (Turbopack)
-✓ Compiled successfully in 3.3s
-✓ 18 API routes
-✓ 5 static pages
-✓ 0 vulnerabilities
-```
-
----
-
-## Documentation
-
-- [MASTERPLAN](../docs/MASTERPLAN.md) - Project status
-- [Architecture](../docs/architecture/overview.md) - System design
-- [Context Engineering](../docs/architecture/context-engineering.md) - Prompt optimization
-- [Models Reference](../docs/research/models.md) - AI model pricing
-- [Changelog](../docs/project/changelog/v2.0.0.md) - Recent changes
+- **Website**: [aisheet.vercel.app](https://aisheet.vercel.app)
+- **Issues**: [GitHub Issues](https://github.com/Ai-Quill/ai-sheeter/issues)
+- **Twitter**: [@AISheeter](https://twitter.com/AISheeter)
 
 ---
 
 ## License
 
-Proprietary - All rights reserved
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/Ai-Quill">Ai-Quill</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Ai-Quill/ai-sheeter/stargazers">⭐ Star us on GitHub</a>
+</p>
