@@ -418,19 +418,23 @@ async function generateSuggestionsWithLLM(
       }
     }
     
-    // Build prompt with rich context - OPTIMIZED for speed (shorter prompt = faster inference)
-    const contextText = contextParts.length > 0 ? contextParts.slice(0, 10).join('\n') : 'Data processing task';
+    // Build prompt - needs enough context for model to generate valid JSON
+    const contextText = contextParts.length > 0 ? contextParts.slice(0, 12).join('\n') : 'Data processing task';
     
-    // PERFORMANCE: Shortened prompt by ~40% while maintaining quality
-    const prompt = `Suggest 3 next actions for a user who just processed data in Google Sheets.
+    const prompt = `You are an AI assistant for Google Sheets. A user just completed a workflow. Suggest 3 logical next actions.
 
-Context:
+## What was done:
 ${contextText}
 
-Command: "${(body.command || body.taskDescription || 'Process data').substring(0, 200)}"
+## User's original request:
+"${(body.command || body.taskDescription || 'Process data').substring(0, 200)}"
 
-Output JSON only (no markdown):
-{"domain":"[domain]","domainLabel":"[Domain Label]","insight":{"icon":"[emoji]","message":"[result summary]","tip":"[optional tip]"},"suggestions":[{"icon":"[emoji]","title":"[action]","command":"[specific command using output columns]","reason":"[why useful]"},...]}`;
+## Your task:
+Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
+
+{"domain":"sales","domainLabel":"Sales Analytics","insight":{"icon":"📊","message":"8 deals analyzed","tip":"Check column G for results"},"suggestions":[{"icon":"📈","title":"Summarize findings","command":"Summarize the key patterns from the analysis results","reason":"Quick overview"},{"icon":"🎯","title":"Find top items","command":"Identify the top 3 most important items from the results","reason":"Focus on priorities"},{"icon":"📋","title":"Create report","command":"Create a brief report of the key findings","reason":"Share with team"}]}
+
+Now generate suggestions based on the context above. Output JSON only:`;
     
     console.log('[suggestions] Prompt length:', prompt.length);
     console.log('[suggestions] Context parts count:', contextParts.length);
@@ -474,27 +478,33 @@ Output JSON only (no markdown):
     // Parse the response
     const text = result.text?.trim() || '';
     
-    // PERFORMANCE: Reduce logging in production
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[suggestions] LLM response length:', text.length);
-      console.log('[suggestions] LLM response preview:', text.substring(0, 200));
-    }
+    // Always log response info for debugging
     console.log('[suggestions] Generated in', Date.now() - llmStartTime, 'ms, tokens:', result.usage?.totalTokens || 'N/A');
+    console.log('[suggestions] Response length:', text.length);
+    console.log('[suggestions] Response preview:', text.substring(0, 300));
     
-    // Try to find complete JSON first
-    let jsonMatch = text.match(/\{[\s\S]*\}/);
+    // Strip markdown code blocks if present (```json ... ```)
+    let cleanText = text;
+    const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      cleanText = codeBlockMatch[1].trim();
+      console.log('[suggestions] Extracted from markdown code block');
+    }
+    
+    // Try to find complete JSON
+    let jsonMatch = cleanText.match(/\{[\s\S]*\}/);
     
     // If no complete JSON found, try to fix truncated JSON
-    if (!jsonMatch && text.includes('{')) {
+    if (!jsonMatch && cleanText.includes('{')) {
       console.log('[suggestions] Attempting to fix truncated JSON...');
       // Count open braces and add closing braces
-      const openBraces = (text.match(/\{/g) || []).length;
-      const closeBraces = (text.match(/\}/g) || []).length;
+      const openBraces = (cleanText.match(/\{/g) || []).length;
+      const closeBraces = (cleanText.match(/\}/g) || []).length;
       const missingBraces = openBraces - closeBraces;
       
       if (missingBraces > 0) {
         // Try to fix by closing arrays and objects
-        let fixedText = text;
+        let fixedText = cleanText;
         // Close any open strings
         if ((fixedText.match(/"/g) || []).length % 2 !== 0) {
           fixedText += '"';
@@ -530,7 +540,8 @@ Output JSON only (no markdown):
         console.error('[suggestions] Failed JSON:', jsonMatch[0].substring(0, 300));
       }
     } else {
-      console.error('[suggestions] No JSON found in LLM response');
+      console.error('[suggestions] No JSON found in LLM response. Full response:');
+      console.error(cleanText);
     }
     
   } catch (error) {
