@@ -16,13 +16,32 @@
 </h3>
 
 <p align="center">
-  <a href="https://aisheet.vercel.app">Website</a> •
+  <a href="https://www.aisheeter.com">Website</a> •
+  <a href="https://workspace.google.com/marketplace/app/aisheeter/640821364093">Install Extension</a> •
   <a href="#demo">Demo</a> •
   <a href="#features">Features</a> •
   <a href="#installation">Installation</a> •
-  <a href="#api-reference">API</a> •
-  <a href="#contributing">Contributing</a>
+  <a href="#api-reference">API</a>
 </p>
+
+---
+
+## 🚀 Quick Start
+
+<p align="center">
+  <a href="https://workspace.google.com/marketplace/app/aisheeter/640821364093">
+    <img src="https://img.shields.io/badge/Install_from-Google_Workspace_Marketplace-4285F4?style=for-the-badge&logo=google" alt="Install from Google Workspace Marketplace" />
+  </a>
+</p>
+
+<p align="center">
+  <strong>Ready in 30 seconds</strong> • Free tier included • Your keys, your data
+</p>
+
+1. **Install** the add-on from [Google Workspace Marketplace](https://workspace.google.com/marketplace/app/aisheeter/640821364093)
+2. **Open** any Google Sheet and find AISheeter in the Extensions menu
+3. **Connect** your API key (OpenAI, Anthropic, Google, or Groq)
+4. **Start** using AI with conversation memory and multi-step workflows
 
 ---
 
@@ -257,7 +276,9 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## Support
 
-- **Website**: [aisheet.vercel.app](https://aisheet.vercel.app)
+- **Website**: [aisheeter.com](https://www.aisheeter.com)
+- **Install Extension**: [Google Workspace Marketplace](https://workspace.google.com/marketplace/app/aisheeter/640821364093)
+- **Documentation**: [GitHub](https://github.com/Ai-Quill/ai-sheeter)
 - **Issues**: [GitHub Issues](https://github.com/Ai-Quill/ai-sheeter/issues)
 - **Twitter**: [@AISheeter](https://twitter.com/AISheeter)
 

@@ -13,6 +13,7 @@ import { WhyNotSection } from '@/components/landing/WhyNotSection';
 import { Testimonials } from '@/components/landing/Testimonials';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { FAQ } from '@/components/landing/FAQ';
+import { ContactSection } from '@/components/landing/ContactSection';
 import { CTASection } from '@/components/landing/CTASection';
 import { Footer } from '@/components/landing/Footer';
 import { Navbar } from '@/components/landing/Navbar';
@@ -56,6 +57,7 @@ export default function LandingPage() {
               <Testimonials />
               <PricingSection />
               <FAQ />
+              <ContactSection />
               <CTASection />
           </div>
         </main>

@@ -10,6 +10,7 @@ export { VideoSection } from './VideoSection';
 export { Testimonials } from './Testimonials';
 export { PricingSection } from './PricingSection';
 export { FAQ } from './FAQ';
+export { ContactSection } from './ContactSection';
 export { CTASection } from './CTASection';
 export { Footer } from './Footer';
 export { DashboardMockup } from './DashboardMockup';

@@ -20,6 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({ show }) => {
                 <a href="#features" className="hover:text-[#219EBB] transition">Features</a>
                 <a href="#usecases" className="hover:text-[#219EBB] transition">Use Cases</a>
                 <a href="#pricing" className="hover:text-[#219EBB] transition">Pricing</a>
+                <a href="#contact" className="hover:text-[#219EBB] transition">Contact</a>
             </div>
         </div>
 
