@@ -117,7 +117,7 @@ export function ContactSection() {
               <div className="mt-10 pt-10 border-t border-gray-200">
                 <h4 className="font-semibold text-[#023047] mb-4">Quick Links</h4>
                 <div className="space-y-2">
-                  <a href="https://workspace.google.com/marketplace/app/aisheeter/640821364093" target="_blank" rel="noopener noreferrer" className="block text-gray-600 hover:text-[#FFB701] transition-colors">
+                  <a href="https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853" target="_blank" rel="noopener noreferrer" className="block text-gray-600 hover:text-[#FFB701] transition-colors">
                     → Install Extension
                   </a>
                   <a href="https://github.com/Ai-Quill/ai-sheeter" target="_blank" rel="noopener noreferrer" className="block text-gray-600 hover:text-[#FFB701] transition-colors">
