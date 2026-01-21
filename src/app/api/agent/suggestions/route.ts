@@ -421,20 +421,59 @@ async function generateSuggestionsWithLLM(
     // Build prompt - needs enough context for model to generate valid JSON
     const contextText = contextParts.length > 0 ? contextParts.slice(0, 12).join('\n') : 'Data processing task';
     
-    const prompt = `You are an AI assistant for Google Sheets. A user just completed a workflow. Suggest 3 logical next actions.
+    const prompt = `You are an AI assistant for Google Sheets. A user just completed a workflow. Suggest 3 logical next actions that build on what was just done.
 
-## What was done:
+## Context - What was done:
 ${contextText}
 
 ## User's original request:
 "${(body.command || body.taskDescription || 'Process data').substring(0, 200)}"
 
 ## Your task:
-Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
+Analyze the workflow above and generate 3 contextual next-step suggestions. 
 
-{"domain":"sales","domainLabel":"Sales Analytics","insight":{"icon":"📊","message":"8 deals analyzed","tip":"Check column G for results"},"suggestions":[{"icon":"📈","title":"Summarize findings","command":"Summarize the key patterns from the analysis results","reason":"Quick overview"},{"icon":"🎯","title":"Find top items","command":"Identify the top 3 most important items from the results","reason":"Focus on priorities"},{"icon":"📋","title":"Create report","command":"Create a brief report of the key findings","reason":"Share with team"}]}
+**Domain detection**: Identify the domain from context (sales, marketing, finance, hr, operations, research, analytics, ecommerce, support, or general).
 
-Now generate suggestions based on the context above. Output JSON only:`;
+**Good suggestions**:
+- Build on the completed workflow's outputs
+- Reference specific columns when relevant (e.g., "Summarize trends in column G")
+- Suggest data-driven next steps (analyze patterns, find outliers, create summaries)
+- Be specific to the user's domain and data
+
+**Output format**: Return ONLY valid JSON with NO markdown formatting, NO code blocks, NO explanation text.
+
+Example JSON structure (copy this format exactly):
+{
+  "domain": "sales",
+  "domainLabel": "Sales Analytics",
+  "insight": {
+    "icon": "📊",
+    "message": "8 deals analyzed",
+    "tip": "Check column G for buying signals"
+  },
+  "suggestions": [
+    {
+      "icon": "📈",
+      "title": "Analyze win patterns",
+      "command": "Analyze the buying signals in column G to identify patterns in winning deals",
+      "reason": "Understand what drives success"
+    },
+    {
+      "icon": "🎯",
+      "title": "Prioritize at-risk deals",
+      "command": "Identify deals in column G with red flags or blockers that need immediate attention",
+      "reason": "Focus on deals that need help"
+    },
+    {
+      "icon": "📋",
+      "title": "Create exec summary",
+      "command": "Summarize the deal intelligence from columns G and H into a brief executive summary",
+      "reason": "Share insights with leadership"
+    }
+  ]
+}
+
+Now generate suggestions for the context above. Output JSON only (no markdown):`;
     
     console.log('[suggestions] Prompt length:', prompt.length);
     console.log('[suggestions] Context parts count:', contextParts.length);
@@ -457,7 +496,7 @@ Now generate suggestions based on the context above. Output JSON only:`;
       const generateOptions: Parameters<typeof generateText>[0] = {
         model,
         prompt,
-        maxOutputTokens: 800,  // Suggestions are short JSON responses
+        maxOutputTokens: 1000,  // Enough for detailed suggestions with full JSON structure
       };
       
       // Add temperature for non-reasoning models (Claude, Gemini, Groq, regular GPT)
