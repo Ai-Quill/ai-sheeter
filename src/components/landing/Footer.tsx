@@ -82,7 +82,7 @@ export const Footer: React.FC = () => {
                         <Github size={16} />
                         <span>GitHub</span>
                     </a>
-                    <a href="#" className="flex items-center gap-1.5 hover:text-[#1DA1F2] transition-colors">
+                    <a href="https://twitter.com/tuantruong" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-[#1DA1F2] transition-colors">
                         <Twitter size={16} />
                         <span>Twitter</span>
                     </a>

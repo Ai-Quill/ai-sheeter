@@ -106,8 +106,8 @@ export function ContactSection() {
                   </div>
                   <div>
                     <h4 className="font-semibold text-[#023047] mb-1">Twitter</h4>
-                    <a href="https://twitter.com/AISheeter" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-[#FFB701] transition-colors">
-                      @AISheeter
+                    <a href="https://twitter.com/tuantruong" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-[#FFB701] transition-colors">
+                      @tuantruong
                     </a>
                   </div>
                 </div>

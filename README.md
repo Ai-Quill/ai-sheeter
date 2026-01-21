@@ -280,7 +280,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - **Install Extension**: [Google Workspace Marketplace](https://workspace.google.com/marketplace/app/aisheeter/640821364093)
 - **Documentation**: [GitHub](https://github.com/Ai-Quill/ai-sheeter)
 - **Issues**: [GitHub Issues](https://github.com/Ai-Quill/ai-sheeter/issues)
-- **Twitter**: [@AISheeter](https://twitter.com/AISheeter)
+- **Twitter**: [@tuantruong](https://twitter.com/tuantruong)
 
 ---
 
