@@ -213,8 +213,30 @@ function extractDataContext(context: any): ExtendedDataContext {
   const selInfo = context?.selectionInfo;
   const columnData = context?.columnDataRanges || {};
   
-  const dataColumns = selInfo?.columnsWithData || 
-    Object.keys(columnData).filter(col => columnData[col]?.hasData);
+  // BUGFIX (2026-01-21): More robust data column extraction
+  // Try multiple sources in order of preference
+  let dataColumns: string[] = [];
+  
+  // Priority 1: selectionInfo.columnsWithData (from auto-detection or explicit selection)
+  if (selInfo?.columnsWithData && Array.isArray(selInfo.columnsWithData) && selInfo.columnsWithData.length > 0) {
+    dataColumns = selInfo.columnsWithData;
+    console.log('[parse-chain] Using selInfo.columnsWithData:', dataColumns.join(','));
+  }
+  // Priority 2: columnDataRanges with hasData=true
+  else if (Object.keys(columnData).length > 0) {
+    dataColumns = Object.keys(columnData).filter(col => columnData[col]?.hasData);
+    console.log('[parse-chain] Using columnDataRanges:', dataColumns.join(','));
+  }
+  // Priority 3: If we have sampleData, use those columns
+  else if (context?.sampleData && typeof context.sampleData === 'object') {
+    dataColumns = Object.keys(context.sampleData);
+    console.log('[parse-chain] Using sampleData columns:', dataColumns.join(','));
+  }
+  // Priority 4: Fallback to common columns
+  else {
+    dataColumns = ['A', 'B', 'C', 'D'];
+    console.warn('[parse-chain] WARNING: No data columns detected, using fallback:', dataColumns.join(','));
+  }
   
   const emptyColumns = selInfo?.emptyColumns?.map((e: any) => e.column) || 
     ['G', 'H', 'I', 'J'];
@@ -302,7 +324,15 @@ function extractDataContext(context: any): ExtendedDataContext {
   } else if (selInfo?.dataRange) {
     // Fallback to selInfo.dataRange only if no dataColumns detected
     dataRange = selInfo.dataRange;
+    console.log('[parse-chain] Using selInfo.dataRange as fallback:', dataRange);
   }
+  // Final safety: If still no range, construct a minimal one
+  else {
+    dataRange = `A${startRow}:D${endRow}`;
+    console.warn('[parse-chain] WARNING: No dataRange detected, using fallback A1 notation:', dataRange);
+  }
+  
+  console.log('[parse-chain] Final dataRange:', dataRange, '| dataColumns:', dataColumns.join(','));
   
   return { dataColumns, emptyColumns, headers, sampleData, rowCount, startRow, endRow, dataRange };
 }
@@ -345,9 +375,21 @@ function parseAndValidate(
       const outputCol = dataContext.emptyColumns[idx] || String.fromCharCode('G'.charCodeAt(0) + idx);
       
       // Input columns: first step reads data, later steps include previous outputs
-      const inputCols = idx === 0 
-        ? dataContext.dataColumns 
-        : [...dataContext.dataColumns, ...dataContext.emptyColumns.slice(0, idx)];
+      // BUGFIX: Ensure inputCols is never empty - use fallback if dataColumns is empty
+      let inputCols: string[];
+      if (idx === 0) {
+        inputCols = dataContext.dataColumns.length > 0 
+          ? dataContext.dataColumns 
+          : ['A', 'B', 'C', 'D']; // Fallback if no data columns detected
+      } else {
+        inputCols = [
+          ...(dataContext.dataColumns.length > 0 ? dataContext.dataColumns : ['A', 'B', 'C', 'D']),
+          ...dataContext.emptyColumns.slice(0, idx)
+        ];
+      }
+      
+      // Log what we're setting for debugging
+      console.log(`[parse-chain] Step ${idx + 1}: action=${action}, inputCols=[${inputCols.join(',')}], outputCol=${outputCol}`);
       
       return {
         id: `step_${idx + 1}`,
@@ -368,6 +410,18 @@ function parseAndValidate(
       `${i + 1}. ${s.description} → Column ${s.outputColumn}`
     ).join('\n');
     
+    // BUGFIX: Ensure we always return valid input configuration
+    const finalInputRange = dataContext.dataRange || `A${dataContext.startRow}:D${dataContext.endRow}`;
+    const finalInputColumns = dataContext.dataColumns.length > 0 ? dataContext.dataColumns : ['A', 'B', 'C', 'D'];
+    const finalInputColumn = finalInputColumns[0];
+    
+    console.log('[parse-chain] Final input config before return:', {
+      inputRange: finalInputRange,
+      inputColumn: finalInputColumn,
+      inputColumns: finalInputColumns.join(','),
+      rowCount: dataContext.rowCount
+    });
+    
     return {
       isMultiStep: steps.length > 1,
       isCommand: false,
@@ -377,10 +431,10 @@ function parseAndValidate(
       estimatedTime: `~${steps.length * 2} minutes`,
       
       // Chain-level input configuration (critical for frontend execution!)
-      inputRange: dataContext.dataRange,
-      inputColumn: dataContext.dataColumns[0],
-      inputColumns: dataContext.dataColumns,
-      hasMultipleInputColumns: dataContext.dataColumns.length > 1,
+      inputRange: finalInputRange,
+      inputColumn: finalInputColumn,
+      inputColumns: finalInputColumns,
+      hasMultipleInputColumns: finalInputColumns.length > 1,
       rowCount: dataContext.rowCount,
       
       // Include for learning callback
@@ -436,6 +490,12 @@ function createFallback(
 ): TaskChain {
   console.log('[parse-chain] Using fallback workflow');
   
+  // BUGFIX: Ensure we have valid data columns even in fallback
+  const safeDataColumns = dataContext.dataColumns.length > 0 
+    ? dataContext.dataColumns 
+    : ['A', 'B', 'C', 'D'];
+  const safeDataRange = dataContext.dataRange || `A${dataContext.startRow}:D${dataContext.endRow}`;
+  
   const steps: TaskStep[] = [
     {
       id: 'step_1',
@@ -444,7 +504,7 @@ function createFallback(
       description: 'Analyze data and extract insights',
       prompt: `Analyze this data in context of: "${command.substring(0, 100)}"\n\nProvide:\n1. Key insight or finding\n2. Important pattern or concern\n3. Notable observation`,
       outputFormat: 'Insight | Pattern | Observation',
-      inputColumns: dataContext.dataColumns,
+      inputColumns: safeDataColumns,
       outputColumn: dataContext.emptyColumns[0] || 'G',
       dependsOn: null,
       usesResultOf: null,
@@ -456,7 +516,7 @@ function createFallback(
       description: 'Generate actionable recommendation',
       prompt: 'Based on the analysis, generate one specific, actionable recommendation.\n\nBe concrete: Who should do what?',
       outputFormat: 'Recommendation',
-      inputColumns: [...dataContext.dataColumns, dataContext.emptyColumns[0] || 'G'],
+      inputColumns: [...safeDataColumns, dataContext.emptyColumns[0] || 'G'],
       outputColumn: dataContext.emptyColumns[1] || 'H',
       dependsOn: 'step_1',
       usesResultOf: 'step_1',
@@ -471,11 +531,11 @@ function createFallback(
     clarification: `I'll analyze your data and generate recommendations.\n\n1. Analyze data → Column ${steps[0].outputColumn}\n2. Generate recommendation → Column ${steps[1].outputColumn}\n\nProcessing ${dataContext.rowCount} rows.`,
     estimatedTime: '~4 minutes',
     
-    // Chain-level input configuration
-    inputRange: dataContext.dataRange,
-    inputColumn: dataContext.dataColumns[0],
-    inputColumns: dataContext.dataColumns,
-    hasMultipleInputColumns: dataContext.dataColumns.length > 1,
+    // Chain-level input configuration - use safe values
+    inputRange: safeDataRange,
+    inputColumn: safeDataColumns[0],
+    inputColumns: safeDataColumns,
+    hasMultipleInputColumns: safeDataColumns.length > 1,
     rowCount: dataContext.rowCount,
     
     _embedding: embedding || undefined,
