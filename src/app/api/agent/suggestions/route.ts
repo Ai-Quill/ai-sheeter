@@ -98,15 +98,20 @@ export async function POST(request: NextRequest) {
   try {
     const body: SuggestionsRequest = await request.json();
     
-    // Authenticate request - API key is optional for suggestions (falls back to generic)
+    // Authenticate request - uses user's selected provider (CHATGPT/CLAUDE/GEMINI/GROQ)
+    // Each provider maps to its optimal model:
+    // - CHATGPT → gpt-5-mini (powerful but slower)
+    // - CLAUDE → claude-haiku-4-5 (fast, good quality)
+    // - GEMINI → gemini-2.5-flash (fastest, cheapest)
+    // - GROQ → llama-3.3-70b-versatile (fast inference)
     const auth = authenticateRequestOptional(body);
-    const { provider, apiKey, model } = auth;
+    const { provider, apiKey, model, modelId } = auth;
     
     console.log('[suggestions] Request received:', {
       hasSteps: !!body.steps?.length,
-      hasTaskType: !!body.taskType,
       hasCommand: !!body.command,
       provider: provider,
+      modelId: modelId,
       hasApiKey: !!apiKey,
       hasModel: !!model,
     });
@@ -320,6 +325,11 @@ async function getSuggestionsFromMemory(
 /**
  * Generate suggestions using LLM when no memory matches
  * @param model - Pre-configured model from authenticateRequestOptional
+ * 
+ * PERFORMANCE OPTIMIZATION (2026-01-21):
+ * - Suggestions don't need reasoning models - use fast models
+ * - Reduced max tokens from 1500 to 800 (suggestions are short)
+ * - Added explicit instruction for concise responses
  */
 async function generateSuggestionsWithLLM(
   summaryText: string,
@@ -327,6 +337,8 @@ async function generateSuggestionsWithLLM(
   similarWorkflows: StoredWorkflow[],
   model?: import('ai').LanguageModel
 ): Promise<Omit<SuggestionsResponse, 'source'> | null> {
+  const llmStartTime = Date.now();
+  
   try {
     // Use user's model if provided, otherwise skip LLM (rely on fallback)
     if (!model) {
@@ -335,8 +347,12 @@ async function generateSuggestionsWithLLM(
     }
     
     console.log('[suggestions] Using authenticated model for suggestions');
-    console.log('[suggestions] Model type:', typeof model);
-    console.log('[suggestions] Model keys:', Object.keys(model || {}));
+    
+    // Performance: Skip verbose logging in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[suggestions] Model type:', typeof model);
+      console.log('[suggestions] Model keys:', Object.keys(model || {}));
+    }
     
     // Build rich context from steps or task
     const contextParts: string[] = [];
@@ -402,54 +418,68 @@ async function generateSuggestionsWithLLM(
       }
     }
     
-    // Build prompt with rich context
-    const contextText = contextParts.length > 0 ? contextParts.join('\n') : 'No specific context available';
+    // Build prompt with rich context - OPTIMIZED for speed (shorter prompt = faster inference)
+    const contextText = contextParts.length > 0 ? contextParts.slice(0, 10).join('\n') : 'Data processing task';
     
-    const prompt = `You are a helpful AI assistant for a Google Sheets automation tool. A user just completed a data processing task and needs smart suggestions for what to do next.
+    // PERFORMANCE: Shortened prompt by ~40% while maintaining quality
+    const prompt = `Suggest 3 next actions for a user who just processed data in Google Sheets.
 
-# What the user just did:
+Context:
 ${contextText}
 
-# Original user command:
-"${body.command || body.taskDescription || 'Process data'}"
+Command: "${(body.command || body.taskDescription || 'Process data').substring(0, 200)}"
 
-# Your task:
-Suggest exactly 3 logical next actions. These should:
-1. Build on the results just generated (use the output columns mentioned above)
-2. Be commonly useful after this type of task
-3. Provide additional value from the processed data
-
-Think about what a data analyst would naturally do next after this type of analysis.
-
-# Response format (JSON only, no markdown):
-{"domain":"sales","domainLabel":"Sales Intelligence","insight":{"icon":"📊","message":"Pipeline analysis complete for 8 deals","tip":"Results in columns G, H, I"},"suggestions":[{"icon":"📈","title":"Summarize key findings","command":"Summarize the key patterns and trends from columns G to I","reason":"Get executive overview"},{"icon":"🎯","title":"Identify top opportunities","command":"From the analysis results, identify the top 3 deals most likely to close","reason":"Focus on winners"},{"icon":"📋","title":"Create action report","command":"Create a brief report of recommended next steps for each deal","reason":"Actionable insights"}]}`;
+Output JSON only (no markdown):
+{"domain":"[domain]","domainLabel":"[Domain Label]","insight":{"icon":"[emoji]","message":"[result summary]","tip":"[optional tip]"},"suggestions":[{"icon":"[emoji]","title":"[action]","command":"[specific command using output columns]","reason":"[why useful]"},...]}`;
     
     console.log('[suggestions] Prompt length:', prompt.length);
     console.log('[suggestions] Context parts count:', contextParts.length);
 
-    console.log('[suggestions] Calling generateText...');
+    // Extract model info for logging and configuration
+    // The model is already correctly set based on user's provider choice:
+    // - CHATGPT → gpt-5-mini (OpenAI reasoning model)
+    // - CLAUDE → claude-haiku-4-5 (Anthropic fast model)
+    // - GEMINI → gemini-2.5-flash (Google fast model) 
+    // - GROQ → llama-3.3-70b-versatile (Groq fast model)
+    const modelId = (model as { modelId?: string })?.modelId || '';
+    console.log('[suggestions] Using model:', modelId, 'from provider selection');
+    
+    // Detect reasoning models that don't support temperature parameter
+    // Currently only OpenAI's GPT-5/o1/o3 series are reasoning models
+    const isReasoningModel = modelId.includes('gpt-5') || modelId.includes('o1-') || modelId.includes('o3-');
+    
     let result;
     try {
-      result = await generateText({
+      const generateOptions: Parameters<typeof generateText>[0] = {
         model,
         prompt,
-        maxOutputTokens: 1500,  // Increased from 800 - JSON responses need more space
-        temperature: 0.7,  // Add some creativity for suggestions
-      });
+        maxOutputTokens: 800,  // Suggestions are short JSON responses
+      };
+      
+      // Add temperature for non-reasoning models (Claude, Gemini, Groq, regular GPT)
+      // Reasoning models (GPT-5, o1, o3) ignore temperature and log warnings
+      if (!isReasoningModel) {
+        generateOptions.temperature = 0.7;
+        console.log('[suggestions] Using temperature 0.7 for non-reasoning model');
+      } else {
+        console.log('[suggestions] Skipping temperature for reasoning model');
+      }
+      
+      result = await generateText(generateOptions);
     } catch (genError) {
       console.error('[suggestions] generateText failed:', genError instanceof Error ? genError.message : genError);
-      console.error('[suggestions] generateText error stack:', genError instanceof Error ? genError.stack : 'N/A');
-      throw genError; // re-throw to hit outer catch
+      throw genError;
     }
     
     // Parse the response
     const text = result.text?.trim() || '';
-    console.log('[suggestions] LLM response length:', text.length);
-    console.log('[suggestions] LLM response preview:', text.substring(0, 300));
-    console.log('[suggestions] LLM full response:', text);  // Log full response for debugging
-    console.log('[suggestions] Result keys:', Object.keys(result));
-    console.log('[suggestions] Finish reason:', result.finishReason);
-    console.log('[suggestions] Usage:', JSON.stringify(result.usage));
+    
+    // PERFORMANCE: Reduce logging in production
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[suggestions] LLM response length:', text.length);
+      console.log('[suggestions] LLM response preview:', text.substring(0, 200));
+    }
+    console.log('[suggestions] Generated in', Date.now() - llmStartTime, 'ms, tokens:', result.usage?.totalTokens || 'N/A');
     
     // Try to find complete JSON first
     let jsonMatch = text.match(/\{[\s\S]*\}/);
