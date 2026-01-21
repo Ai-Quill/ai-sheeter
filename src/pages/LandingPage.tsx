@@ -4,10 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { LogoTicker } from '@/components/landing/LogoTicker';
 import { ProblemSolution } from '@/components/landing/ProblemSolution';
-import { ComparisonSection } from '@/components/landing/ComparisonSection';
+import { CompetitorComparison } from '@/components/landing/CompetitorComparison';
 import { FeatureGrid } from '@/components/landing/FeatureGrid';
 import { UseCases } from '@/components/landing/UseCases';
 import { VideoSection } from '@/components/landing/VideoSection';
+import { AgentShowcase } from '@/components/landing/AgentShowcase';
+import { WhyNotSection } from '@/components/landing/WhyNotSection';
 import { Testimonials } from '@/components/landing/Testimonials';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { FAQ } from '@/components/landing/FAQ';
@@ -31,7 +33,7 @@ export default function LandingPage() {
     <>
       <Head>
         <title>AISheeter - Smarter Google Sheets with AI</title>
-        <meta name="description" content="Clean data, extract leads, and automate research directly inside Google Sheets. Use AI formulas like =ChatGPT(), =Claude(), =Gemini() in any cell." />
+        <meta name="description" content="The only Google Sheets AI with multi-step workflows, conversation memory, and output control. No formulas. No copy-paste. Just results." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
@@ -45,9 +47,11 @@ export default function LandingPage() {
           <div className="relative z-10 bg-[#FAFAFA]">
               <LogoTicker />
               <ProblemSolution />
-              <ComparisonSection />
-              <UseCases />
               <FeatureGrid />
+              <AgentShowcase />
+              <CompetitorComparison />
+              <WhyNotSection />
+              <UseCases />
               <VideoSection />
               <Testimonials />
               <PricingSection />

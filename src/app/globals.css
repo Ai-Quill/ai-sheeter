@@ -142,3 +142,81 @@
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
 }
+
+/* Brand Colors */
+@layer base {
+  :root {
+    --brand-lightBlue: #8ECAE6;
+    --brand-cyan: #209EBB;
+    --brand-darkBlue: #023047;
+    --brand-yellow: #FFB701;
+    --brand-orange: #FC8500;
+  }
+}
+
+/* Landing Page Design Utilities */
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #FFB701 0%, #FC8500 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Dot pattern background */
+.dot-pattern {
+  background-image: radial-gradient(rgba(2, 48, 71, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(2, 48, 71, 0.15);
+}
+
+/* Shimmer effect for buttons */
+.shimmer-btn {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s ease;
+}
+.shimmer-btn:hover::after {
+  left: 100%;
+}
+
+/* Tailwind brand color utilities */
+@layer utilities {
+  .bg-brand-lightBlue { background-color: #8ECAE6; }
+  .bg-brand-cyan { background-color: #209EBB; }
+  .bg-brand-darkBlue { background-color: #023047; }
+  .bg-brand-yellow { background-color: #FFB701; }
+  .bg-brand-orange { background-color: #FC8500; }
+  
+  .text-brand-lightBlue { color: #8ECAE6; }
+  .text-brand-cyan { color: #209EBB; }
+  .text-brand-darkBlue { color: #023047; }
+  .text-brand-yellow { color: #FFB701; }
+  .text-brand-orange { color: #FC8500; }
+  
+  .border-brand-cyan { border-color: #209EBB; }
+  .border-brand-orange { border-color: #FC8500; }
+  
+  .from-brand-cyan { --tw-gradient-from: #209EBB; }
+  .to-brand-lightBlue { --tw-gradient-to: #8ECAE6; }
+  .from-brand-orange { --tw-gradient-from: #FC8500; }
+  .to-brand-yellow { --tw-gradient-to: #FFB701; }
+}

@@ -1,48 +1,79 @@
+'use client';
+
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FunctionSquare, KeyRound, Layers, Repeat, Bot } from 'lucide-react';
+import { Zap, MessageSquare, Shield, Workflow, Sliders, BrainCircuit, Sparkles, History } from 'lucide-react';
 
 const features = [
   {
-    title: "Native Formula Functions",
-    description: "Use =ChatGPT(), =Claude(), =Gemini() like any spreadsheet formula. Fill down, reference cells, chain with other functions. It just works.",
-    icon: <FunctionSquare size={24} className="text-[#219EBB]" />,
-    color: "bg-[#219EBB]",
-    colSpan: "md:col-span-1"
+    title: "Multi-Step Task Chains",
+    description: "One command executes multiple steps. Extract → Score → Recommend in a single conversation.",
+    icon: <Workflow size={24} className="text-[#209EBB]" />,
+    color: "bg-[#209EBB]",
+    colSpan: "md:col-span-1",
+    tag: "Unique"
   },
   {
-    title: "Bring Your Own Keys",
-    description: "Connect your own API keys from OpenAI, Anthropic, or Google. Pay providers directly — often 10x cheaper than markup services.",
-    icon: <KeyRound size={24} className="text-[#FFB701]" />,
-    color: "bg-[#FFB701]",
-    colSpan: "md:col-span-1"
+    title: "Conversation Persistence",
+    description: "Unlike Gemini, we remember context. Build on previous commands without repeating yourself.",
+    icon: <History size={24} className="text-[#FC8500]" />,
+    color: "bg-[#FC8500]",
+    colSpan: "md:col-span-1",
+    tag: "Unique"
   },
   {
-    title: "Background Bulk Jobs",
-    description: "Process 1,000+ rows without freezing your browser. Jobs run on our servers — close the tab and we'll email you when it's done.",
-    icon: <Layers size={24} className="text-[#8ECAE6]" />,
+    title: "Output Format Control",
+    description: "Configure exactly how results appear: JSON, lists, scores with reasons, or custom formats.",
+    icon: <Sliders size={24} className="text-[#8ECAE6]" />,
     color: "bg-[#8ECAE6]",
+    colSpan: "md:col-span-1",
+    tag: "New"
+  },
+  {
+    title: "Formula-First Intelligence",
+    description: "AI that knows when NOT to use AI. Uses native formulas when they're faster and cheaper.",
+    icon: <BrainCircuit size={24} className="text-purple-500" />,
+    color: "bg-purple-500",
     colSpan: "md:col-span-1"
   },
   {
-    title: "Multi-Model Freedom",
-    description: "Switch between GPT-4o, Claude Sonnet, Gemini Flash, or Groq instantly. Pick the best model for each task — speed, cost, or quality. No lock-in.",
-    icon: <Repeat size={24} className="text-purple-500" />,
-    color: "bg-purple-500",
+    title: "Proactive Suggestions",
+    description: "AI that thinks ahead. After completing a task, suggests what you might want to do next.",
+    icon: <Sparkles size={24} className="text-emerald-500" />,
+    color: "bg-emerald-500",
+    colSpan: "md:col-span-1",
+    tag: "Unique"
+  },
+  {
+    title: "5+ AI Models (BYOK)",
+    description: "Use GPT-5, Claude, Gemini, Groq, or bring your own API key. Switch models per task.",
+    icon: <Zap size={24} className="text-amber-500" />,
+    color: "bg-amber-500",
+    colSpan: "md:col-span-1"
+  },
+  {
+    title: "Data Security",
+    description: "Your API keys, your data. No training on your content. Process locally when possible.",
+    icon: <Shield size={24} className="text-[#023047]" />,
+    color: "bg-[#023047]",
     colSpan: "md:col-span-2"
   },
   {
-    title: "Intelligent Agent Mode",
-    description: "An AI that remembers. Chain complex tasks: \"Classify leads, then summarize by category.\" The agent persists context across sessions, suggests actions based on your data, and shows you exactly what it sees.",
-    icon: <Bot size={24} className="text-[#023047]" />,
-    color: "bg-[#023047]",
+    title: "Natural Conversation",
+    description: "Just describe what you want. No formulas to learn, no complex syntax to memorize.",
+    icon: <MessageSquare size={24} className="text-rose-500" />,
+    color: "bg-rose-500",
     colSpan: "md:col-span-1"
   }
 ];
 
 export const FeatureGrid: React.FC = () => {
   return (
-    <section id="features" className="py-24 px-4 max-w-7xl mx-auto">
+    <section id="features" className="py-28 px-4 max-w-7xl mx-auto relative">
+        {/* Subtle background accents */}
+        <div className="absolute top-20 right-0 w-96 h-96 bg-[#8ECAE6]/10 rounded-full blur-3xl -z-10" />
+        <div className="absolute bottom-20 left-0 w-72 h-72 bg-[#FFB701]/10 rounded-full blur-3xl -z-10" />
+        
         <motion.div 
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -50,12 +81,19 @@ export const FeatureGrid: React.FC = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
         >
-            <h2 className="font-serif text-4xl md:text-5xl text-[#023047] mb-6">
-                Focus on what matters — <br />
-                <span className="italic text-[#FFB701]">leave the rest to AI</span>
+            <motion.span 
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              className="inline-block px-4 py-1.5 bg-[#023047]/5 text-[#023047] text-sm font-medium rounded-full mb-6"
+            >
+              Agent Capabilities
+            </motion.span>
+            <h2 className="font-serif text-4xl md:text-5xl text-[#023047] mb-6 tracking-tight">
+                Capabilities <br />
+                <span className="italic gradient-text">no one else has</span>
             </h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
-                No more copy-pasting into ChatGPT. AISheeter puts GPT-4, Claude, and Gemini right inside your spreadsheet — as simple formulas or a conversational agent.
+            <p className="text-gray-500 max-w-2xl mx-auto text-lg leading-relaxed">
+                Beyond simple AI formulas. AISheeter is a true intelligent agent that understands, remembers, and acts.
             </p>
         </motion.div>
 
@@ -66,21 +104,27 @@ export const FeatureGrid: React.FC = () => {
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: idx * 0.1 }}
-                    whileHover={{ y: -5 }}
-                    className={`bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-lg transition-shadow ${feature.colSpan}`}
+                    transition={{ duration: 0.5, delay: idx * 0.08 }}
+                    whileHover={{ y: -6, scale: 1.01 }}
+                    className={`bg-white rounded-3xl p-7 shadow-lg shadow-gray-200/50 border-2 border-gray-100 flex flex-col justify-between hover:shadow-xl hover:border-[#209EBB]/20 transition-all duration-300 group ${feature.colSpan}`}
                 >
-                    <div className="mb-6">
-                        <div className={`w-12 h-1 ${feature.color} mb-4 opacity-50 rounded-full`}></div>
-                        {/* Abstract Art Placeholder related to feature color */}
-                        <div className="h-24 w-full mb-6 relative overflow-hidden rounded-xl bg-gray-50 flex items-center justify-center group">
-                             <div className={`absolute inset-0 opacity-10 ${feature.color}`}></div>
-                             <div className="transform transition-transform group-hover:scale-110 duration-500">
+                    <div>
+                        <div className="flex items-center justify-between mb-5">
+                            <div className={`w-12 h-12 rounded-2xl ${feature.color} bg-opacity-10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
                                 {feature.icon}
-                             </div>
+                            </div>
+                            {feature.tag && (
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full ${
+                                    feature.tag === 'Unique' ? 'bg-gradient-to-r from-[#FC8500]/10 to-[#FFB701]/10 text-[#FC8500]' :
+                                    feature.tag === 'New' ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700' :
+                                    'bg-gray-100 text-gray-600'
+                                }`}>
+                                    {feature.tag}
+                                </span>
+                            )}
                         </div>
                         
-                        <h3 className="font-serif text-2xl text-[#023047] mb-3">{feature.title}</h3>
+                        <h3 className="font-serif text-xl text-[#023047] mb-3 group-hover:text-[#209EBB] transition-colors">{feature.title}</h3>
                         <p className="text-gray-500 text-sm leading-relaxed">{feature.description}</p>
                     </div>
                 </motion.div>

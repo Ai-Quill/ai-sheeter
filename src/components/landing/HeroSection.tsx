@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { DashboardMockup } from './DashboardMockup';
-import { Star, Zap } from 'lucide-react';
+import { Star, Zap, Github } from 'lucide-react';
 
 interface HeroSectionProps {
   onAnimationComplete: () => void;
@@ -126,6 +126,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
 
                 {/* Social Proof */}
                 <div className="flex items-center justify-center gap-4 text-white/90 bg-black/30 backdrop-blur-md p-2.5 rounded-xl border border-white/20 inline-flex shadow-lg">
+                    {/* Open Source Badge */}
+                    <a 
+                        href="https://github.com/Ai-Quill/ai-sheeter" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-full border border-white/20 transition-all group"
+                    >
+                        <Github size={14} className="text-white group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-semibold">Open Source</span>
+                    </a>
+                    <div className="h-6 w-[1px] bg-white/30"></div>
                     <div className="flex -space-x-2">
                         {[1, 2, 3, 4].map((i) => (
                             <div key={i} className="w-7 h-7 rounded-full border-2 border-white/50 overflow-hidden bg-gray-300">

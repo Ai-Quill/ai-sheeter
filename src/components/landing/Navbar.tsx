@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Github, Star } from 'lucide-react';
 
 interface NavbarProps {
     show: boolean;
@@ -22,7 +23,31 @@ export const Navbar: React.FC<NavbarProps> = ({ show }) => {
             </div>
         </div>
 
-        <div>
+        <div className="flex items-center gap-3">
+            {/* GitHub Link */}
+            <motion.a 
+                href="https://github.com/Ai-Quill/ai-sheeter" 
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="hidden md:flex items-center gap-2 bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-full text-sm font-medium text-[#023047] border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all"
+            >
+                <Github size={18} />
+                <span>Open Source</span>
+                <Star size={12} className="text-[#FFB701]" fill="#FFB701" />
+            </motion.a>
+            
+            {/* Mobile GitHub Icon */}
+            <a 
+                href="https://github.com/Ai-Quill/ai-sheeter" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="md:hidden flex items-center justify-center w-10 h-10 bg-white/90 backdrop-blur-md rounded-full border border-gray-200"
+            >
+                <Github size={18} className="text-[#023047]" />
+            </a>
+            
             {/* Desktop Button */}
             <a 
                 href="https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853"
