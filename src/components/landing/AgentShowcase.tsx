@@ -27,21 +27,23 @@ const scenarios: DemoScenario[] = [
     icon: '📊',
     description: 'Analyze CRM notes and score deals',
     conversation: [
-      { type: 'user', content: "Sales reps write these notes but nobody has time to read them all. Help me understand which deals need attention.", delay: 0 },
-      { type: 'agent', content: "I'll create a 3-step workflow:\n1. Extract signals & blockers from notes\n2. Score win probability (High/Medium/Low)\n3. Generate specific next actions\n\nProcessing 8 deals...", delay: 1500 },
-      { type: 'result', content: "✅ Complete! Found:\n• 3 High probability deals ($567K)\n• 2 Medium probability ($545K)\n• 3 At-risk deals ($2.1M)\n\nTop action: Get Datadog commitment before Feb 20", delay: 4000 }
+      { type: 'user', content: "Extract the key buying signals and objections from Sales Notes column D to columns E and F", delay: 0 },
+      { type: 'agent', content: "I see 8 deals in your selection. I'll analyze each Sales Notes entry and extract:\n• Column E: Buying Signals\n• Column F: Objections\n\nProcessing rows 2-9...", delay: 1500 },
+      { type: 'result', content: "✅ Done! Extracted signals and objections for 8 deals.\n\nWant me to score win probability based on these signals?", delay: 3500 },
+      { type: 'user', content: "Yes, score as High/Medium/Low with a reason to column G", delay: 4500 },
+      { type: 'result', content: "✅ Scored all deals. Found:\n• 3 High probability ($567K)\n• 2 Medium ($545K)\n• 3 Low/At-risk ($2.1M)\n\nNoticed: Datadog has Feb 20 deadline - decision maker going on leave.", delay: 6500 }
     ],
     beforeData: [
-      ['Company', 'Notes', 'Stage'],
-      ['Stripe', 'CFO loves ROI, CTO worried about API...', 'Negotiation'],
-      ['Notion', 'Champion pushing, legal review...', 'Proposal'],
-      ['Datadog', 'Technical win, Feb 20 deadline...', 'Negotiation']
+      ['Company', 'Deal Size', 'Stage', 'Sales Notes'],
+      ['Stripe', '$450K', 'Negotiation', 'CFO loves ROI, CTO worried about API...'],
+      ['Notion', '$180K', 'Proposal', 'Champion pushing, legal reviewing...'],
+      ['Datadog', '$320K', 'Negotiation', 'Technical win, Feb 20 deadline...']
     ],
     afterData: [
-      ['Company', 'Notes', 'Stage', 'Signals', 'Probability', 'Next Action'],
-      ['Stripe', 'CFO loves ROI...', 'Negotiation', 'Budget Q2, ROI+', 'Medium', 'Schedule DevOps call'],
-      ['Notion', 'Champion pushing...', 'Proposal', 'Champion, deadline', 'High', 'Send SSO docs'],
-      ['Datadog', 'Technical win...', 'Negotiation', 'Tech win, urgent', 'High', 'Close before Feb 20']
+      ['Company', 'Deal Size', 'Stage', 'Signals', 'Objections', 'Probability'],
+      ['Stripe', '$450K', 'Negotiation', 'Budget Q2, ROI+', 'API timeline', 'Medium'],
+      ['Notion', '$180K', 'Proposal', 'Champion, Mar deadline', 'Legal review', 'High'],
+      ['Datadog', '$320K', 'Negotiation', 'Tech win, urgent', 'Discount ask', 'High']
     ]
   },
   {
@@ -50,45 +52,48 @@ const scenarios: DemoScenario[] = [
     icon: '💬',
     description: 'Extract themes from customer reviews',
     conversation: [
-      { type: 'user', content: "We have 500 product reviews. What are customers saying and what should we prioritize?", delay: 0 },
-      { type: 'agent', content: "I'll analyze sentiment and extract themes:\n1. Classify sentiment (Positive/Negative/Neutral)\n2. Extract recurring themes\n3. Score priority by frequency × impact\n\nProcessing reviews...", delay: 1500 },
-      { type: 'result', content: "✅ Analysis complete!\n\nTop issues:\n1. Mobile app crashes (45 mentions) - HIGH\n2. Missing dark mode (67 requests) - MEDIUM\n3. Slow sync (23 complaints) - HIGH\n\nQuick win: Fix iOS 17 crash (2hr fix)", delay: 4000 }
+      { type: 'user', content: "Analyze sentiment for each review in column C - rate as Positive, Negative, or Mixed to column D", delay: 0 },
+      { type: 'agent', content: "Analyzing 10 customer reviews. I'll classify sentiment considering:\n• Overall tone\n• Specific praise/complaints\n• Rating context from column B\n\nProcessing...", delay: 1500 },
+      { type: 'result', content: "✅ Sentiment analysis complete for 10 reviews.\n\nBreakdown: 4 Positive, 3 Negative, 3 Mixed\n\nShould I extract specific feature requests mentioned?", delay: 3500 },
+      { type: 'user', content: "Yes, extract feature requests to column E and prioritize as P0/P1/P2 based on customer type to column F", delay: 4500 },
+      { type: 'result', content: "✅ Extracted and prioritized!\n\nTop issues found:\n• P0: SSO integration (blocking $30K enterprise deal)\n• P0: Mobile app (customer churned to Monday.com)\n• P1: Dashboard performance (enterprise complaint)", delay: 6500 }
     ],
     beforeData: [
-      ['Review', 'Rating', 'Date'],
-      ['Love it but app crashes on my iPhone', '3', '2026-01-15'],
-      ['Great features, wish it had dark mode', '4', '2026-01-14'],
-      ['Sync is painfully slow sometimes', '2', '2026-01-13']
+      ['Source', 'Rating', 'Feedback'],
+      ['G2 Review', '3/5', 'Love the API but dashboard is slow...'],
+      ['Support', '—', 'How do I export to CSV? Buried in settings...'],
+      ['NPS Survey', '9/10', 'Powerful but onboarding was rough...']
     ],
     afterData: [
-      ['Review', 'Rating', 'Sentiment', 'Theme', 'Priority'],
-      ['Love it but app crashes...', '3', 'Mixed', 'App Stability', 'High'],
-      ['Great features, wish it had...', '4', 'Positive', 'Dark Mode', 'Medium'],
-      ['Sync is painfully slow...', '2', 'Negative', 'Performance', 'High']
+      ['Source', 'Rating', 'Feedback', 'Sentiment', 'Request', 'Priority'],
+      ['G2 Review', '3/5', 'Love the API but...', 'Mixed', 'Dashboard speed', 'P1'],
+      ['Support', '—', 'How do I export...', 'Negative', 'CSV export UX', 'P2'],
+      ['NPS Survey', '9/10', 'Powerful but...', 'Positive', 'Better docs', 'P2']
     ]
   },
   {
     id: 'localization',
     title: 'Content Localization',
     icon: '🌍',
-    description: 'Translate and localize marketing content',
+    description: 'Translate and adapt marketing content',
     conversation: [
-      { type: 'user', content: "Translate our landing page copy to Spanish, French, and German. Make it sound natural, not robotic.", delay: 0 },
-      { type: 'agent', content: "I'll create a localization workflow:\n1. Translate preserving brand voice\n2. Adapt for cultural context\n3. Quality check with confidence scores\n\nWhich Spanish? LATAM or Spain?", delay: 1500 },
-      { type: 'user', content: "LATAM Spanish please", delay: 3000 },
-      { type: 'result', content: "✅ Localization complete!\n\n• Spanish (LATAM): 96% confidence\n• French: 94% confidence\n• German: 95% confidence\n\n2 items flagged for human review", delay: 4500 }
+      { type: 'user', content: "Translate English Content in column C to the language for each Target Market in column D. Write to column E", delay: 0 },
+      { type: 'agent', content: "I see 10 content pieces targeting: Germany, Japan, France, Brazil, Spain, Mexico, India, UAE, South Korea, Netherlands.\n\nI'll translate each to the appropriate language, preserving tone and intent.\n\nProcessing...", delay: 1500 },
+      { type: 'result', content: "✅ Translations complete!\n\nUsed: German, Japanese, French, Portuguese (BR), Spanish (ES), Spanish (MX), Hindi, Arabic, Korean, Dutch\n\nWant me to flag content needing cultural adaptation?", delay: 3500 },
+      { type: 'user', content: "Yes, flag cultural issues to column F", delay: 4500 },
+      { type: 'result', content: "✅ Cultural review complete!\n\nFlagged 6 items:\n• Japan: 'Free Trial' may imply low quality\n• UAE: Urgency marketing less effective\n• Mexico: USD needs local currency context\n• Spain: 'Oops!' too casual for B2B", delay: 6500 }
     ],
     beforeData: [
-      ['English', 'Context'],
-      ['Hit the ground running', 'Headline'],
-      ['24/7 support available', 'Feature'],
-      ['Free trial, no strings attached', 'CTA']
+      ['Type', 'English Content', 'Target Market'],
+      ['Headline', 'Supercharge Your Workflow', 'Germany'],
+      ['CTA', 'Start Free Trial', 'Japan'],
+      ['Error', 'Oops! Something went wrong', 'Spain']
     ],
     afterData: [
-      ['English', 'Spanish', 'French', 'German'],
-      ['Hit the ground running', 'Empieza con el pie derecho', 'Démarrez sur les chapeaux...', 'Durchstarten ohne...'],
-      ['24/7 support available', 'Soporte disponible 24/7', 'Support disponible 24h/24', '24/7 Support verfügbar'],
-      ['Free trial, no strings...', 'Prueba gratis, sin...', 'Essai gratuit, sans...', 'Kostenlose Testversion...']
+      ['Type', 'English', 'Market', 'Translation', 'Cultural Flag'],
+      ['Headline', 'Supercharge...', 'Germany', 'Beschleunigen Sie...', '✓ OK'],
+      ['CTA', 'Start Free Trial', 'Japan', '無料トライアル...', '⚠️ Review'],
+      ['Error', 'Oops! Something...', 'Spain', '¡Ups! Algo salió...', '⚠️ Too casual']
     ]
   }
 ];
