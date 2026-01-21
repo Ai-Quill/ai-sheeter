@@ -34,3 +34,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent and libararies
+.agent/
+.agents/
+.claude/
+.cursor/
+.gemini/
+.windsurf/
+
