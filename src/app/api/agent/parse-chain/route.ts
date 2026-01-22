@@ -312,11 +312,18 @@ function extractDataContext(context: any): ExtendedDataContext {
     console.warn('[parse-chain] WARNING: No data columns detected, assuming first 3 columns:', dataColumns.join(','));
   }
   
-  // Calculate empty columns dynamically based on actual data columns
-  const emptyColumns = selInfo?.emptyColumns?.map((e: any) => e.column) || 
-    getEmptyColumnsAfter(dataColumns, 10);
+  // Get empty columns from frontend, but ensure we have at least 10 for multi-aspect workflows
+  const frontendEmptyColumns = selInfo?.emptyColumns?.map((e: any) => e.column) || [];
+  const emptyColumns = frontendEmptyColumns.length >= 10 
+    ? frontendEmptyColumns 
+    : getEmptyColumnsAfter(dataColumns, 10);
   
-  console.log('[parse-chain] Empty columns calculated:', emptyColumns.slice(0, 6).join(', '));
+  console.log('[parse-chain] Empty columns:', 
+    frontendEmptyColumns.length > 0 
+      ? `using ${frontendEmptyColumns.length} from frontend, ` + (frontendEmptyColumns.length < 10 ? 'generating more to total 10' : 'sufficient')
+      : 'generated 10 dynamically'
+  );
+  console.log('[parse-chain] Empty columns list:', emptyColumns.slice(0, 6).join(', '));
   
   const headers: Record<string, string> = {};
   // Check multiple locations for headers:
