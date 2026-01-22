@@ -34,6 +34,65 @@ import { buildFewShotPrompt, DataContext } from '@/lib/workflow-memory/prompt-bu
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
 import { getModel } from '@/lib/ai/models';
 
+// ============================================
+// COLUMN UTILITIES (NO HARDCODED VALUES)
+// ============================================
+
+/**
+ * Convert column letter to number (A=1, B=2, Z=26, AA=27, etc.)
+ */
+function columnLetterToNumber(col: string): number {
+  let result = 0;
+  for (let i = 0; i < col.length; i++) {
+    result = result * 26 + (col.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
+  }
+  return result;
+}
+
+/**
+ * Convert column number to letter (1=A, 2=B, 26=Z, 27=AA, etc.)
+ */
+function columnNumberToLetter(num: number): string {
+  let result = '';
+  while (num > 0) {
+    const remainder = (num - 1) % 26;
+    result = String.fromCharCode('A'.charCodeAt(0) + remainder) + result;
+    num = Math.floor((num - 1) / 26);
+  }
+  return result;
+}
+
+/**
+ * Get the next N empty columns after the given data columns
+ * @param dataColumns - Columns that contain data (e.g., ['A', 'B', 'C'])
+ * @param count - Number of empty columns to generate
+ * @returns Array of empty column letters
+ */
+function getEmptyColumnsAfter(dataColumns: string[], count: number = 10): string[] {
+  if (dataColumns.length === 0) {
+    // If no data columns provided, start from 'A'
+    return Array.from({ length: count }, (_, i) => columnNumberToLetter(i + 1));
+  }
+  
+  // Find the highest column number
+  const maxColNum = Math.max(...dataColumns.map(columnLetterToNumber));
+  
+  // Generate empty columns starting after the last data column
+  return Array.from({ length: count }, (_, i) => columnNumberToLetter(maxColNum + i + 1));
+}
+
+/**
+ * Generate a range in A1 notation
+ * @param startCol - Starting column letter
+ * @param endCol - Ending column letter
+ * @param startRow - Starting row number
+ * @param endRow - Ending row number
+ * @returns Range string (e.g., "A2:C11")
+ */
+function buildRange(startCol: string, endCol: string, startRow: number, endRow: number): string {
+  return `${startCol}${startRow}:${endCol}${endRow}`;
+}
+
 // Extended timeout for chain parsing - AI inference can take 30-60s for complex prompts
 export const maxDuration = 60;
 
@@ -242,14 +301,20 @@ function extractDataContext(context: any): ExtendedDataContext {
     dataColumns = Object.keys(context.sampleData);
     console.log('[parse-chain] Using sampleData columns:', dataColumns.join(','));
   }
-  // Priority 4: Fallback to common columns
+  // Priority 4: Fallback - detect from headers if available
+  else if (context?.headers && Array.isArray(context.headers) && context.headers.length > 0) {
+    dataColumns = context.headers.map((h: any) => h.column).filter(Boolean);
+    console.log('[parse-chain] Using headers for data columns:', dataColumns.join(','));
+  }
+  // Priority 5: Ultimate fallback - assume first 3 columns (A, B, C)
   else {
-    dataColumns = ['A', 'B', 'C', 'D'];
-    console.warn('[parse-chain] WARNING: No data columns detected, using fallback:', dataColumns.join(','));
+    dataColumns = ['A', 'B', 'C'];
+    console.warn('[parse-chain] WARNING: No data columns detected, assuming first 3 columns:', dataColumns.join(','));
   }
   
+  // Calculate empty columns dynamically based on actual data columns
   const emptyColumns = selInfo?.emptyColumns?.map((e: any) => e.column) || 
-    ['G', 'H', 'I', 'J'];
+    getEmptyColumnsAfter(dataColumns, 10);
   
   const headers: Record<string, string> = {};
   // Check multiple locations for headers:
@@ -394,27 +459,41 @@ function parseAndValidate(
       let outputCol: string;
       if (isMultiAspect) {
         // This step needs multiple columns - use the next N empty columns
-        outputCol = dataContext.emptyColumns[usedOutputColumns] || String.fromCharCode('G'.charCodeAt(0) + usedOutputColumns);
-        console.log(`[parse-chain] Step ${idx + 1} is multi-aspect (${aspects.length} aspects), using columns ${outputCol} through ${dataContext.emptyColumns[usedOutputColumns + aspects.length - 1] || String.fromCharCode('G'.charCodeAt(0) + usedOutputColumns + aspects.length - 1)}`);
+        outputCol = dataContext.emptyColumns[usedOutputColumns];
+        if (!outputCol) {
+          // Fallback: calculate dynamically based on data columns
+          const firstEmptyCol = dataContext.emptyColumns[0] || getEmptyColumnsAfter(dataContext.dataColumns, 1)[0];
+          const firstEmptyColNum = columnLetterToNumber(firstEmptyCol);
+          outputCol = columnNumberToLetter(firstEmptyColNum + usedOutputColumns);
+        }
+        
+        // Calculate end column: start + (aspects - 1)
+        const endColIndex = usedOutputColumns + aspects.length - 1;
+        const endCol = dataContext.emptyColumns[endColIndex] || columnNumberToLetter(columnLetterToNumber(outputCol) + aspects.length - 1);
+        
+        console.log(`[parse-chain] Step ${idx + 1} is multi-aspect (${aspects.length} aspects), using columns ${outputCol} through ${endCol}`);
         usedOutputColumns += aspects.length; // Reserve all needed columns
       } else {
         // Single output column
-        outputCol = dataContext.emptyColumns[usedOutputColumns] || String.fromCharCode('G'.charCodeAt(0) + usedOutputColumns);
+        outputCol = dataContext.emptyColumns[usedOutputColumns];
+        if (!outputCol) {
+          // Fallback: calculate dynamically
+          const firstEmptyCol = dataContext.emptyColumns[0] || getEmptyColumnsAfter(dataContext.dataColumns, 1)[0];
+          const firstEmptyColNum = columnLetterToNumber(firstEmptyCol);
+          outputCol = columnNumberToLetter(firstEmptyColNum + usedOutputColumns);
+        }
         usedOutputColumns++; // Reserve one column
       }
       
       // Input columns: first step reads data, later steps include previous outputs
-      // BUGFIX: Ensure inputCols is never empty - use fallback if dataColumns is empty
       let inputCols: string[];
       if (idx === 0) {
-        inputCols = dataContext.dataColumns.length > 0 
-          ? dataContext.dataColumns 
-          : ['A', 'B', 'C', 'D']; // Fallback if no data columns detected
+        // First step: use only data columns
+        inputCols = dataContext.dataColumns;
       } else {
-        inputCols = [
-          ...(dataContext.dataColumns.length > 0 ? dataContext.dataColumns : ['A', 'B', 'C', 'D']),
-          ...dataContext.emptyColumns.slice(0, usedOutputColumns - (isMultiAspect ? aspects.length : 1))
-        ];
+        // Later steps: use data columns + previous output columns
+        const previousOutputs = dataContext.emptyColumns.slice(0, usedOutputColumns - (isMultiAspect ? aspects.length : 1));
+        inputCols = [...dataContext.dataColumns, ...previousOutputs];
       }
       
       // Log what we're setting for debugging
@@ -451,10 +530,15 @@ function parseAndValidate(
       }
     }).join('\n');
     
-    // BUGFIX: Ensure we always return valid input configuration
-    const finalInputRange = dataContext.dataRange || `A${dataContext.startRow}:D${dataContext.endRow}`;
-    const finalInputColumns = dataContext.dataColumns.length > 0 ? dataContext.dataColumns : ['A', 'B', 'C', 'D'];
+    // Build final input configuration dynamically
+    const finalInputColumns = dataContext.dataColumns;
     const finalInputColumn = finalInputColumns[0];
+    const finalInputRange = dataContext.dataRange || buildRange(
+      finalInputColumns[0], 
+      finalInputColumns[finalInputColumns.length - 1], 
+      dataContext.startRow, 
+      dataContext.endRow
+    );
     
     console.log('[parse-chain] Final input config before return:', {
       inputRange: finalInputRange,
@@ -531,11 +615,14 @@ function createFallback(
 ): TaskChain {
   console.log('[parse-chain] Using fallback workflow');
   
-  // BUGFIX: Ensure we have valid data columns even in fallback
-  const safeDataColumns = dataContext.dataColumns.length > 0 
-    ? dataContext.dataColumns 
-    : ['A', 'B', 'C', 'D'];
-  const safeDataRange = dataContext.dataRange || `A${dataContext.startRow}:D${dataContext.endRow}`;
+  // Use actual data columns (should always be populated by extractDataContext)
+  const safeDataColumns = dataContext.dataColumns;
+  const safeDataRange = dataContext.dataRange || buildRange(
+    safeDataColumns[0], 
+    safeDataColumns[safeDataColumns.length - 1], 
+    dataContext.startRow, 
+    dataContext.endRow
+  );
   
   const steps: TaskStep[] = [
     {
@@ -557,8 +644,8 @@ function createFallback(
       description: 'Generate actionable recommendation',
       prompt: 'Based on the analysis, generate one specific, actionable recommendation.\n\nBe concrete: Who should do what?',
       outputFormat: 'Recommendation',
-      inputColumns: [...safeDataColumns, dataContext.emptyColumns[0] || 'G'],
-      outputColumn: dataContext.emptyColumns[1] || 'H',
+      inputColumns: [...safeDataColumns, dataContext.emptyColumns[0]],
+      outputColumn: dataContext.emptyColumns[1],
       dependsOn: 'step_1',
       usesResultOf: 'step_1',
     },

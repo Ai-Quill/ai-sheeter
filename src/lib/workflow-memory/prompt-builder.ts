@@ -83,7 +83,7 @@ User Request: "${command}"
 ${contextStr}
 ===========================================
 
-Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ') || 'G, H, I, J'}
+Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ')}
 
 CRITICAL RULES - FOLLOW STRICTLY:
 
