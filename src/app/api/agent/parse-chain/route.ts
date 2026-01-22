@@ -316,6 +316,8 @@ function extractDataContext(context: any): ExtendedDataContext {
   const emptyColumns = selInfo?.emptyColumns?.map((e: any) => e.column) || 
     getEmptyColumnsAfter(dataColumns, 10);
   
+  console.log('[parse-chain] Empty columns calculated:', emptyColumns.slice(0, 6).join(', '));
+  
   const headers: Record<string, string> = {};
   // Check multiple locations for headers:
   // 1. context.headers (array format from Agent.gs)
@@ -472,6 +474,7 @@ function parseAndValidate(
         const endCol = dataContext.emptyColumns[endColIndex] || columnNumberToLetter(columnLetterToNumber(outputCol) + aspects.length - 1);
         
         console.log(`[parse-chain] Step ${idx + 1} is multi-aspect (${aspects.length} aspects), using columns ${outputCol} through ${endCol}`);
+        console.log(`[parse-chain] Debug: outputCol=${outputCol}, endColIndex=${endColIndex}, endCol from array=${dataContext.emptyColumns[endColIndex] || 'undefined'}, calculated endCol=${endCol}`);
         usedOutputColumns += aspects.length; // Reserve all needed columns
       } else {
         // Single output column
