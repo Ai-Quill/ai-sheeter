@@ -203,6 +203,70 @@ export async function storeWorkflowWithEmbedding(
 }
 
 // ============================================
+// GET BASE EXAMPLES (TEMPLATES)
+// ============================================
+
+/**
+ * Get base workflow examples from database
+ * These are seeded templates that serve as few-shot examples
+ * 
+ * @param count - Number of examples to fetch
+ * @returns Array of base examples
+ */
+export async function getBaseExamplesFromDB(count: number = 10): Promise<StoredWorkflow[]> {
+  try {
+    const { data, error } = await supabaseAdmin.rpc('get_base_examples', {
+      p_count: count,
+    });
+    
+    if (error) {
+      console.error('[WorkflowMemory] Error fetching base examples:', error);
+      return [];
+    }
+    
+    return (data || []).map((row: any) => ({
+      id: row.id || 'base_example',
+      command: row.command,
+      workflow: row.workflow,
+      domain: row.domain,
+      data_context: row.data_context,
+    }));
+  } catch (error) {
+    console.error('[WorkflowMemory] Error getting base examples:', error);
+    return [];
+  }
+}
+
+/**
+ * Get workflow templates for user browsing
+ * 
+ * @param category - Optional category filter
+ * @param limit - Maximum number of templates
+ * @returns Array of public templates
+ */
+export async function getWorkflowTemplates(
+  category?: string,
+  limit: number = 20
+): Promise<any[]> {
+  try {
+    const { data, error } = await supabaseAdmin.rpc('get_workflow_templates', {
+      p_category: category || null,
+      p_limit: limit,
+    });
+    
+    if (error) {
+      console.error('[WorkflowMemory] Error fetching templates:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('[WorkflowMemory] Error getting templates:', error);
+    return [];
+  }
+}
+
+// ============================================
 // RECORD USAGE
 // ============================================
 
@@ -228,6 +292,7 @@ export async function recordWorkflowUsage(workflowId: string): Promise<void> {
 // Re-export from prompt builder for convenience
 export { buildFewShotPrompt } from './prompt-builder';
 export type { DataContext };  // Re-export the imported type
+// Keep base-examples.ts for backward compatibility and as fallback
 export { BASE_EXAMPLES, getRelevantBaseExamples } from './base-examples';
 
 // ============================================
@@ -240,6 +305,8 @@ export const workflowMemory = {
   store: storeWorkflow,
   storeWithEmbedding: storeWorkflowWithEmbedding,
   recordUsage: recordWorkflowUsage,
+  getBaseExamples: getBaseExamplesFromDB,
+  getTemplates: getWorkflowTemplates,
 };
 
 export default workflowMemory;

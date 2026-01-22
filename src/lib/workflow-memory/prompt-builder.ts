@@ -11,7 +11,6 @@
  * @updated 2026-01-20
  */
 
-import { BaseExample, getRelevantBaseExamples } from './base-examples';
 import { StoredWorkflow } from './index';
 
 // ============================================
@@ -51,15 +50,17 @@ interface WorkflowExample {
  * @param command - User's original command
  * @param dataContext - Information about the user's data
  * @param similarWorkflows - Semantically similar workflows from memory
+ * @param baseExamples - Base examples from database (fallback if no similar workflows)
  * @returns The complete prompt string
  */
 export function buildFewShotPrompt(
   command: string,
   dataContext: DataContext,
-  similarWorkflows: StoredWorkflow[]
+  similarWorkflows: StoredWorkflow[],
+  baseExamples: StoredWorkflow[] = []
 ): string {
   // Get examples: prefer similar workflows, fall back to base examples
-  const examples = getExamples(command, similarWorkflows);
+  const examples = getExamples(command, similarWorkflows, baseExamples);
   
   // Format the data context
   const contextStr = formatDataContext(dataContext);
@@ -67,7 +68,7 @@ export function buildFewShotPrompt(
   // Build the prompt with clear examples
   return `You are an expert workflow designer for spreadsheet data processing.
 
-TASK: Generate a multi-step workflow (2-4 steps) to accomplish the user's request.
+TASK: Generate a workflow to accomplish the user's request.
 IMPORTANT: Study the SAMPLE DATA carefully to understand what type of content you're processing.
 
 ${formatExamples(examples)}
@@ -85,21 +86,20 @@ ${contextStr}
 Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ') || 'G, H, I, J'}
 
 CRITICAL REQUIREMENTS:
-1. ANALYZE THE SAMPLE DATA to understand:
-   - What type of content each column contains (text, numbers, categories, notes, etc.)
-   - What information can be extracted or analyzed from this specific data
-   - How the columns relate to each other
+1. ANALYZE THE SAMPLE DATA to understand what type of content is in each column and what can be extracted or analyzed
 
-2. Generate 2-4 steps that flow logically:
-   - Step 1 should extract/process from the SOURCE data columns
-   - Each subsequent step builds on previous results
-   - Final step produces actionable output
+2. Design the workflow to match the user's request as closely as possible:
+   - Each step should process the data logically
+   - Steps should flow naturally from one to the next if they depend on each other's output
+   - Use the SOURCE data columns in earlier steps
 
 3. Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
 
-4. Each step must have: action, description (5-15 words), prompt (detailed instructions referencing the actual data), outputFormat
+4. Each step must have: action, description (5-15 words), prompt (detailed instructions), outputFormat
 
 5. Reference ACTUAL COLUMN NAMES in your prompts (e.g., "Based on the Sales Notes in column F...")
+
+6. For outputFormat with multiple aspects separated by "|" (e.g., "Performance | UX | Pricing"), each aspect gets its own output column
 
 Return ONLY valid JSON matching the example format above. No markdown, no explanation.`;
 }
@@ -111,7 +111,11 @@ Return ONLY valid JSON matching the example format above. No markdown, no explan
 /**
  * Get the best examples to include in the prompt
  */
-function getExamples(command: string, similarWorkflows: StoredWorkflow[]): WorkflowExample[] {
+function getExamples(
+  command: string, 
+  similarWorkflows: StoredWorkflow[],
+  baseExamples: StoredWorkflow[]
+): WorkflowExample[] {
   // If we have similar workflows from memory, use those (they're proven to work)
   if (similarWorkflows.length >= 2) {
     console.log(`[PromptBuilder] Using ${similarWorkflows.length} similar workflows from memory`);
@@ -121,22 +125,26 @@ function getExamples(command: string, similarWorkflows: StoredWorkflow[]): Workf
     }));
   }
   
-  // Otherwise, use base examples (with keyword relevance)
-  console.log('[PromptBuilder] Using base examples (no similar workflows in memory)');
-  const relevantExamples = getRelevantBaseExamples(command, 2); // Use top 2 most relevant
+  // Otherwise, use base examples from database
+  if (baseExamples.length > 0) {
+    console.log(`[PromptBuilder] Using ${baseExamples.length} base examples from database`);
+    
+    // Log which examples were selected
+    console.log('[PromptBuilder] Selected examples:', baseExamples.slice(0, 3).map(ex => ({
+      command: ex.command.substring(0, 50) + '...',
+      stepCount: ex.workflow?.steps?.length,
+      actions: ex.workflow?.steps?.map(s => s.action)
+    })));
+    
+    return baseExamples.slice(0, 3).map(ex => ({
+      command: ex.command,
+      workflow: ex.workflow as WorkflowExample['workflow'],
+    }));
+  }
   
-  // Log which examples were selected
-  console.log('[PromptBuilder] Selected examples:', relevantExamples.map(ex => ({
-    command: ex.command.substring(0, 50) + '...',
-    stepCount: ex.workflow.steps.length,
-    actions: ex.workflow.steps.map(s => s.action)
-  })));
-  
-  return relevantExamples.map(ex => ({
-    command: ex.command,
-    context: ex.context,
-    workflow: ex.workflow,
-  }));
+  // Final fallback: use minimal hardcoded examples
+  console.warn('[PromptBuilder] No base examples in database, using minimal fallback');
+  return getFallbackExamples(command);
 }
 
 /**
@@ -225,6 +233,36 @@ Adapt the workflow above to fit the new request. Keep the same structure but:
 3. Keep what works, change only what's necessary
 
 Return the adapted workflow as JSON.`;
+}
+
+/**
+ * Minimal fallback examples (used only if database is unavailable)
+ * Keep these minimal - database is the source of truth
+ */
+function getFallbackExamples(command: string): WorkflowExample[] {
+  return [
+    {
+      command: 'Extract key information and classify the data',
+      workflow: {
+        steps: [
+          {
+            action: 'extract',
+            description: 'Extract key information',
+            prompt: 'Extract the key information from this data.\n\nBe specific and structured.',
+            outputFormat: 'Extracted info'
+          },
+          {
+            action: 'classify',
+            description: 'Classify into categories',
+            prompt: 'Classify this data into appropriate categories based on the extracted information.',
+            outputFormat: 'Category'
+          }
+        ],
+        summary: '2-step workflow: extract and classify',
+        clarification: 'I\'ll extract key information and classify the data.'
+      }
+    }
+  ];
 }
 
 export default buildFewShotPrompt;

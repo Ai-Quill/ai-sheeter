@@ -29,7 +29,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 
 import { generateEmbedding } from '@/lib/ai/embeddings';
-import { findSimilarWorkflowsByEmbedding, StoredWorkflow } from '@/lib/workflow-memory';
+import { findSimilarWorkflowsByEmbedding, getBaseExamplesFromDB, StoredWorkflow } from '@/lib/workflow-memory';
 import { buildFewShotPrompt, DataContext } from '@/lib/workflow-memory/prompt-builder';
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
 import { getModel } from '@/lib/ai/models';
@@ -140,11 +140,21 @@ export async function POST(request: NextRequest) {
       }
     } catch (embeddingError) {
       // Embedding service unavailable - continue without semantic search
-      console.warn('[parse-chain] Embedding failed, using base examples:', embeddingError);
+      console.warn('[parse-chain] Embedding failed, will use base examples:', embeddingError);
+    }
+
+    // 3.5. Get base examples from database (used as fallback if no similar workflows)
+    let baseExamples: StoredWorkflow[] = [];
+    try {
+      baseExamples = await getBaseExamplesFromDB(6); // Get more than we need
+      console.log(`[parse-chain] Fetched ${baseExamples.length} base examples from database`);
+    } catch (baseError) {
+      console.warn('[parse-chain] Could not fetch base examples from database:', baseError);
+      // Will use minimal hardcoded fallback in prompt-builder
     }
 
     // 4. Build few-shot prompt
-    const prompt = buildFewShotPrompt(command, dataContext, similarWorkflows);
+    const prompt = buildFewShotPrompt(command, dataContext, similarWorkflows, baseExamples);
     console.log('[parse-chain] Prompt length:', prompt.length, 'chars');
     console.log('[parse-chain] Prompt preview (first 500):', prompt.substring(0, 500));
     
@@ -370,9 +380,28 @@ function parseAndValidate(
     }
     
     // Build steps with light validation
+    let usedOutputColumns = 0; // Track how many output columns we've used across all steps
     const steps: TaskStep[] = parsed.steps.slice(0, 4).map((step: any, idx: number) => {
       const action = normalizeAction(step.action);
-      const outputCol = dataContext.emptyColumns[idx] || String.fromCharCode('G'.charCodeAt(0) + idx);
+      
+      // Detect if this step outputs to multiple columns (multi-aspect analysis)
+      // Look for " | " separator in outputFormat which indicates multiple aspects
+      const outputFormat = step.outputFormat || '';
+      const aspects = outputFormat.split('|').map((s: string) => s.trim()).filter(Boolean);
+      const isMultiAspect = aspects.length > 1;
+      
+      // For multi-aspect steps, assign multiple output columns
+      let outputCol: string;
+      if (isMultiAspect) {
+        // This step needs multiple columns - use the next N empty columns
+        outputCol = dataContext.emptyColumns[usedOutputColumns] || String.fromCharCode('G'.charCodeAt(0) + usedOutputColumns);
+        console.log(`[parse-chain] Step ${idx + 1} is multi-aspect (${aspects.length} aspects), using columns ${outputCol} through ${dataContext.emptyColumns[usedOutputColumns + aspects.length - 1] || String.fromCharCode('G'.charCodeAt(0) + usedOutputColumns + aspects.length - 1)}`);
+        usedOutputColumns += aspects.length; // Reserve all needed columns
+      } else {
+        // Single output column
+        outputCol = dataContext.emptyColumns[usedOutputColumns] || String.fromCharCode('G'.charCodeAt(0) + usedOutputColumns);
+        usedOutputColumns++; // Reserve one column
+      }
       
       // Input columns: first step reads data, later steps include previous outputs
       // BUGFIX: Ensure inputCols is never empty - use fallback if dataColumns is empty
@@ -384,12 +413,12 @@ function parseAndValidate(
       } else {
         inputCols = [
           ...(dataContext.dataColumns.length > 0 ? dataContext.dataColumns : ['A', 'B', 'C', 'D']),
-          ...dataContext.emptyColumns.slice(0, idx)
+          ...dataContext.emptyColumns.slice(0, usedOutputColumns - (isMultiAspect ? aspects.length : 1))
         ];
       }
       
       // Log what we're setting for debugging
-      console.log(`[parse-chain] Step ${idx + 1}: action=${action}, inputCols=[${inputCols.join(',')}], outputCol=${outputCol}`);
+      console.log(`[parse-chain] Step ${idx + 1}: action=${action}, inputCols=[${inputCols.join(',')}], outputCol=${outputCol}, aspects=${aspects.length}`);
       
       return {
         id: `step_${idx + 1}`,
@@ -406,9 +435,21 @@ function parseAndValidate(
     });
     
     // Build the step clarification with output columns
-    const stepDescriptions = steps.map((s, i) => 
-      `${i + 1}. ${s.description} → Column ${s.outputColumn}`
-    ).join('\n');
+    const stepDescriptions = steps.map((s, i) => {
+      // Check if this is a multi-aspect step
+      const outputFormat = s.outputFormat || '';
+      const aspects = outputFormat.split('|').map((a: string) => a.trim()).filter(Boolean);
+      
+      if (aspects.length > 1) {
+        // Multi-aspect: show column range
+        const startCol = s.outputColumn;
+        const endCol = String.fromCharCode(startCol.charCodeAt(0) + aspects.length - 1);
+        return `${i + 1}. ${s.description} → Columns ${startCol}-${endCol} (${aspects.length} aspects)`;
+      } else {
+        // Single column
+        return `${i + 1}. ${s.description} → Column ${s.outputColumn}`;
+      }
+    }).join('\n');
     
     // BUGFIX: Ensure we always return valid input configuration
     const finalInputRange = dataContext.dataRange || `A${dataContext.startRow}:D${dataContext.endRow}`;

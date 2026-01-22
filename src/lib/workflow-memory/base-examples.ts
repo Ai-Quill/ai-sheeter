@@ -278,6 +278,40 @@ Format as bullet points, each under 15 words.`,
       summary: "2-step content analysis: summarize article, extract takeaways",
       clarification: "I'll create a concise summary of each article and extract the key takeaways you can quickly scan."
     }
+  },
+
+  // ============================================
+  // EXAMPLE 6: Multi-Aspect Sentiment Analysis
+  // ============================================
+  {
+    command: "Analyze sentiment by aspect: rate Performance, UX, Pricing, and Features as Positive/Negative/Neutral for each feedback",
+    context: "Columns: Customer, Feedback Text, Product",
+    workflow: {
+      steps: [
+        {
+          action: "classify",
+          description: "Rate sentiment for Performance, UX, Pricing, Features",
+          prompt: `Analyze this feedback and rate sentiment for EACH of these aspects:
+
+1. PERFORMANCE: Speed, reliability, uptime, responsiveness
+2. UX (User Experience): Ease of use, interface, design, navigation
+3. PRICING: Value for money, cost concerns, pricing model
+4. FEATURES: Functionality, capabilities, feature requests
+
+For each aspect, return:
+- POSITIVE: If feedback explicitly praises this aspect
+- NEGATIVE: If feedback explicitly criticizes this aspect  
+- NEUTRAL: If aspect not mentioned OR neutral comment
+
+Output exactly 4 values separated by " | ".
+
+Example: "Positive | Negative | Neutral | Positive"`,
+          outputFormat: "Performance | UX | Pricing | Features"
+        }
+      ],
+      summary: "Aspect-based sentiment analysis across 4 dimensions",
+      clarification: "I'll analyze each piece of feedback and rate sentiment for Performance, UX, Pricing, and Features separately."
+    }
   }
 ];
 
@@ -308,6 +342,9 @@ export function getRelevantBaseExamples(command: string, count: number = 3): Bas
     }
     if (lowerCommand.includes('summarize') || lowerCommand.includes('article') || lowerCommand.includes('content')) {
       if (exampleText.includes('summarize') || exampleText.includes('article')) score += 3;
+    }
+    if (lowerCommand.includes('sentiment') || lowerCommand.includes('aspect') || lowerCommand.includes('rate')) {
+      if (exampleText.includes('sentiment') || exampleText.includes('aspect')) score += 3;
     }
     
     // Check for action keywords
