@@ -496,7 +496,7 @@ Now generate suggestions for the context above. Output JSON only (no markdown):`
       const generateOptions: Parameters<typeof generateText>[0] = {
         model,
         prompt,
-        maxOutputTokens: 1000,  // Enough for detailed suggestions with full JSON structure
+        // No maxOutputTokens - let model generate complete JSON without truncation
       };
       
       // Add temperature for non-reasoning models (Claude, Gemini, Groq, regular GPT)
