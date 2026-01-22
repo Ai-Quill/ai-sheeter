@@ -68,7 +68,7 @@ export function buildFewShotPrompt(
   // Build the prompt with clear examples
   return `You are an expert workflow designer for spreadsheet data processing.
 
-TASK: Generate a workflow to accomplish the user's request.
+TASK: Generate a workflow to accomplish the user's request by following the pattern from similar examples above.
 IMPORTANT: Study the SAMPLE DATA carefully to understand what type of content you're processing.
 
 ${formatExamples(examples)}
@@ -85,21 +85,23 @@ ${contextStr}
 
 Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ') || 'G, H, I, J'}
 
-CRITICAL REQUIREMENTS:
-1. ANALYZE THE SAMPLE DATA to understand what type of content is in each column and what can be extracted or analyzed
+CRITICAL RULES - FOLLOW STRICTLY:
 
-2. Design the workflow to match the user's request as closely as possible:
-   - Each step should process the data logically
-   - Steps should flow naturally from one to the next if they depend on each other's output
-   - Use the SOURCE data columns in earlier steps
+1. MATCH THE PATTERN: If the user's request is similar to one of the examples above, use the SAME STRUCTURE (same number of steps, similar actions). Don't add extra steps.
 
-3. Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
+2. MULTI-ASPECT ANALYSIS: If the user asks to "rate" or "analyze" multiple specific aspects (Performance, UX, Pricing, etc.):
+   - Use ONE step, not multiple steps
+   - Action should be "classify"
+   - outputFormat should list all aspects separated by " | " (e.g., "Performance | UX | Pricing | Features")
+   - Each aspect will automatically get its own output column
 
-4. Each step must have: action, description (5-15 words), prompt (detailed instructions), outputFormat
+3. DON'T ADD UNNECESSARY STEPS: Only create the steps the user explicitly requested. Don't add cleaning, validation, or summarization unless specifically asked.
 
-5. Reference ACTUAL COLUMN NAMES in your prompts (e.g., "Based on the Sales Notes in column F...")
+4. Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
 
-6. For outputFormat with multiple aspects separated by "|" (e.g., "Performance | UX | Pricing"), each aspect gets its own output column
+5. Each step must have: action, description (5-15 words), prompt (detailed instructions), outputFormat
+
+6. Reference ACTUAL COLUMN NAMES in your prompts (e.g., "Based on the Feedback in column C...")
 
 Return ONLY valid JSON matching the example format above. No markdown, no explanation.`;
 }
@@ -129,14 +131,17 @@ function getExamples(
   if (baseExamples.length > 0) {
     console.log(`[PromptBuilder] Using ${baseExamples.length} base examples from database`);
     
+    // Rank examples by relevance to the command
+    const rankedExamples = rankExamplesByRelevance(command, baseExamples);
+    
     // Log which examples were selected
-    console.log('[PromptBuilder] Selected examples:', baseExamples.slice(0, 3).map(ex => ({
+    console.log('[PromptBuilder] Selected examples:', rankedExamples.slice(0, 3).map(ex => ({
       command: ex.command.substring(0, 50) + '...',
       stepCount: ex.workflow?.steps?.length,
       actions: ex.workflow?.steps?.map(s => s.action)
     })));
     
-    return baseExamples.slice(0, 3).map(ex => ({
+    return rankedExamples.slice(0, 3).map(ex => ({
       command: ex.command,
       workflow: ex.workflow as WorkflowExample['workflow'],
     }));
@@ -233,6 +238,63 @@ Adapt the workflow above to fit the new request. Keep the same structure but:
 3. Keep what works, change only what's necessary
 
 Return the adapted workflow as JSON.`;
+}
+
+/**
+ * Rank examples by relevance to the command
+ * Prioritizes examples with similar keywords and patterns
+ */
+function rankExamplesByRelevance(command: string, examples: StoredWorkflow[]): StoredWorkflow[] {
+  const commandLower = command.toLowerCase();
+  
+  return examples.map(ex => {
+    let score = 0;
+    const exCommandLower = ex.command.toLowerCase();
+    
+    // High priority: multi-aspect sentiment keywords
+    if (commandLower.includes('aspect') || commandLower.includes('rate')) {
+      if (exCommandLower.includes('aspect') || exCommandLower.includes('rate')) {
+        score += 100;
+      }
+    }
+    
+    // Domain matching
+    if (commandLower.includes('sentiment') || commandLower.includes('feedback')) {
+      if (exCommandLower.includes('sentiment') || exCommandLower.includes('feedback')) {
+        score += 50;
+      }
+    }
+    
+    if (commandLower.includes('sales') || commandLower.includes('pipeline')) {
+      if (exCommandLower.includes('sales') || exCommandLower.includes('pipeline')) {
+        score += 50;
+      }
+    }
+    
+    if (commandLower.includes('resume') || commandLower.includes('candidate')) {
+      if (exCommandLower.includes('resume') || exCommandLower.includes('candidate')) {
+        score += 50;
+      }
+    }
+    
+    // Pattern matching: number of steps
+    const commandWords = commandLower.split(/\s+/);
+    if (commandWords.includes('then') || commandWords.includes('and then')) {
+      // Multi-step workflow likely - prefer multi-step examples
+      if (ex.workflow?.steps && ex.workflow.steps.length > 1) {
+        score += 20;
+      }
+    } else {
+      // Single-step workflow likely - prefer single-step examples
+      if (ex.workflow?.steps && ex.workflow.steps.length === 1) {
+        score += 20;
+      }
+    }
+    
+    return { example: ex, score };
+  })
+  .sort((a, b) => b.score - a.score)
+  .map(item => item.example);
 }
 
 /**
