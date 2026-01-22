@@ -514,7 +514,9 @@ function parseAndValidate(
         order: idx + 1,
         action,
         description: step.description || `${action} data`,
-        prompt: step.prompt || `Process the data using ${action}`,
+        // CRITICAL: If LLM doesn't provide detailed prompt, use user's original command
+        // This ensures the actual user intent is passed to the worker, not a generic fallback
+        prompt: step.prompt || originalCommand,
         outputFormat: step.outputFormat || '',
         inputColumns: inputCols,
         outputColumn: outputCol,
