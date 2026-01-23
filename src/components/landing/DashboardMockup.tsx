@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Sparkles, RotateCw, FileSpreadsheet, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -99,8 +99,23 @@ const SCENARIOS = [
 export const DashboardMockup: React.FC = () => {
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [step, setStep] = useState(0);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const userCommandRef = useRef<HTMLDivElement>(null);
+  const planRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   
   const scenario = SCENARIOS[scenarioIndex];
+
+  // Auto-scroll to newly appearing elements
+  useEffect(() => {
+    if (step === 1 && userCommandRef.current) {
+      userCommandRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else if (step === 2 && planRef.current) {
+      planRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else if (step === 3 && gridRef.current) {
+      gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [step]);
 
   // Animation sequence that loops through scenarios
   useEffect(() => {
@@ -125,16 +140,16 @@ export const DashboardMockup: React.FC = () => {
   const currentData = step === 3 ? scenario.filledData : scenario.initialData;
 
   return (
-    <div className="w-full max-w-6xl mx-auto h-[450px] md:h-[650px] bg-white/70 backdrop-blur-xl border border-white/60 rounded-t-3xl shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col md:flex-row relative group">
+    <div className="w-full max-w-6xl mx-auto h-[500px] sm:h-[550px] md:h-[650px] bg-white/70 backdrop-blur-xl border border-white/60 rounded-t-3xl shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col lg:flex-row relative group">
         
         {/* Left Sidebar (Glassy) */}
-        <div className="w-full md:w-72 bg-white/40 border-r border-white/30 flex flex-col z-20 backdrop-blur-md">
-            <div className="p-6 border-b border-white/30 flex items-center justify-between">
-                <div className="flex items-center gap-3 text-[#023047]">
-                     <div className="w-8 h-8 bg-[#219EBB] rounded-lg flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
-                        <FileSpreadsheet size={18} />
+        <div className="w-full lg:w-72 bg-white/40 border-r lg:border-r border-b lg:border-b-0 border-white/30 flex flex-col z-20 backdrop-blur-md max-h-[200px] lg:max-h-none">
+            <div className="p-3 sm:p-4 lg:p-6 border-b border-white/30 flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 text-[#023047]">
+                     <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#219EBB] rounded-lg flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
+                        <FileSpreadsheet size={16} className="sm:w-[18px] sm:h-[18px]" />
                     </div>
-                    <span className="font-serif font-bold text-lg">AISheeter</span>
+                    <span className="font-serif font-bold text-base sm:text-lg">AISheeter</span>
                 </div>
                 {/* Scenario indicator */}
                 <div className="flex gap-1">
@@ -147,7 +162,7 @@ export const DashboardMockup: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 p-4 flex flex-col gap-3 overflow-hidden relative">
+            <div className="flex-1 p-4 flex flex-col gap-3 overflow-y-auto relative" ref={chatContainerRef}>
                 {/* Chat Interface */}
                 <div className="space-y-3 flex-1">
                     <AnimatePresence mode="wait">
@@ -165,6 +180,7 @@ export const DashboardMockup: React.FC = () => {
                     <AnimatePresence>
                         {step >= 1 && (
                             <motion.div 
+                                ref={userCommandRef}
                                 key={`user-${scenario.id}`}
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
@@ -183,6 +199,7 @@ export const DashboardMockup: React.FC = () => {
                     <AnimatePresence>
                         {step >= 2 && (
                              <motion.div 
+                                ref={planRef}
                                 key={`plan-${scenario.id}`}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -229,35 +246,35 @@ export const DashboardMockup: React.FC = () => {
         {/* Right Spreadsheet Grid */}
         <div className="flex-1 bg-white/30 backdrop-blur-sm flex flex-col relative overflow-hidden">
              {/* Header Toolbar */}
-             <div className="h-12 border-b border-white/30 flex items-center justify-between px-4 bg-white/20">
-                <div className="flex items-center gap-3">
+             <div className="h-10 sm:h-12 border-b border-white/30 flex items-center justify-between px-2 sm:px-4 bg-white/20">
+                <div className="flex items-center gap-2 sm:gap-3">
                     <AnimatePresence mode="wait">
                         <motion.h3 
                             key={scenario.sheetName}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="font-serif text-sm text-[#023047]"
+                            className="font-serif text-xs sm:text-sm text-[#023047] truncate max-w-[120px] sm:max-w-none"
                         >
                             {scenario.sheetName}
                         </motion.h3>
                     </AnimatePresence>
-                    <span className="px-2 py-0.5 bg-green-100/80 text-green-800 text-[9px] rounded-full font-bold border border-green-200/50">LIVE</span>
+                    <span className="px-1.5 sm:px-2 py-0.5 bg-green-100/80 text-green-800 text-[8px] sm:text-[9px] rounded-full font-bold border border-green-200/50">LIVE</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-400">
-                    <div className="text-[10px] text-gray-500 flex items-center gap-1">
-                        <span className="hidden md:inline">Using</span>
-                        <span className="font-mono text-[#219EBB] font-bold">Gemini Flash</span>
-                        <ChevronRight size={10} />
+                <div className="flex items-center gap-1 sm:gap-2 text-gray-400">
+                    <div className="text-[9px] sm:text-[10px] text-gray-500 flex items-center gap-0.5 sm:gap-1">
+                        <span className="hidden lg:inline">Using</span>
+                        <span className="font-mono text-[#219EBB] font-bold text-[8px] sm:text-[9px]">Gemini</span>
+                        <ChevronRight size={8} className="sm:w-[10px] sm:h-[10px]" />
                     </div>
-                    <div className="w-7 h-7 bg-white/40 rounded-full flex items-center justify-center border border-white/40">
-                        <Bot size={12}/>
+                    <div className="w-6 h-6 sm:w-7 sm:h-7 bg-white/40 rounded-full flex items-center justify-center border border-white/40">
+                        <Bot size={10} className="sm:w-3 sm:h-3"/>
                     </div>
                 </div>
              </div>
 
              {/* Grid */}
-             <div className="flex-1 overflow-auto p-3 md:p-4">
+             <div className="flex-1 overflow-auto p-3 md:p-4" ref={gridRef}>
                  <div className="bg-white/80 border border-white/60 shadow-sm rounded-lg overflow-hidden backdrop-blur-md">
                      {/* Grid Header */}
                      <div className="flex border-b border-gray-200/50 bg-gray-50/50">

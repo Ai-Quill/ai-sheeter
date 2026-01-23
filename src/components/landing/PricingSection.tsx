@@ -6,16 +6,16 @@ export const PricingSection: React.FC = () => {
   return (
     <section id="pricing" className="py-24 px-4 bg-[#F5F7FA]">
         <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
-                <h2 className="font-serif text-4xl text-[#023047] mb-4">Simple, transparent pricing</h2>
-                <p className="text-gray-500">Bring your own keys, pay only for the interface.</p>
+            <div className="text-center mb-12 md:mb-16 px-4">
+                <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#023047] mb-3 md:mb-4">Simple, transparent pricing</h2>
+                <p className="text-gray-500 text-sm sm:text-base">Bring your own keys, pay only for the interface.</p>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-8 justify-center items-stretch">
+            <div className="flex flex-col lg:flex-row gap-6 md:gap-8 justify-center items-stretch max-w-5xl mx-auto">
                 {/* Free Plan */}
                 <motion.div 
                     whileHover={{ y: -10 }}
-                    className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 w-full md:w-96 flex flex-col"
+                    className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 w-full lg:w-96 flex flex-col"
                 >
                     <div className="mb-8">
                         <span className="text-[#219EBB] font-bold text-sm tracking-widest uppercase">Starter</span>
@@ -49,7 +49,7 @@ export const PricingSection: React.FC = () => {
                 {/* Pro Plan */}
                 <motion.div 
                     whileHover={{ y: -10 }}
-                    className="bg-[#023047] p-8 rounded-3xl shadow-xl w-full md:w-96 flex flex-col relative overflow-hidden"
+                    className="bg-[#023047] p-6 sm:p-8 rounded-3xl shadow-xl w-full lg:w-96 flex flex-col relative overflow-hidden"
                 >
                     <div className="absolute top-0 right-0 p-4">
                         <span className="bg-[#FFB701] text-[#023047] text-xs font-bold px-3 py-1 rounded-full">RECOMMENDED</span>

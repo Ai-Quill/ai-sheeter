@@ -18,9 +18,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
   // Initial Animation Variants
   const containerVariants = {
     initial: { 
-        width: "120px", 
-        height: "160px", 
-        borderRadius: "80px 80px 0 0", // Arch shape
+        width: "100px", 
+        height: "140px", 
+        borderRadius: "70px 70px 0 0", // Arch shape
         y: 0 
     },
     animate: {
@@ -54,7 +54,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
   };
 
   return (
-    <div className="relative h-[140vh] md:h-[150vh] flex justify-center items-start overflow-hidden bg-white">
+    <div className="relative min-h-screen h-[130vh] sm:h-[140vh] md:h-[150vh] flex justify-center items-start overflow-hidden bg-white">
       
       {/* The expanding window/portal */}
       <motion.div
@@ -70,7 +70,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
             className="absolute inset-0 w-full h-[120%] -top-[10%]"
         >
              {/* Lighter Gradient Overlay - Reverted from dark overlay */}
-             <div className="absolute inset-0 bg-gradient-to-b from-[#8ECAE6]/30 via-transparent to-[#023047]/10 z-10" />
+             <div className="absolute inset-0 bg-linear-to-b from-[#8ECAE6]/30 via-transparent to-[#023047]/10 z-10" />
              
              {/* Original Scenic Background */}
              <img 
@@ -81,13 +81,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
         </motion.div>
 
         {/* Hero Content */}
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-start pt-32 md:pt-40 px-4 text-center">
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-start pt-32 md:pt-40 px-4 pb-64 md:pb-96 text-center pointer-events-none">
             <motion.div 
                 style={{ y: yText, opacity: opacityText }}
                 variants={contentVariants}
                 initial="hidden"
                 animate="visible"
-                className="max-w-5xl mx-auto"
+                className="max-w-5xl mx-auto pointer-events-auto"
             >
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/40 text-white font-medium text-xs mb-5 shadow-sm">
                     <span className="flex items-center gap-1">
@@ -98,34 +98,34 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
                     <span className="text-[#FFB701] font-bold">380k+ queries</span>
                 </div>
 
-                <h1 className="font-serif text-4xl md:text-6xl text-white drop-shadow-2xl mb-4 leading-[1.1] tracking-tight">
+                <h1 className="font-serif text-3xl sm:text-4xl md:text-6xl text-white drop-shadow-2xl mb-3 md:mb-4 leading-[1.1] tracking-tight px-4">
                     The AI that <span className="italic text-[#FFB701]">remembers</span> your spreadsheet.
                 </h1>
                 
-                <p className="text-white text-sm md:text-base max-w-md mx-auto font-light mb-4 drop-shadow-xl">
+                <p className="text-white text-sm md:text-base max-w-md mx-auto font-light mb-4 md:mb-6 drop-shadow-xl px-4">
                     Persistent context. Multi-step tasks. Finally gets your data.
                 </p>
 
-                <div className="flex flex-col md:flex-row gap-3 justify-center items-center mb-8">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center mb-6 md:mb-8 w-full max-w-md mx-auto px-4 sm:px-0">
                     <a 
                         href="https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-[#023047] text-white px-6 py-3 rounded-full hover:bg-[#023047]/90 transition-all shadow-xl font-semibold text-base flex items-center gap-2 hover:scale-105 active:scale-95 duration-200"
+                        className="bg-[#023047] text-white px-6 py-3.5 rounded-full hover:bg-[#023047]/90 transition-all shadow-xl font-semibold text-sm sm:text-base flex items-center justify-center gap-2 hover:scale-105 active:scale-95 duration-200 whitespace-nowrap"
                     >
                         <Zap size={18} className="text-[#FFB701]" />
                         Get Started Free
                     </a>
                     <a 
                         href="#demo"
-                        className="bg-white/20 backdrop-blur-md text-white border border-white/40 px-6 py-3 rounded-full hover:bg-white/30 transition-all shadow-xl font-medium text-base"
+                        className="bg-white/20 backdrop-blur-md text-white border border-white/40 px-6 py-3.5 rounded-full hover:bg-white/30 transition-all shadow-xl font-medium text-sm sm:text-base justify-center flex items-center whitespace-nowrap"
                     >
                         Watch Demo
                     </a>
                 </div>
 
                 {/* Social Proof */}
-                <div className="flex items-center justify-center gap-4 text-white/90 bg-black/30 backdrop-blur-md p-2.5 rounded-xl border border-white/20 inline-flex shadow-lg">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-white/90 bg-black/30 backdrop-blur-md p-2.5 rounded-xl border border-white/20 shadow-lg max-w-lg mx-auto">
                     {/* Open Source Badge */}
                     <a 
                         href="https://github.com/Ai-Quill/ai-sheeter" 
@@ -136,10 +136,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
                         <Github size={14} className="text-white group-hover:scale-110 transition-transform" />
                         <span className="text-[10px] font-semibold">Open Source</span>
                     </a>
-                    <div className="h-6 w-[1px] bg-white/30"></div>
+                    <div className="hidden sm:block h-6 w-px bg-white/30"></div>
                     <div className="flex -space-x-2">
                         {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="w-7 h-7 rounded-full border-2 border-white/50 overflow-hidden bg-gray-300">
+                            <div key={i} className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white/50 overflow-hidden bg-gray-300">
                                 <img src={`https://i.pravatar.cc/100?img=${i + 15}`} alt="User" />
                             </div>
                         ))}
@@ -154,7 +154,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
                         </div>
                         <p className="text-[10px] font-medium"><span className="font-bold">400+</span> Users</p>
                     </div>
-                    <div className="h-6 w-[1px] bg-white/30"></div>
+                    <div className="hidden sm:block h-6 w-px bg-white/30"></div>
                     <div className="text-left">
                          <p className="text-sm font-bold leading-none">380k+</p>
                          <p className="text-[8px] opacity-80 uppercase tracking-wider">Tasks Done</p>

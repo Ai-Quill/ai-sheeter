@@ -140,10 +140,10 @@ export const CompetitorComparison: React.FC = () => {
           >
             Competitive Edge
           </motion.span>
-          <h2 className="font-serif text-4xl md:text-5xl text-[#023047] mb-6 tracking-tight">
+          <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-[#023047] mb-4 md:mb-6 tracking-tight px-4">
             Why choose <span className="italic gradient-text">AISheeter</span>?
           </h2>
-          <p className="text-gray-500 max-w-2xl mx-auto text-lg leading-relaxed">
+          <p className="text-gray-500 max-w-2xl mx-auto text-sm sm:text-base md:text-lg leading-relaxed px-4">
             The only Google Sheets AI with intelligent agent capabilities. 
             See how we compare to alternatives.
           </p>
@@ -154,19 +154,19 @@ export const CompetitorComparison: React.FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="overflow-x-auto bg-white rounded-3xl shadow-xl shadow-gray-200/50 border-2 border-gray-100 p-1"
+          className="overflow-x-auto bg-white rounded-2xl md:rounded-3xl shadow-xl shadow-gray-200/50 border-2 border-gray-100 p-0.5 md:p-1"
         >
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse min-w-[640px]">
             <thead>
               <tr className="bg-gradient-to-r from-gray-50 to-white">
-                <th className="text-left py-5 px-6 font-semibold text-gray-500 w-1/3 text-sm uppercase tracking-wider">Feature</th>
-                <th className="text-center py-5 px-4 min-w-[120px]">
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="font-bold text-[#023047] text-lg">AISheeter</span>
-                    <span className="text-xs bg-gradient-to-r from-[#FC8500] to-[#FFB701] text-white px-3 py-0.5 rounded-full font-semibold">You&apos;re here</span>
+                <th className="text-left py-3 sm:py-4 md:py-5 px-3 sm:px-4 md:px-6 font-semibold text-gray-500 w-1/3 text-[10px] sm:text-xs md:text-sm uppercase tracking-wider">Feature</th>
+                <th className="text-center py-3 sm:py-4 md:py-5 px-2 sm:px-3 md:px-4 min-w-[100px] sm:min-w-[120px]">
+                  <div className="flex flex-col items-center gap-0.5 sm:gap-1">
+                    <span className="font-bold text-[#023047] text-sm sm:text-base md:text-lg">AISheeter</span>
+                    <span className="text-[9px] sm:text-[10px] md:text-xs bg-gradient-to-r from-[#FC8500] to-[#FFB701] text-white px-2 sm:px-3 py-0.5 rounded-full font-semibold">You&apos;re here</span>
                   </div>
                 </th>
-                <th className="text-center py-5 px-4 min-w-[120px]">
+                <th className="text-center py-3 sm:py-4 md:py-5 px-2 sm:px-3 md:px-4 min-w-[100px] sm:min-w-[120px]">
                   <div className="flex flex-col items-center gap-1">
                     <span className="font-medium text-gray-600">Google Gemini</span>
                     <span className="text-xs text-gray-400">Native</span>

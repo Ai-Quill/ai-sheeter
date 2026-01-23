@@ -36,9 +36,9 @@ export const Testimonials: React.FC = () => {
                 <h2 className="font-serif text-3xl md:text-4xl text-[#023047]">Loved by data pros</h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                 {TESTIMONIALS.map((t, i) => (
-                    <div key={i} className="p-8 bg-[#FAFAFA] rounded-2xl border border-gray-100 hover:shadow-lg transition-shadow duration-300 flex flex-col">
+                    <div key={i} className="p-6 md:p-8 bg-[#FAFAFA] rounded-2xl border border-gray-100 hover:shadow-lg transition-shadow duration-300 flex flex-col">
                         {/* Use case tag */}
                         <div className="mb-4">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-[#219EBB] bg-[#219EBB]/10 px-2 py-1 rounded-full">

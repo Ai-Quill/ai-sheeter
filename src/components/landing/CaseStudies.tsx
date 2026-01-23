@@ -84,7 +84,7 @@ export const CaseStudies: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-5xl md:text-6xl font-serif text-[#023047] mb-6"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif text-[#023047] mb-4 sm:mb-6 px-4"
           >
             See How Teams Use AISheet
           </motion.h2>
@@ -107,11 +107,11 @@ export const CaseStudies: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="grid md:grid-cols-2 gap-12 items-start"
+            className="grid lg:grid-cols-2 gap-8 md:gap-12 items-start px-4"
           >
             
             {/* Left: Story */}
-            <div className="space-y-8">
+            <div className="space-y-6 md:space-y-8">
               
               {/* Industry Tag */}
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#219EBB]/10 text-[#219EBB] rounded-full text-sm font-semibold">
@@ -120,7 +120,7 @@ export const CaseStudies: React.FC = () => {
               </div>
 
               {/* Title */}
-              <h3 className="text-3xl md:text-4xl font-serif text-[#023047] leading-tight">
+              <h3 className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#023047] leading-tight">
                 {activeStudy.title}
               </h3>
 
@@ -164,7 +164,7 @@ export const CaseStudies: React.FC = () => {
                     transition={{ delay: idx * 0.1 }}
                     className="flex gap-4 p-4 bg-white rounded-xl border border-gray-100 hover:border-[#219EBB] transition-colors"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-[#219EBB]/10 flex items-center justify-center text-[#219EBB] flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-[#219EBB]/10 flex items-center justify-center text-[#219EBB] shrink-0">
                       {feature.icon}
                     </div>
                     <div>
@@ -176,7 +176,7 @@ export const CaseStudies: React.FC = () => {
               </div>
 
               {/* Quote */}
-              <div className="p-6 bg-gradient-to-br from-[#023047] to-[#219EBB] text-white rounded-2xl relative overflow-hidden">
+              <div className="p-6 bg-linear-to-br from-[#023047] to-[#219EBB] text-white rounded-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 text-[200px] font-serif opacity-10">"</div>
                 <p className="text-lg leading-relaxed mb-4 relative z-10">
                   {activeStudy.quote.text}
@@ -206,7 +206,7 @@ export const CaseStudies: React.FC = () => {
                     whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: idx * 0.1 }}
-                    className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-200 hover:shadow-lg transition-shadow"
+                    className="p-6 bg-linear-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-200 hover:shadow-lg transition-shadow"
                   >
                     <div className="text-4xl font-bold text-green-700 mb-2">{result.metric}</div>
                     <div className="font-semibold text-green-900 mb-1">{result.label}</div>
@@ -231,7 +231,7 @@ export const CaseStudies: React.FC = () => {
                       transition={{ delay: idx * 0.1 }}
                       className="flex gap-4"
                     >
-                      <div className="w-8 h-8 rounded-full bg-[#FFB701] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-[#FFB701] text-white flex items-center justify-center font-bold text-sm shrink-0">
                         {step.step}
                       </div>
                       <div className="flex-1">

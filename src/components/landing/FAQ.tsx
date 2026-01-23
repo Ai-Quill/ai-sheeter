@@ -33,12 +33,12 @@ export const FAQ: React.FC = () => {
   return (
     <section className="py-24 px-4 bg-white border-t border-gray-100">
       <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="font-serif text-3xl md:text-4xl text-[#023047] mb-4">Frequently Asked Questions</h2>
-          <p className="text-gray-500">Everything you need to know about AISheeter.</p>
+        <div className="text-center mb-12 md:mb-16 px-4">
+          <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl text-[#023047] mb-3 md:mb-4">Frequently Asked Questions</h2>
+          <p className="text-gray-500 text-sm sm:text-base">Everything you need to know about AISheeter.</p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {faqs.map((faq, index) => (
             <div 
               key={index} 
@@ -46,9 +46,9 @@ export const FAQ: React.FC = () => {
             >
               <button
                 onClick={() => setActiveIndex(activeIndex === index ? null : index)}
-                className="w-full px-6 py-5 flex items-center justify-between text-left focus:outline-none"
+                className="w-full px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between gap-4 text-left focus:outline-none"
               >
-                <span className="font-semibold text-[#023047]">{faq.question}</span>
+                <span className="font-semibold text-sm sm:text-base text-[#023047]">{faq.question}</span>
                 <motion.div
                   animate={{ rotate: activeIndex === index ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
@@ -65,7 +65,7 @@ export const FAQ: React.FC = () => {
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                   >
-                    <div className="px-6 pb-6 text-gray-600 text-sm leading-relaxed">
+                    <div className="px-4 sm:px-6 pb-4 sm:pb-6 text-gray-600 text-sm leading-relaxed">
                       {faq.answer}
                     </div>
                   </motion.div>
