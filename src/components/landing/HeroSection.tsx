@@ -54,7 +54,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
   };
 
   return (
-    <div className="relative min-h-screen h-[130vh] sm:h-[140vh] md:h-[150vh] flex justify-center items-start overflow-hidden bg-white">
+    <div className="relative h-[140vh] sm:h-[145vh] md:h-[150vh] flex justify-center items-start overflow-hidden bg-white">
       
       {/* The expanding window/portal */}
       <motion.div
@@ -81,51 +81,57 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
         </motion.div>
 
         {/* Hero Content */}
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-start pt-32 md:pt-40 px-4 pb-64 md:pb-96 text-center pointer-events-none">
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center px-4 text-center pointer-events-none">
             <motion.div 
                 style={{ y: yText, opacity: opacityText }}
                 variants={contentVariants}
                 initial="hidden"
                 animate="visible"
-                className="max-w-5xl mx-auto pointer-events-auto"
+                className="max-w-5xl mx-auto pointer-events-auto -mt-32 md:-mt-40"
             >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md border border-white/40 text-white font-medium text-xs mb-5 shadow-sm">
-                    <span className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                        GPT-4 • Claude • Gemini • Groq
+                <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 3.2, duration: 0.6 }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-lg border border-white/20 text-white font-medium text-xs mb-6 shadow-lg"
+                >
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.5)]"></span>
+                        <span className="text-white/80">GPT-4 • Claude • Gemini • Groq</span>
                     </span>
-                    <span className="w-px h-3 bg-white/30"></span>
+                    <span className="w-px h-4 bg-white/20"></span>
                     <span className="text-[#FFB701] font-bold">380k+ queries</span>
-                </div>
+                </motion.div>
 
-                <h1 className="font-serif text-3xl sm:text-4xl md:text-6xl text-white drop-shadow-2xl mb-3 md:mb-4 leading-[1.1] tracking-tight px-4">
-                    The AI that <span className="italic text-[#FFB701]">remembers</span> your spreadsheet.
+                <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl text-white drop-shadow-2xl mb-4 md:mb-6 leading-[1.1] tracking-tight px-4">
+                    The AI that <span className="italic text-[#FFB701] drop-shadow-[0_0_30px_rgba(255,183,1,0.3)]">remembers</span> your spreadsheet.
                 </h1>
                 
-                <p className="text-white text-sm md:text-base max-w-md mx-auto font-light mb-4 md:mb-6 drop-shadow-xl px-4">
+                <p className="text-white/90 text-base md:text-lg max-w-2xl mx-auto font-light mb-6 md:mb-8 drop-shadow-xl px-4 leading-relaxed">
                     Persistent context. Multi-step tasks. Finally gets your data.
                 </p>
 
-                <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center mb-6 md:mb-8 w-full max-w-md mx-auto px-4 sm:px-0">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center mb-8 md:mb-12 w-full max-w-md mx-auto px-4 sm:px-0">
                     <a 
                         href="https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="bg-[#023047] text-white px-6 py-3.5 rounded-full hover:bg-[#023047]/90 transition-all shadow-xl font-semibold text-sm sm:text-base flex items-center justify-center gap-2 hover:scale-105 active:scale-95 duration-200 whitespace-nowrap"
+                        className="group relative bg-white text-[#023047] px-8 py-4 rounded-full hover:bg-white/95 transition-all shadow-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-2 hover:scale-105 active:scale-95 duration-200 whitespace-nowrap overflow-hidden"
                     >
-                        <Zap size={18} className="text-[#FFB701]" />
-                        Get Started Free
+                        <div className="absolute inset-0 bg-linear-to-r from-[#FFB701]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Zap size={20} className="text-[#FFB701] relative z-10" />
+                        <span className="relative z-10">Get Started Free</span>
                     </a>
                     <a 
                         href="#demo"
-                        className="bg-white/20 backdrop-blur-md text-white border border-white/40 px-6 py-3.5 rounded-full hover:bg-white/30 transition-all shadow-xl font-medium text-sm sm:text-base justify-center flex items-center whitespace-nowrap"
+                        className="bg-white/10 backdrop-blur-md text-white border-2 border-white/30 px-8 py-4 rounded-full hover:bg-white/20 hover:border-white/50 transition-all shadow-xl font-semibold text-sm sm:text-base justify-center flex items-center whitespace-nowrap"
                     >
                         Watch Demo
                     </a>
                 </div>
 
                 {/* Social Proof */}
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-white/90 bg-black/30 backdrop-blur-md p-2.5 rounded-xl border border-white/20 shadow-lg max-w-lg mx-auto">
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-white/90 bg-black/30 backdrop-blur-md p-2.5 rounded-xl border border-white/20 shadow-lg max-w-lg mx-auto mb-12 md:mb-20">
                     {/* Open Source Badge */}
                     <a 
                         href="https://github.com/Ai-Quill/ai-sheeter" 
@@ -160,17 +166,43 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
                          <p className="text-[8px] opacity-80 uppercase tracking-wider">Tasks Done</p>
                     </div>
                 </div>
+
+                {/* Scroll Indicator */}
+                <motion.div 
+                    className="flex flex-col items-center gap-2 text-white/60"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 3.5, duration: 0.8 }}
+                >
+                    <span className="text-xs font-medium uppercase tracking-wider">See it in action</span>
+                    <motion.div
+                        animate={{ y: [0, 8, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        className="w-6 h-10 border-2 border-white/30 rounded-full flex items-start justify-center p-1.5"
+                    >
+                        <motion.div 
+                            className="w-1.5 h-1.5 bg-white/60 rounded-full"
+                            animate={{ y: [0, 16, 0] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        />
+                    </motion.div>
+                </motion.div>
             </motion.div>
         </div>
 
-        {/* Floating Dashboard Interface */}
+        {/* Floating Dashboard Interface - Positioned below hero content */}
         <motion.div 
-            className="absolute bottom-0 left-0 right-0 z-30 px-2 md:px-8 flex justify-center translate-y-20 md:translate-y-24"
+            className="absolute bottom-0 left-0 right-0 z-20 px-2 md:px-8 flex justify-center"
             variants={dashboardVariants}
             initial="hidden"
             animate="visible"
+            style={{ transform: 'translateY(45%)' }}
         >
-            <DashboardMockup />
+            <div className="relative">
+                {/* Glow effect behind demo */}
+                <div className="absolute inset-0 bg-linear-to-t from-[#219EBB]/20 to-transparent blur-3xl scale-110 -z-10" />
+                <DashboardMockup />
+            </div>
         </motion.div>
       </motion.div>
 
