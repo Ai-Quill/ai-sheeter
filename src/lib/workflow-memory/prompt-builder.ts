@@ -113,7 +113,7 @@ CRITICAL RULES - FOLLOW STRICTLY:
    - Add spacing between sections
    
    Example chatResponse format:
-   ```markdown
+   
    ## Top 3 Priorities by Segment
    
    ### Enterprise Customers
@@ -123,7 +123,6 @@ CRITICAL RULES - FOLLOW STRICTLY:
    ## Main Churn Risks
    - 🚨 **High Priority**: Missing Okta SSO blocks $30K purchase
    - ⚠️ **Medium**: Free tier too limited (100 rows → need 1000)
-   ```
 
 3. FOR COLUMNS MODE (outputMode: "columns"):
    - ALWAYS RETURN AT LEAST 1 STEP: Even for simple tasks, return a workflow with 1 step
