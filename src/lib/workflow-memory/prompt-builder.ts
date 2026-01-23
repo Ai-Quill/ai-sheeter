@@ -87,21 +87,25 @@ Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ')}
 
 CRITICAL RULES - FOLLOW STRICTLY:
 
-1. MATCH THE PATTERN: If the user's request is similar to one of the examples above, use the SAME STRUCTURE (same number of steps, similar actions). Don't add extra steps.
+1. ALWAYS RETURN AT LEAST 1 STEP: Even for simple single-task commands, return a workflow with 1 step. The step tells the system which columns to read from and write to.
 
-2. MULTI-ASPECT ANALYSIS: If the user asks to "rate" or "analyze" multiple specific aspects (Performance, UX, Pricing, etc.):
+2. MATCH THE PATTERN: If the user's request is similar to one of the examples above, use the SAME STRUCTURE (same number of steps, similar actions). Don't add extra steps.
+
+3. MULTI-ASPECT ANALYSIS: If the user asks to "rate" or "analyze" multiple specific aspects (Performance, UX, Pricing, etc.):
    - Use ONE step, not multiple steps
    - Action should be "classify"
    - outputFormat should list all aspects separated by " | " (e.g., "Performance | UX | Pricing | Features")
    - Each aspect will automatically get its own output column
 
-3. DON'T ADD UNNECESSARY STEPS: Only create the steps the user explicitly requested. Don't add cleaning, validation, or summarization unless specifically asked.
+4. DON'T ADD UNNECESSARY STEPS: Only create the steps the user explicitly requested. Don't add cleaning, validation, or summarization unless specifically asked.
 
-4. Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
+5. Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
 
-5. Each step must have: action, description (5-15 words), prompt (detailed instructions), outputFormat
+6. Each step must have: action, description (5-15 words), prompt (detailed instructions), outputFormat
 
-6. Reference ACTUAL COLUMN NAMES in your prompts (e.g., "Based on the Feedback in column C...")
+7. SMART COLUMN SELECTION: Look at the SAMPLE DATA and HEADERS to determine which columns contain the relevant information. For example:
+   - If asked to extract from "feedback", look for a column with header "Feedback" or sample data that looks like feedback text
+   - Don't just use the first column - read the data context carefully!
 
 Return ONLY valid JSON matching the example format above. No markdown, no explanation.`;
 }

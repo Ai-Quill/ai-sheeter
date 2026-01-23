@@ -175,7 +175,15 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Has sampleData:', !!context?.sampleData);
     console.log('[parse-chain] Has headers:', Array.isArray(context?.headers) ? context.headers.length : !!context?.headerRow);
     
-    // 1. Extract data context
+    // 1. Extract explicit output column from command (e.g., "to column H")
+    let explicitOutputColumn: string | null = null;
+    const outputColMatch = command.match(/(?:to|in|into)\s+column\s+([A-Z])\b/i);
+    if (outputColMatch) {
+      explicitOutputColumn = outputColMatch[1].toUpperCase();
+      console.log('[parse-chain] Detected explicit output column:', explicitOutputColumn);
+    }
+    
+    // 2. Extract data context
     const dataContext = extractDataContext(context);
     console.log('[parse-chain] Data columns:', dataContext.dataColumns.join(', '));
     console.log('[parse-chain] Data range:', dataContext.dataRange || 'MISSING!');
@@ -230,7 +238,7 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] AI raw response (first 500 chars):', text.substring(0, 500));
 
     // 6. Parse and validate (lightly!)
-    const chain = parseAndValidate(text, dataContext, command, embedding);
+    const chain = parseAndValidate(text, dataContext, command, embedding, explicitOutputColumn);
     
     // Debug: Log what we're returning - including per-step column assignments
     console.log('[parse-chain] Returning steps:', chain.steps.map(s => ({ 
@@ -429,7 +437,8 @@ function parseAndValidate(
   text: string,
   dataContext: ExtendedDataContext,
   originalCommand: string,
-  embedding: number[] | null
+  embedding: number[] | null,
+  explicitOutputColumn: string | null = null
 ): TaskChain {
   try {
     // Extract JSON from response
@@ -466,7 +475,22 @@ function parseAndValidate(
       
       // For multi-aspect steps, assign multiple output columns
       let outputCol: string;
-      if (isMultiAspect) {
+      
+      // CRITICAL: If user specified explicit output column (e.g., "to column H"), use it!
+      if (explicitOutputColumn && idx === 0) {
+        // First step and user specified output column - use their column
+        outputCol = explicitOutputColumn;
+        console.log(`[parse-chain] Step ${idx + 1} using EXPLICIT output column: ${outputCol}`);
+        
+        if (isMultiAspect) {
+          // Multi-aspect starting at explicit column
+          const endCol = columnNumberToLetter(columnLetterToNumber(outputCol) + aspects.length - 1);
+          console.log(`[parse-chain] Multi-aspect from explicit column ${outputCol} through ${endCol}`);
+          usedOutputColumns += aspects.length;
+        } else {
+          usedOutputColumns++;
+        }
+      } else if (isMultiAspect) {
         // This step needs multiple columns - use the next N empty columns
         outputCol = dataContext.emptyColumns[usedOutputColumns];
         if (!outputCol) {
