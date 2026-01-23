@@ -476,20 +476,16 @@ function parseAndValidate(
       // For multi-aspect steps, assign multiple output columns
       let outputCol: string;
       
-      // CRITICAL: If user specified explicit output column (e.g., "to column H"), use it!
+      // CRITICAL: If user specified explicit output column (e.g., "to column I"), use ONLY that column!
+      // Do NOT expand to multiple columns - user wants everything in the single specified column
       if (explicitOutputColumn && idx === 0) {
         // First step and user specified output column - use their column
         outputCol = explicitOutputColumn;
-        console.log(`[parse-chain] Step ${idx + 1} using EXPLICIT output column: ${outputCol}`);
+        console.log(`[parse-chain] Step ${idx + 1} using EXPLICIT output column: ${outputCol} (will NOT expand multi-aspect)`);
         
-        if (isMultiAspect) {
-          // Multi-aspect starting at explicit column
-          const endCol = columnNumberToLetter(columnLetterToNumber(outputCol) + aspects.length - 1);
-          console.log(`[parse-chain] Multi-aspect from explicit column ${outputCol} through ${endCol}`);
-          usedOutputColumns += aspects.length;
-        } else {
-          usedOutputColumns++;
-        }
+        // CRITICAL: Even if multi-aspect format detected, use SINGLE column when explicitly specified
+        // The AI will combine all aspects into one cell (e.g., "Competitors: X | Reason: Y")
+        usedOutputColumns++;
       } else if (isMultiAspect) {
         // This step needs multiple columns - use the next N empty columns
         outputCol = dataContext.emptyColumns[usedOutputColumns];
@@ -580,7 +576,9 @@ function parseAndValidate(
       inputRange: finalInputRange,
       inputColumn: finalInputColumn,
       inputColumns: finalInputColumns.join(','),
-      rowCount: dataContext.rowCount
+      rowCount: dataContext.rowCount,
+      startRow: dataContext.startRow,
+      endRow: dataContext.endRow
     });
     
     return {
