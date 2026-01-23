@@ -110,7 +110,7 @@ export const DashboardMockup: React.FC = () => {
   useEffect(() => {
     if (!chatContainerRef.current) return;
     
-    const scrollToElement = (ref: React.RefObject<HTMLDivElement>) => {
+    const scrollToElement = (ref: React.RefObject<HTMLDivElement | null>) => {
       if (ref.current && chatContainerRef.current) {
         const container = chatContainerRef.current;
         const element = ref.current;
