@@ -101,8 +101,29 @@ CRITICAL RULES - FOLLOW STRICTLY:
 2. FOR CHAT MODE (outputMode: "chat"):
    - Set steps: [] (empty array)
    - Set isMultiStep: false
-   - Set chatResponse: [your actual answer analyzing the data]
+   - Set chatResponse: [your actual answer in MARKDOWN format]
    - Set summary: Brief description of what you're doing
+   
+   CRITICAL: Format chatResponse as MARKDOWN with clear structure:
+   - Use ## for main sections (e.g., "## Top 3 Priorities by Segment")
+   - Use ### for subsections (e.g., "### Enterprise Customers")
+   - Use **bold** for emphasis
+   - Use bullet lists (- or 1.) for items
+   - Use tables for structured data
+   - Add spacing between sections
+   
+   Example chatResponse format:
+   ```markdown
+   ## Top 3 Priorities by Segment
+   
+   ### Enterprise Customers
+   1. **Dashboard Performance** - Multiple customers report 10+ second load times
+   2. **Better Documentation** - Onboarding taking 3+ weeks
+   
+   ## Main Churn Risks
+   - 🚨 **High Priority**: Missing Okta SSO blocks $30K purchase
+   - ⚠️ **Medium**: Free tier too limited (100 rows → need 1000)
+   ```
 
 3. FOR COLUMNS MODE (outputMode: "columns"):
    - ALWAYS RETURN AT LEAST 1 STEP: Even for simple tasks, return a workflow with 1 step
