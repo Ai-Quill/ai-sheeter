@@ -121,6 +121,10 @@ interface TaskChain {
   clarification: string;
   estimatedTime?: string;
   
+  // CRITICAL: Output mode determines execution path
+  outputMode?: 'chat' | 'columns';  // 'chat' = display in chat, 'columns' = write to spreadsheet
+  chatResponse?: string;             // If outputMode='chat', this contains the actual answer
+  
   // Chain-level input configuration (for frontend executeTaskChain)
   inputRange?: string;           // A1 notation like "C8:F15"
   inputColumn?: string;          // First data column

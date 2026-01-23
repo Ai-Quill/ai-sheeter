@@ -87,27 +87,70 @@ Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ')}
 
 CRITICAL RULES - FOLLOW STRICTLY:
 
-1. ALWAYS RETURN AT LEAST 1 STEP: Even for simple single-task commands, return a workflow with 1 step. The step tells the system which columns to read from and write to.
+1. DETECT OUTPUT MODE FIRST:
+   - If user asks a QUESTION about data (e.g., "What are...", "Which...", "Create summary", "Show me...") WITHOUT saying "to column X":
+     → Set outputMode: "chat" and provide the answer directly
+   - If user wants to TRANSFORM data row-by-row (e.g., "Extract X to column Y", "Classify each row"):
+     → Set outputMode: "columns" and create workflow steps
+   
+   Examples:
+   - "Create an executive summary" → outputMode: "chat" (answering a question)
+   - "What are the top 3 issues?" → outputMode: "chat" (answering a question)
+   - "Extract competitors to column I" → outputMode: "columns" (transforming data)
 
-2. MATCH THE PATTERN: If the user's request is similar to one of the examples above, use the SAME STRUCTURE (same number of steps, similar actions). Don't add extra steps.
+2. FOR CHAT MODE (outputMode: "chat"):
+   - Set steps: [] (empty array)
+   - Set isMultiStep: false
+   - Set chatResponse: [your actual answer analyzing the data]
+   - Set summary: Brief description of what you're doing
 
-3. MULTI-ASPECT ANALYSIS: If the user asks to "rate" or "analyze" multiple specific aspects (Performance, UX, Pricing, etc.):
+3. FOR COLUMNS MODE (outputMode: "columns"):
+   - ALWAYS RETURN AT LEAST 1 STEP: Even for simple tasks, return a workflow with 1 step
+   - Set outputMode: "columns"
+   - Follow all rules below for step creation
+
+4. MATCH THE PATTERN: If the user's request is similar to one of the examples above, use the SAME STRUCTURE (same number of steps, similar actions). Don't add extra steps.
+
+5. MULTI-ASPECT ANALYSIS: If the user asks to "rate" or "analyze" multiple specific aspects (Performance, UX, Pricing, etc.):
    - Use ONE step, not multiple steps
    - Action should be "classify"
    - outputFormat should list all aspects separated by " | " (e.g., "Performance | UX | Pricing | Features")
    - Each aspect will automatically get its own output column
 
-4. DON'T ADD UNNECESSARY STEPS: Only create the steps the user explicitly requested. Don't add cleaning, validation, or summarization unless specifically asked.
+6. DON'T ADD UNNECESSARY STEPS: Only create the steps the user explicitly requested. Don't add cleaning, validation, or summarization unless specifically asked.
 
-5. Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
+7. Use ONLY these actions: extract, analyze, classify, generate, summarize, score, clean, validate, translate, rewrite
 
-6. Each step must have: action, description (5-15 words), prompt (detailed instructions), outputFormat
+8. Each step must have: action, description (5-15 words), prompt (detailed instructions), outputFormat
 
-7. SMART COLUMN SELECTION: Look at the SAMPLE DATA and HEADERS to determine which columns contain the relevant information. For example:
+9. SMART COLUMN SELECTION: Look at the SAMPLE DATA and HEADERS to determine which columns contain the relevant information. For example:
    - If asked to extract from "feedback", look for a column with header "Feedback" or sample data that looks like feedback text
    - Don't just use the first column - read the data context carefully!
 
-Return ONLY valid JSON matching the example format above. No markdown, no explanation.`;
+RESPONSE FORMAT:
+
+For CHAT mode (user asking question):
+{
+  "outputMode": "chat",
+  "isMultiStep": false,
+  "isCommand": true,
+  "steps": [],
+  "summary": "Analyzing feedback to answer your question",
+  "clarification": "I analyzed all feedback rows and identified...",
+  "chatResponse": "[Your detailed answer here - analyze the actual data and provide insights]"
+}
+
+For COLUMNS mode (user transforming data):
+{
+  "outputMode": "columns",
+  "isMultiStep": false,
+  "isCommand": true,
+  "steps": [/* workflow steps */],
+  "summary": "Extract competitors to column I",
+  "clarification": "I'll scan each row and extract..."
+}
+
+Return ONLY valid JSON matching the format above. No markdown, no explanation.`;
 }
 
 // ============================================
