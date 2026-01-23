@@ -10,26 +10,19 @@ interface HeroSectionProps {
 export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete }) => {
   const { scrollY } = useScroll();
   
-  // Parallax for the background image
-  const yBackground = useTransform(scrollY, [0, 1000], [0, 300]);
-  const yText = useTransform(scrollY, [0, 500], [0, 250]); 
-  const opacityText = useTransform(scrollY, [0, 300], [1, 0]);
+  // Subtle parallax for background only
+  const yBackground = useTransform(scrollY, [0, 1000], [0, 150]);
 
   // Initial Animation Variants
   const containerVariants = {
     initial: { 
-        width: "100px", 
-        height: "140px", 
-        borderRadius: "70px 70px 0 0", // Arch shape
-        y: 0 
+      opacity: 0
     },
     animate: {
-      width: "100%",
-      height: "125vh", 
-      borderRadius: "0px",
+      opacity: 1,
       transition: {
-        duration: 1.8,
-        ease: [0.22, 1, 0.36, 1] as const,
+        duration: 1,
+        ease: "easeOut",
         delay: 0.3
       }
     }
@@ -40,95 +33,109 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
     visible: { 
         opacity: 1, 
         y: 0,
-        transition: { delay: 2, duration: 0.8 } 
+        transition: { delay: 1.5, duration: 0.6 } 
     }
   };
 
   const dashboardVariants = {
-    hidden: { y: 100, opacity: 0 },
+    hidden: { y: 60, opacity: 0 },
     visible: {
         y: 0,
         opacity: 1,
-        transition: { delay: 2.3, duration: 1, type: "spring" as const, stiffness: 50 }
+        transition: { delay: 1.8, duration: 0.8, ease: "easeOut" }
     }
   };
 
   return (
-    <div className="relative h-[120vh] sm:h-[130vh] md:h-[140vh] flex justify-center items-start overflow-hidden bg-white">
+    <div className="relative min-h-screen overflow-hidden">
       
-      {/* The expanding window/portal */}
+      {/* Full Screen Background */}
       <motion.div
-        className="relative overflow-hidden z-0 shadow-2xl origin-center"
+        className="absolute inset-0 z-0"
         initial="initial"
         animate="animate"
         variants={containerVariants}
         onAnimationComplete={onAnimationComplete}
       >
-        {/* Background Image Layer */}
         <motion.div 
             style={{ y: yBackground }}
             className="absolute inset-0 w-full h-[120%] -top-[10%]"
         >
-             {/* Lighter Gradient Overlay - Reverted from dark overlay */}
-             <div className="absolute inset-0 bg-linear-to-b from-[#8ECAE6]/30 via-transparent to-[#023047]/10 z-10" />
+             {/* Light Gradient Overlay */}
+             <div className="absolute inset-0 bg-linear-to-b from-[#8ECAE6]/20 via-transparent to-transparent z-10" />
              
-             {/* Original Scenic Background */}
+             {/* Scenic Background */}
              <img 
                 src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2832&auto=format&fit=crop" 
                 alt="Green hills and blue sky" 
                 className="w-full h-full object-cover"
              />
         </motion.div>
+      </motion.div>
 
-        {/* Hero Content - Clean & Minimal */}
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center px-4 text-center pointer-events-none">
+      {/* Content Layer */}
+      <div className="relative z-20 min-h-screen flex flex-col">
+        
+        {/* Hero Content - Top Section */}
+        <div className="flex-1 flex flex-col items-center justify-center px-4 pt-32 pb-20 text-center">
             <motion.div 
-                style={{ y: yText, opacity: opacityText }}
                 variants={contentVariants}
                 initial="hidden"
                 animate="visible"
-                className="max-w-4xl mx-auto pointer-events-auto -mt-20 md:-mt-32"
+                className="max-w-4xl mx-auto"
             >
-                {/* Headline - The Star */}
-                <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-white drop-shadow-2xl mb-6 md:mb-8 leading-[1.05] tracking-tight">
+                {/* Smaller Headline */}
+                <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl text-white drop-shadow-2xl mb-6 leading-tight tracking-tight">
                     The AI that <span className="italic text-[#FFB701] drop-shadow-[0_0_40px_rgba(255,183,1,0.4)]">remembers</span><br />your spreadsheet.
                 </h1>
                 
-                {/* Single CTA - Clean & Bold */}
+                {/* CTA Button */}
                 <a 
                     href="https://workspace.google.com/marketplace/app/aisheeter_smarter_google_sheets_with_any/272111525853"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-3 bg-white text-[#023047] px-10 py-5 rounded-full hover:bg-white/95 transition-all shadow-2xl font-bold text-base md:text-lg hover:scale-105 active:scale-95 duration-200"
+                    className="inline-flex items-center justify-center gap-2 bg-white text-[#023047] px-8 py-4 rounded-full hover:bg-white/95 transition-all shadow-2xl font-bold text-base hover:scale-105 active:scale-95 duration-200 mb-6"
                 >
-                    <Zap size={24} className="text-[#FFB701]" />
+                    <Zap size={20} className="text-[#FFB701]" />
                     <span>Get Started Free</span>
                 </a>
+
+                {/* Social Proof */}
+                <div className="flex items-center justify-center gap-4 text-white/90 text-sm">
+                    <div className="flex items-center gap-1">
+                        <span className="text-[#FFB701]">★★★★★</span>
+                        <span className="ml-1">4.9/5</span>
+                    </div>
+                    <div className="w-px h-4 bg-white/30" />
+                    <div>500+ active users</div>
+                    <div className="w-px h-4 bg-white/30" />
+                    <div>Free forever</div>
+                </div>
             </motion.div>
         </div>
 
-        {/* Floating Dashboard Interface - Clean Placement */}
-        <motion.div 
-            className="absolute bottom-0 left-0 right-0 z-20 px-4 md:px-8 flex justify-center"
-            variants={dashboardVariants}
-            initial="hidden"
-            animate="visible"
-            style={{ transform: 'translateY(35%)' }}
-        >
-            <DashboardMockup />
-        </motion.div>
-      </motion.div>
+        {/* Demo - Bottom */}
+        <div className="px-4 md:px-8 pb-16">
+            <motion.div
+                variants={dashboardVariants}
+                initial="hidden"
+                animate="visible"
+                className="max-w-6xl mx-auto"
+            >
+                <DashboardMockup />
+            </motion.div>
+        </div>
+      </div>
 
-      {/* Simple Intro - Just Logo */}
+      {/* Simple Intro */}
       <motion.div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none"
         initial={{ opacity: 1, scale: 1 }}
         animate={{ opacity: 0, scale: 0.8 }}
-        transition={{ delay: 1.5, duration: 0.8 }}
+        transition={{ delay: 1, duration: 0.6 }}
       >
-        <h2 className="font-serif text-4xl md:text-5xl text-white">AISheeter.</h2>
+        <h2 className="font-serif text-4xl text-white drop-shadow-2xl">AISheeter.</h2>
       </motion.div>
-
     </div>
   );
 };

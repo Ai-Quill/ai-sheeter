@@ -106,14 +106,36 @@ export const DashboardMockup: React.FC = () => {
   
   const scenario = SCENARIOS[scenarioIndex];
 
-  // Auto-scroll to newly appearing elements
+  // Auto-scroll within demo container only (not the whole page)
   useEffect(() => {
+    if (!chatContainerRef.current) return;
+    
+    const scrollToElement = (ref: React.RefObject<HTMLDivElement>) => {
+      if (ref.current && chatContainerRef.current) {
+        const container = chatContainerRef.current;
+        const element = ref.current;
+        
+        // Calculate position relative to container
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const relativeTop = elementRect.top - containerRect.top;
+        
+        // Scroll within container only if element is not fully visible
+        if (relativeTop < 0 || relativeTop > containerRect.height - elementRect.height) {
+          container.scrollTo({
+            top: container.scrollTop + relativeTop - 20, // 20px offset
+            behavior: 'smooth'
+          });
+        }
+      }
+    };
+    
     if (step === 1 && userCommandRef.current) {
-      userCommandRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      scrollToElement(userCommandRef);
     } else if (step === 2 && planRef.current) {
-      planRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      scrollToElement(planRef);
     } else if (step === 3 && gridRef.current) {
-      gridRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      scrollToElement(gridRef);
     }
   }, [step]);
 
