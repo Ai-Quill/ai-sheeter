@@ -10,6 +10,7 @@ import { UseCases } from '@/components/landing/UseCases';
 import { VideoSection } from '@/components/landing/VideoSection';
 import { AgentShowcase } from '@/components/landing/AgentShowcase';
 import { WhyNotSection } from '@/components/landing/WhyNotSection';
+import { CaseStudies } from '@/components/landing/CaseStudies';
 import { Testimonials } from '@/components/landing/Testimonials';
 import { PricingSection } from '@/components/landing/PricingSection';
 import { FAQ } from '@/components/landing/FAQ';
@@ -53,6 +54,7 @@ export default function LandingPage() {
               <CompetitorComparison />
               <WhyNotSection />
               <UseCases />
+              <CaseStudies />
               <VideoSection />
               <Testimonials />
               <PricingSection />
