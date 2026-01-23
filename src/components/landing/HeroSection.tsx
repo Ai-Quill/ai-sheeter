@@ -22,7 +22,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
       opacity: 1,
       transition: {
         duration: 1,
-        ease: "easeOut",
+        ease: "easeOut" as const,
         delay: 0.3
       }
     }
@@ -42,7 +42,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ onAnimationComplete })
     visible: {
         y: 0,
         opacity: 1,
-        transition: { delay: 1.8, duration: 0.8, ease: "easeOut" }
+        transition: { delay: 1.8, duration: 0.8, ease: "easeOut" as const }
     }
   };
 
