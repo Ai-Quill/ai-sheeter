@@ -461,7 +461,32 @@ function parseAndValidate(
     
     const parsed = JSON.parse(jsonMatch[0]);
     
-    // Validate steps exist
+    // CRITICAL: Check if this is CHAT MODE (user asking question, not transforming data)
+    if (parsed.outputMode === 'chat') {
+      console.log('[parse-chain] Chat mode detected - returning response without steps');
+      
+      return {
+        isMultiStep: false,
+        isCommand: true,
+        steps: [],
+        summary: parsed.summary || 'Answering your question',
+        clarification: parsed.clarification || '',
+        outputMode: 'chat',
+        chatResponse: parsed.chatResponse || parsed.clarification || '',
+        
+        // Include input config for context tracking
+        inputRange: dataContext.dataRange,
+        inputColumn: dataContext.dataColumns[0],
+        inputColumns: dataContext.dataColumns,
+        hasMultipleInputColumns: dataContext.dataColumns.length > 1,
+        rowCount: dataContext.rowCount,
+        
+        _embedding: embedding || undefined,
+        _command: originalCommand,
+      };
+    }
+    
+    // Validate steps exist (only for COLUMNS mode)
     if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
       throw new Error('No steps in response');
     }
@@ -592,6 +617,7 @@ function parseAndValidate(
       summary: parsed.summary || `${steps.length}-step workflow`,
       clarification: parsed.clarification || `I'll process your data with this workflow:\n\n${stepDescriptions}\n\nProcessing ${dataContext.rowCount} rows.`,
       estimatedTime: `~${steps.length * 2} minutes`,
+      outputMode: 'columns', // Explicit mode for columns-based workflows
       
       // Chain-level input configuration (critical for frontend execution!)
       inputRange: finalInputRange,
