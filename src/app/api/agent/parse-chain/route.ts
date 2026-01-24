@@ -303,7 +303,7 @@ interface TaskChain {
   estimatedTime?: string;
   
   // CRITICAL: Output mode determines execution path
-  outputMode?: 'chat' | 'columns';  // 'chat' = display in chat, 'columns' = write to spreadsheet
+  outputMode?: 'chat' | 'columns' | 'formula';  // 'chat' = display in chat, 'columns' = write to spreadsheet, 'formula' = native formula
   chatResponse?: string;             // If outputMode='chat', this contains the actual answer
   
   // Chain-level input configuration (for frontend executeTaskChain)
@@ -380,7 +380,7 @@ export async function POST(request: NextRequest) {
     const quickFormulaCheck = detectObviousFormulaCase(command, dataContext, explicitOutputColumn);
     if (quickFormulaCheck) {
       console.log('[parse-chain] ✅ FORMULA FIRST: Obvious formula case detected (0 AI calls)');
-      console.log('[parse-chain] Formula type:', quickFormulaCheck.formulaType);
+      console.log('[parse-chain] Formula type:', quickFormulaCheck.steps[0]?.action || 'unknown');
       const elapsed = Date.now() - startTime;
       console.log(`[parse-chain] Completed in ${elapsed}ms (formula path, no AI call)`);
       return NextResponse.json(quickFormulaCheck);
