@@ -97,6 +97,187 @@ function buildRange(startCol: string, endCol: string, startRow: number, endRow: 
 export const maxDuration = 60;
 
 // ============================================
+// FORMULA FIRST - RULE-BASED (NO AI)
+// ============================================
+
+/**
+ * Quick rule-based detection for OBVIOUS formula cases
+ * Returns formula chain immediately without calling AI (0 AI calls)
+ * 
+ * Only handles clear-cut cases like:
+ * - "Translate to Spanish" → GOOGLETRANSLATE
+ * - "Extract email domain" → REGEXEXTRACT
+ * - "Trim whitespace" → TRIM
+ * 
+ * For ambiguous cases, returns null → falls through to AI workflow generation
+ */
+function detectObviousFormulaCase(
+  command: string,
+  dataContext: ExtendedDataContext,
+  explicitOutputColumn: string | null
+): TaskChain | null {
+  const lower = command.toLowerCase();
+  
+  // CRITICAL: Reject if semantic keywords present (needs AI)
+  const semanticKeywords = [
+    'tone', 'intent', 'context', 'nuance', 'marketing', 'sales',
+    'localize', 'adapt', 'culturally', 'preserve', 'meaning'
+  ];
+  if (semanticKeywords.some(kw => lower.includes(kw))) {
+    return null; // Needs AI
+  }
+  
+  const outputCol = explicitOutputColumn || dataContext.emptyColumns[0] || 'D';
+  const sourceCol = dataContext.dataColumns[1] || dataContext.dataColumns[0]; // Prefer column B
+  
+  // 1. SIMPLE TRANSLATION (no tone/intent keywords)
+  if (lower.includes('translate')) {
+    // Detect target language
+    let targetLang = 'auto';
+    const langMap: Record<string, string> = {
+      'spanish': 'es', 'french': 'fr', 'german': 'de', 'japanese': 'ja',
+      'chinese': 'zh', 'korean': 'ko', 'portuguese': 'pt', 'italian': 'it',
+      'dutch': 'nl', 'russian': 'ru', 'arabic': 'ar', 'hindi': 'hi'
+    };
+    
+    for (const [lang, code] of Object.entries(langMap)) {
+      if (lower.includes(lang)) {
+        targetLang = code;
+        break;
+      }
+    }
+    
+    // Only use formula if target language is explicit OR no per-row variation needed
+    if (targetLang !== 'auto') {
+      return buildFormulaChain({
+        formula: `=GOOGLETRANSLATE(${sourceCol}{{ROW}}, "auto", "${targetLang}")`,
+        formulaType: 'translate',
+        explanation: `Simple translation to ${targetLang}. Using GOOGLETRANSLATE formula (FREE, instant).`,
+        inputColumn: sourceCol,
+        outputColumn: outputCol,
+        dataContext
+      });
+    }
+  }
+  
+  // 2. EMAIL DOMAIN EXTRACTION
+  if ((lower.includes('extract') || lower.includes('get')) && 
+      (lower.includes('domain') && lower.includes('email'))) {
+    return buildFormulaChain({
+      formula: `=IFERROR(REGEXEXTRACT(${sourceCol}{{ROW}}, "@(.*)"), "")`,
+      formulaType: 'extract_domain',
+      explanation: 'Email domain extraction using REGEXEXTRACT formula (FREE, instant).',
+      inputColumn: sourceCol,
+      outputColumn: outputCol,
+      dataContext
+    });
+  }
+  
+  // 3. URL DOMAIN EXTRACTION
+  if ((lower.includes('extract') || lower.includes('get')) && 
+      (lower.includes('domain') && (lower.includes('url') || lower.includes('website')))) {
+    return buildFormulaChain({
+      formula: `=IFERROR(REGEXEXTRACT(${sourceCol}{{ROW}}, "https?://([^/]+)"), "")`,
+      formulaType: 'extract_url_domain',
+      explanation: 'URL domain extraction using REGEXEXTRACT formula (FREE, instant).',
+      inputColumn: sourceCol,
+      outputColumn: outputCol,
+      dataContext
+    });
+  }
+  
+  // 4. TEXT CLEANING
+  if (lower.includes('trim') || (lower.includes('clean') && lower.includes('whitespace'))) {
+    return buildFormulaChain({
+      formula: `=TRIM(${sourceCol}{{ROW}})`,
+      formulaType: 'clean_trim',
+      explanation: 'Remove extra whitespace using TRIM formula (FREE, instant).',
+      inputColumn: sourceCol,
+      outputColumn: outputCol,
+      dataContext
+    });
+  }
+  
+  // 5. CASE CONVERSION
+  if (lower.includes('uppercase') || lower.includes('upper case')) {
+    return buildFormulaChain({
+      formula: `=UPPER(${sourceCol}{{ROW}})`,
+      formulaType: 'text_upper',
+      explanation: 'Convert to UPPERCASE using UPPER formula (FREE, instant).',
+      inputColumn: sourceCol,
+      outputColumn: outputCol,
+      dataContext
+    });
+  }
+  
+  if (lower.includes('lowercase') || lower.includes('lower case')) {
+    return buildFormulaChain({
+      formula: `=LOWER(${sourceCol}{{ROW}})`,
+      formulaType: 'text_lower',
+      explanation: 'Convert to lowercase using LOWER formula (FREE, instant).',
+      inputColumn: sourceCol,
+      outputColumn: outputCol,
+      dataContext
+    });
+  }
+  
+  if (lower.includes('proper case') || lower.includes('title case') || lower.includes('capitalize')) {
+    return buildFormulaChain({
+      formula: `=PROPER(${sourceCol}{{ROW}})`,
+      formulaType: 'text_proper',
+      explanation: 'Convert to Title Case using PROPER formula (FREE, instant).',
+      inputColumn: sourceCol,
+      outputColumn: outputCol,
+      dataContext
+    });
+  }
+  
+  // No obvious formula pattern found
+  return null;
+}
+
+/**
+ * Helper to build formula-based chain
+ */
+function buildFormulaChain(config: {
+  formula: string;
+  formulaType: string;
+  explanation: string;
+  inputColumn: string;
+  outputColumn: string;
+  dataContext: ExtendedDataContext;
+}): TaskChain {
+  const step: TaskStep = {
+    id: 'step_1',
+    order: 1,
+    action: config.formulaType,
+    description: config.explanation,
+    prompt: config.formula,
+    outputFormat: 'formula',
+    inputColumns: [config.inputColumn],
+    outputColumn: config.outputColumn,
+    dependsOn: null,
+    usesResultOf: null,
+  };
+  
+  return {
+    isMultiStep: false,
+    isCommand: false,
+    steps: [step],
+    summary: `Formula: ${config.formulaType}`,
+    clarification: `${config.explanation}\n\n✅ Using native Google Sheets formula\n✅ FREE and instant\n✅ Auto-updates when data changes\n\nProcessing ${config.dataContext.rowCount} rows.`,
+    estimatedTime: 'Instant (formula)',
+    outputMode: 'formula',
+    
+    inputRange: config.dataContext.dataRange,
+    inputColumn: config.inputColumn,
+    inputColumns: [config.inputColumn],
+    hasMultipleInputColumns: false,
+    rowCount: config.dataContext.rowCount,
+  };
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -194,10 +375,19 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Row info: startRow=' + dataContext.startRow + ', endRow=' + dataContext.endRow + ', rowCount=' + dataContext.rowCount);
     console.log('[parse-chain] Sample data columns:', Object.keys(dataContext.sampleData).join(', ') || 'none');
     
-    // NOTE: Formula First detection now happens in the frontend (AgentTaskChain.gs)
-    // before calling this endpoint, so we only see commands that need AI workflows
+    // 2.5. FORMULA FIRST: Quick rule-based check for obvious formula cases
+    // This avoids AI calls for simple patterns (translate, extract domain, etc.)
+    const quickFormulaCheck = detectObviousFormulaCase(command, dataContext, explicitOutputColumn);
+    if (quickFormulaCheck) {
+      console.log('[parse-chain] ✅ FORMULA FIRST: Obvious formula case detected (0 AI calls)');
+      console.log('[parse-chain] Formula type:', quickFormulaCheck.formulaType);
+      const elapsed = Date.now() - startTime;
+      console.log(`[parse-chain] Completed in ${elapsed}ms (formula path, no AI call)`);
+      return NextResponse.json(quickFormulaCheck);
+    }
+    console.log('[parse-chain] No obvious formula pattern, proceeding with AI workflow generation');
 
-    // 2. Generate embedding for semantic search
+    // 3. Generate embedding for semantic search
     let embedding: number[] | null = null;
     let similarWorkflows: StoredWorkflow[] = [];
     
