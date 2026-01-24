@@ -193,6 +193,9 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Data range:', dataContext.dataRange || 'MISSING!');
     console.log('[parse-chain] Row info: startRow=' + dataContext.startRow + ', endRow=' + dataContext.endRow + ', rowCount=' + dataContext.rowCount);
     console.log('[parse-chain] Sample data columns:', Object.keys(dataContext.sampleData).join(', ') || 'none');
+    
+    // NOTE: Formula First detection now happens in the frontend (AgentTaskChain.gs)
+    // before calling this endpoint, so we only see commands that need AI workflows
 
     // 2. Generate embedding for semantic search
     let embedding: number[] | null = null;
