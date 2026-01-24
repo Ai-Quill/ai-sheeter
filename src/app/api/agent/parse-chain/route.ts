@@ -179,9 +179,9 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Has sampleData:', !!context?.sampleData);
     console.log('[parse-chain] Has headers:', Array.isArray(context?.headers) ? context.headers.length : !!context?.headerRow);
     
-    // 1. Extract explicit output column from command (e.g., "to column H")
+    // 1. Extract explicit output column from command (e.g., "to column H", "for column G")
     let explicitOutputColumn: string | null = null;
-    const outputColMatch = command.match(/(?:to|in|into)\s+column\s+([A-Z])\b/i);
+    const outputColMatch = command.match(/(?:to|in|into|for)\s+column\s+([A-Z])\b/i);
     if (outputColMatch) {
       explicitOutputColumn = outputColMatch[1].toUpperCase();
       console.log('[parse-chain] Detected explicit output column:', explicitOutputColumn);
