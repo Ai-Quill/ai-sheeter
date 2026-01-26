@@ -96,319 +96,6 @@ function buildRange(startCol: string, endCol: string, startRow: number, endRow: 
 // Extended timeout for chain parsing - AI inference can take 30-60s for complex prompts
 export const maxDuration = 60;
 
-// ============================================
-// FORMULA FIRST - RULE-BASED (NO AI)
-// ============================================
-
-/**
- * Detect which column contains country/market names
- * Returns the column letter and list of detected countries
- */
-function findMarketColumn(
-  dataContext: ExtendedDataContext,
-  countryToLang: Record<string, string>
-): { marketColumn: string; detectedCountries: string[] } | null {
-  const countryNames = Object.keys(countryToLang);
-  console.log('[Formula First] findMarketColumn: checking columns:', dataContext.dataColumns);
-  console.log('[Formula First] findMarketColumn: available headers:', JSON.stringify(dataContext.headers));
-  
-  // Check each column's sample data and headers
-  for (const col of dataContext.dataColumns) {
-    const samples = dataContext.sampleData[col] || [];
-    const header = (dataContext.headers[col] || '').toLowerCase();
-    
-    console.log(`[Formula First] Checking column ${col}: header="${header}", samples=${JSON.stringify(samples.slice(0, 3))}`);
-    
-    // Check if header suggests this is a market/country column
-    const isMarketHeader = header.includes('market') || 
-                          header.includes('country') || 
-                          header.includes('region') ||
-                          header.includes('target');
-    
-    // Check how many sample values match known countries
-    const matchedCountries: string[] = [];
-    for (const sample of samples) {
-      const sampleLower = String(sample).toLowerCase().trim();
-      const matchedCountry = countryNames.find(country => 
-        sampleLower === country || 
-        sampleLower.includes(country)
-      );
-      if (matchedCountry) {
-        // Store the original case from sample for the formula
-        matchedCountries.push(String(sample).trim());
-      }
-    }
-    
-    console.log(`[Formula First] Column ${col}: isMarketHeader=${isMarketHeader}, matchedCountries=${matchedCountries.length}/${samples.length}`);
-    
-    // If header suggests market OR majority of samples are countries, this is likely the market column
-    if (isMarketHeader || matchedCountries.length >= Math.ceil(samples.length * 0.5)) {
-      // Deduplicate countries
-      const uniqueCountries = matchedCountries.filter((country, index) => 
-        matchedCountries.indexOf(country) === index
-      );
-      console.log(`[Formula First] ✅ Detected market column: ${col} with countries:`, uniqueCountries);
-      return {
-        marketColumn: col,
-        detectedCountries: uniqueCountries
-      };
-    }
-  }
-  
-  console.log('[Formula First] ❌ No market column found');
-  return null;
-}
-
-/**
- * Quick rule-based detection for OBVIOUS formula cases
- * Returns formula chain immediately without calling AI (0 AI calls)
- * 
- * Only handles clear-cut cases like:
- * - "Translate to Spanish" → GOOGLETRANSLATE
- * - "Translate to appropriate language for each market" → GOOGLETRANSLATE + SWITCH
- * - "Extract email domain" → REGEXEXTRACT
- * - "Trim whitespace" → TRIM
- * 
- * For ambiguous cases, returns null → falls through to AI workflow generation
- */
-function detectObviousFormulaCase(
-  command: string,
-  dataContext: ExtendedDataContext,
-  explicitOutputColumn: string | null
-): TaskChain | null {
-  const lower = command.toLowerCase();
-  console.log('[Formula First] Checking command:', command.substring(0, 100));
-  
-  // CRITICAL: Reject if semantic keywords present (needs AI)
-  const semanticKeywords = [
-    'tone', 'intent', 'context', 'nuance', 'marketing', 'sales',
-    'localize', 'adapt', 'culturally', 'preserve', 'meaning'
-  ];
-  const matchedKeyword = semanticKeywords.find(kw => lower.includes(kw));
-  if (matchedKeyword) {
-    console.log('[Formula First] ❌ Semantic keyword detected:', matchedKeyword, '- requires AI');
-    return null; // Needs AI
-  }
-  console.log('[Formula First] ✓ No semantic keywords found');
-  
-  const outputCol = explicitOutputColumn || dataContext.emptyColumns[0] || 'D';
-  const sourceCol = dataContext.dataColumns[1] || dataContext.dataColumns[0]; // Prefer column B
-  
-  // 1. SIMPLE TRANSLATION (no tone/intent keywords)
-  if (lower.includes('translate')) {
-    console.log('[Formula First] Translation detected in command');
-    
-    // Country/Market to language code mapping
-    const countryToLang: Record<string, string> = {
-      // Countries
-      'germany': 'de', 'japan': 'ja', 'france': 'fr', 'brazil': 'pt',
-      'spain': 'es', 'mexico': 'es', 'india': 'hi', 'uae': 'ar',
-      'south korea': 'ko', 'korea': 'ko', 'netherlands': 'nl', 'italy': 'it',
-      'china': 'zh', 'russia': 'ru', 'portugal': 'pt', 'argentina': 'es',
-      'saudi arabia': 'ar', 'egypt': 'ar', 'indonesia': 'id', 'vietnam': 'vi',
-      'thailand': 'th', 'poland': 'pl', 'turkey': 'tr', 'greece': 'el',
-      'israel': 'he', 'czech republic': 'cs', 'sweden': 'sv', 'norway': 'no',
-      'denmark': 'da', 'finland': 'fi', 'austria': 'de', 'switzerland': 'de',
-      'belgium': 'nl', 'taiwan': 'zh-TW', 'hong kong': 'zh-TW', 'singapore': 'en',
-      'malaysia': 'ms', 'philippines': 'tl', 'pakistan': 'ur', 'bangladesh': 'bn',
-      'ukraine': 'uk', 'romania': 'ro', 'hungary': 'hu', 'croatia': 'hr',
-    };
-    
-    // Language names to language code mapping
-    const langMap: Record<string, string> = {
-      'spanish': 'es', 'french': 'fr', 'german': 'de', 'japanese': 'ja',
-      'chinese': 'zh', 'korean': 'ko', 'portuguese': 'pt', 'italian': 'it',
-      'dutch': 'nl', 'russian': 'ru', 'arabic': 'ar', 'hindi': 'hi'
-    };
-    
-    // Case 1: Explicit single language in command ("translate to Spanish")
-    let targetLang = 'auto';
-    for (const [lang, code] of Object.entries(langMap)) {
-      if (lower.includes(lang)) {
-        targetLang = code;
-        break;
-      }
-    }
-    
-    if (targetLang !== 'auto') {
-      return buildFormulaChain({
-        formula: `=GOOGLETRANSLATE(${sourceCol}{{ROW}}, "auto", "${targetLang}")`,
-        formulaType: 'translate',
-        explanation: `Simple translation to ${targetLang}. Using GOOGLETRANSLATE formula (FREE, instant).`,
-        inputColumn: sourceCol,
-        outputColumn: outputCol,
-        dataContext
-      });
-    }
-    
-    // Case 2: Per-row language based on market/country column
-    // Detect if command mentions "each market" / "target market" / "for each country" etc.
-    const perRowPatterns = [
-      /for\s+each\s+(target\s+)?market/i,
-      /each\s+(target\s+)?market/i,
-      /appropriate\s+language/i,
-      /corresponding\s+language/i,
-      /respective\s+language/i,
-      /based\s+on\s+(the\s+)?(target\s+)?(market|country|region)/i,
-      /for\s+each\s+country/i,
-      /for\s+each\s+region/i,
-    ];
-    
-    const isPerRowTranslation = perRowPatterns.some(p => p.test(command));
-    console.log('[Formula First] Per-row translation pattern check:', isPerRowTranslation);
-    
-    if (isPerRowTranslation) {
-      console.log('[Formula First] Looking for market column in data...');
-      // Find column containing country/market names
-      const marketColumnResult = findMarketColumn(dataContext, countryToLang);
-      
-      if (marketColumnResult) {
-        const { marketColumn, detectedCountries } = marketColumnResult;
-        
-        // Find source column (likely the English content column, not the market column)
-        const contentCol = dataContext.dataColumns.find(col => 
-          col !== marketColumn && 
-          dataContext.headers[col]?.toLowerCase().includes('content') ||
-          dataContext.headers[col]?.toLowerCase().includes('english') ||
-          dataContext.headers[col]?.toLowerCase().includes('text')
-        ) || dataContext.dataColumns.find(col => col !== marketColumn) || sourceCol;
-        
-        // Build SWITCH formula for country-to-language mapping
-        // =GOOGLETRANSLATE(B2, "auto", SWITCH(C2, "Germany", "de", "Japan", "ja", ...))
-        const switchCases = detectedCountries
-          .map(country => `"${country}", "${countryToLang[country.toLowerCase()]}"`)
-          .join(', ');
-        
-        const formula = `=GOOGLETRANSLATE(${contentCol}{{ROW}}, "auto", SWITCH(LOWER(${marketColumn}{{ROW}}), ${switchCases}, "en"))`;
-        
-        return buildFormulaChain({
-          formula,
-          formulaType: 'translate_per_market',
-          explanation: `Translating to each market's language using GOOGLETRANSLATE + SWITCH formula (FREE, instant).\n\nDetected markets: ${detectedCountries.join(', ')}`,
-          inputColumn: contentCol,
-          outputColumn: outputCol,
-          dataContext
-        });
-      }
-    }
-  }
-  
-  // 2. EMAIL DOMAIN EXTRACTION
-  if ((lower.includes('extract') || lower.includes('get')) && 
-      (lower.includes('domain') && lower.includes('email'))) {
-    return buildFormulaChain({
-      formula: `=IFERROR(REGEXEXTRACT(${sourceCol}{{ROW}}, "@(.*)"), "")`,
-      formulaType: 'extract_domain',
-      explanation: 'Email domain extraction using REGEXEXTRACT formula (FREE, instant).',
-      inputColumn: sourceCol,
-      outputColumn: outputCol,
-      dataContext
-    });
-  }
-  
-  // 3. URL DOMAIN EXTRACTION
-  if ((lower.includes('extract') || lower.includes('get')) && 
-      (lower.includes('domain') && (lower.includes('url') || lower.includes('website')))) {
-    return buildFormulaChain({
-      formula: `=IFERROR(REGEXEXTRACT(${sourceCol}{{ROW}}, "https?://([^/]+)"), "")`,
-      formulaType: 'extract_url_domain',
-      explanation: 'URL domain extraction using REGEXEXTRACT formula (FREE, instant).',
-      inputColumn: sourceCol,
-      outputColumn: outputCol,
-      dataContext
-    });
-  }
-  
-  // 4. TEXT CLEANING
-  if (lower.includes('trim') || (lower.includes('clean') && lower.includes('whitespace'))) {
-    return buildFormulaChain({
-      formula: `=TRIM(${sourceCol}{{ROW}})`,
-      formulaType: 'clean_trim',
-      explanation: 'Remove extra whitespace using TRIM formula (FREE, instant).',
-      inputColumn: sourceCol,
-      outputColumn: outputCol,
-      dataContext
-    });
-  }
-  
-  // 5. CASE CONVERSION
-  if (lower.includes('uppercase') || lower.includes('upper case')) {
-    return buildFormulaChain({
-      formula: `=UPPER(${sourceCol}{{ROW}})`,
-      formulaType: 'text_upper',
-      explanation: 'Convert to UPPERCASE using UPPER formula (FREE, instant).',
-      inputColumn: sourceCol,
-      outputColumn: outputCol,
-      dataContext
-    });
-  }
-  
-  if (lower.includes('lowercase') || lower.includes('lower case')) {
-    return buildFormulaChain({
-      formula: `=LOWER(${sourceCol}{{ROW}})`,
-      formulaType: 'text_lower',
-      explanation: 'Convert to lowercase using LOWER formula (FREE, instant).',
-      inputColumn: sourceCol,
-      outputColumn: outputCol,
-      dataContext
-    });
-  }
-  
-  if (lower.includes('proper case') || lower.includes('title case') || lower.includes('capitalize')) {
-    return buildFormulaChain({
-      formula: `=PROPER(${sourceCol}{{ROW}})`,
-      formulaType: 'text_proper',
-      explanation: 'Convert to Title Case using PROPER formula (FREE, instant).',
-      inputColumn: sourceCol,
-      outputColumn: outputCol,
-      dataContext
-    });
-  }
-  
-  // No obvious formula pattern found
-  return null;
-}
-
-/**
- * Helper to build formula-based chain
- */
-function buildFormulaChain(config: {
-  formula: string;
-  formulaType: string;
-  explanation: string;
-  inputColumn: string;
-  outputColumn: string;
-  dataContext: ExtendedDataContext;
-}): TaskChain {
-  const step: TaskStep = {
-    id: 'step_1',
-    order: 1,
-    action: config.formulaType,
-    description: config.explanation,
-    prompt: config.formula,
-    outputFormat: 'formula',
-    inputColumns: [config.inputColumn],
-    outputColumn: config.outputColumn,
-    dependsOn: null,
-    usesResultOf: null,
-  };
-  
-  return {
-    isMultiStep: false,
-    isCommand: false,
-    steps: [step],
-    summary: `Formula: ${config.formulaType}`,
-    clarification: `${config.explanation}\n\n✅ Using native Google Sheets formula\n✅ FREE and instant\n✅ Auto-updates when data changes\n\nProcessing ${config.dataContext.rowCount} rows.`,
-    estimatedTime: 'Instant (formula)',
-    outputMode: 'formula',
-    
-    inputRange: config.dataContext.dataRange,
-    inputColumn: config.inputColumn,
-    inputColumns: [config.inputColumn],
-    hasMultipleInputColumns: false,
-    rowCount: config.dataContext.rowCount,
-  };
-}
 
 // ============================================
 // TYPES
@@ -508,26 +195,9 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Row info: startRow=' + dataContext.startRow + ', endRow=' + dataContext.endRow + ', rowCount=' + dataContext.rowCount);
     console.log('[parse-chain] Sample data columns:', Object.keys(dataContext.sampleData).join(', ') || 'none');
     
-    // 2.5. FORMULA FIRST: Quick rule-based check for obvious formula cases
-    // This avoids AI calls for simple patterns (translate, extract domain, etc.)
-    console.log('[parse-chain] 🔍 FORMULA FIRST: Checking for obvious formula patterns...');
-    console.log('[parse-chain] Headers:', JSON.stringify(dataContext.headers));
-    console.log('[parse-chain] Sample data preview:', JSON.stringify(
-      Object.fromEntries(
-        Object.entries(dataContext.sampleData).map(([k, v]) => [k, v.slice(0, 2)])
-      )
-    ));
-    
-    const quickFormulaCheck = detectObviousFormulaCase(command, dataContext, explicitOutputColumn);
-    if (quickFormulaCheck) {
-      console.log('[parse-chain] ✅ FORMULA FIRST: Obvious formula case detected (0 AI calls)');
-      console.log('[parse-chain] Formula type:', quickFormulaCheck.steps[0]?.action || 'unknown');
-      console.log('[parse-chain] Formula:', quickFormulaCheck.steps[0]?.prompt?.substring(0, 100) || 'none');
-      const elapsed = Date.now() - startTime;
-      console.log(`[parse-chain] Completed in ${elapsed}ms (formula path, no AI call)`);
-      return NextResponse.json(quickFormulaCheck);
-    }
-    console.log('[parse-chain] ❌ No obvious formula pattern, proceeding with AI workflow generation');
+    // 2.5. AI will decide if formula can be used (no hardcoded patterns)
+    // The prompt instructs AI to prefer native formulas when appropriate
+    console.log('[parse-chain] AI will decide: workflow or formula (single intelligent call)');
 
     // 3. Generate embedding for semantic search
     let embedding: number[] | null = null;
@@ -810,6 +480,48 @@ function parseAndValidate(
         chatResponse: parsed.chatResponse || parsed.clarification || '',
         
         // Include input config for context tracking
+        inputRange: dataContext.dataRange,
+        inputColumn: dataContext.dataColumns[0],
+        inputColumns: dataContext.dataColumns,
+        hasMultipleInputColumns: dataContext.dataColumns.length > 1,
+        rowCount: dataContext.rowCount,
+        
+        _embedding: embedding || undefined,
+        _command: originalCommand,
+      };
+    }
+    
+    // FORMULA MODE: AI decided to use native Google Sheets formula (FREE, instant)
+    if (parsed.outputMode === 'formula') {
+      console.log('[parse-chain] ✅ FORMULA MODE: AI chose native formula (0 AI cost, instant)');
+      const formulaStep = parsed.steps?.[0] || {};
+      const formula = formulaStep.prompt || '';
+      console.log('[parse-chain] Formula:', formula.substring(0, 100));
+      
+      // Determine output column
+      const outputCol = explicitOutputColumn || dataContext.emptyColumns[0] || 'D';
+      
+      return {
+        isMultiStep: false,
+        isCommand: true,
+        steps: [{
+          id: 'step_1',
+          order: 1,
+          action: 'formula',
+          description: formulaStep.description || 'Apply formula',
+          prompt: formula,
+          outputFormat: 'formula',
+          inputColumns: dataContext.dataColumns,
+          outputColumn: outputCol,
+          dependsOn: null,
+          usesResultOf: null,
+        }],
+        summary: parsed.summary || 'Apply native formula',
+        clarification: parsed.clarification || `Using native Google Sheets formula.\n\n✅ FREE - no AI cost\n✅ Instant - no processing time\n✅ Auto-updates when data changes`,
+        estimatedTime: 'Instant',
+        outputMode: 'formula',
+        
+        // Include input config
         inputRange: dataContext.dataRange,
         inputColumn: dataContext.dataColumns[0],
         inputColumns: dataContext.dataColumns,

@@ -87,16 +87,39 @@ Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ')}
 
 CRITICAL RULES - FOLLOW STRICTLY:
 
-1. DETECT OUTPUT MODE FIRST:
-   - If user asks a QUESTION about data (e.g., "What are...", "Which...", "Create summary", "Show me...") WITHOUT saying "to column X":
-     → Set outputMode: "chat" and provide the answer directly
-   - If user wants to TRANSFORM data row-by-row (e.g., "Extract X to column Y", "Classify each row"):
-     → Set outputMode: "columns" and create workflow steps
+1. DETECT OUTPUT MODE FIRST (in priority order):
+
+   A. FORMULA MODE (outputMode: "formula") - PREFER THIS WHEN POSSIBLE!
+      Use when task can be done with native Google Sheets formulas - they're FREE and instant.
+      
+      Suitable tasks:
+      - Simple translation (no tone/nuance): GOOGLETRANSLATE
+      - Extract email domain: REGEXEXTRACT with @(.*)
+      - Extract URL domain: REGEXEXTRACT with https?://([^/]+)
+      - Trim whitespace: TRIM
+      - Case conversion: UPPER, LOWER, PROPER
+      - Simple text operations: LEFT, RIGHT, MID, LEN, CONCATENATE
+      - Basic math: SUM, AVERAGE, ROUND
+      - Date extraction: YEAR, MONTH, DAY
+      
+      NOT suitable (use AI instead):
+      - Tasks requiring understanding: sentiment, classification, summarization
+      - Translation with tone/intent/nuance preservation
+      - Complex extraction requiring context understanding
+      - Multi-step reasoning
+      
+   B. CHAT MODE (outputMode: "chat")
+      If user asks a QUESTION about data (e.g., "What are...", "Which...", "Create summary") WITHOUT saying "to column X"
+      
+   C. COLUMNS MODE (outputMode: "columns")  
+      If user wants AI to TRANSFORM data row-by-row with reasoning (classify, analyze, score, etc.)
    
    Examples:
+   - "Translate to Spanish" → outputMode: "formula" (use GOOGLETRANSLATE)
+   - "Translate keeping tone and intent" → outputMode: "columns" (needs AI understanding)
+   - "Extract email domains" → outputMode: "formula" (use REGEXEXTRACT)
    - "Create an executive summary" → outputMode: "chat" (answering a question)
-   - "What are the top 3 issues?" → outputMode: "chat" (answering a question)
-   - "Extract competitors to column I" → outputMode: "columns" (transforming data)
+   - "Classify sentiment" → outputMode: "columns" (needs AI reasoning)
 
 2. FOR CHAT MODE (outputMode: "chat"):
    - Set steps: [] (empty array)
@@ -149,6 +172,31 @@ CRITICAL RULES - FOLLOW STRICTLY:
 
 RESPONSE FORMAT:
 
+For FORMULA mode (prefer this when possible - it's FREE!):
+{
+  "outputMode": "formula",
+  "isMultiStep": false,
+  "isCommand": true,
+  "steps": [{
+    "action": "formula",
+    "description": "Apply native Google Sheets formula",
+    "prompt": "=GOOGLETRANSLATE(B{{ROW}}, \\"auto\\", \\"es\\")",
+    "outputFormat": "formula"
+  }],
+  "summary": "Translate using GOOGLETRANSLATE formula",
+  "clarification": "Using native Google Sheets GOOGLETRANSLATE formula.\\n\\n✅ FREE - no AI cost\\n✅ Instant - no processing time\\n✅ Auto-updates when data changes",
+  "estimatedTime": "Instant"
+}
+
+IMPORTANT for formulas:
+- Use {{ROW}} as placeholder for row number (will be replaced: {{ROW}} → 2, 3, 4...)
+- Escape quotes in JSON: use \\" not "
+- Common formulas:
+  - GOOGLETRANSLATE(cell, "auto", "es") - translate to Spanish
+  - REGEXEXTRACT(cell, "@(.*)") - extract email domain
+  - TRIM(cell) - remove whitespace
+  - UPPER(cell), LOWER(cell), PROPER(cell) - case conversion
+
 For CHAT mode (user asking question):
 {
   "outputMode": "chat",
@@ -160,7 +208,7 @@ For CHAT mode (user asking question):
   "chatResponse": "[Your detailed answer here - analyze the actual data and provide insights]"
 }
 
-For COLUMNS mode (user transforming data):
+For COLUMNS mode (user transforming data with AI):
 {
   "outputMode": "columns",
   "isMultiStep": false,
