@@ -551,12 +551,16 @@ function parseAndValidate(
       
       // For multi-aspect steps, assign multiple output columns
       let outputCol: string;
+      let outputCols: string[] | null = null;
+      let explicitSingleColumn = false;
       
       // CRITICAL: If user specified explicit output column (e.g., "to column I"), use ONLY that column!
       // Do NOT expand to multiple columns - user wants everything in the single specified column
       if (explicitOutputColumn && idx === 0) {
         // First step and user specified output column - use their column
         outputCol = explicitOutputColumn;
+        outputCols = [explicitOutputColumn]; // Set outputColumns to signal frontend NOT to expand
+        explicitSingleColumn = true;
         console.log(`[parse-chain] Step ${idx + 1} using EXPLICIT output column: ${outputCol} (will NOT expand multi-aspect)`);
         
         // CRITICAL: Even if multi-aspect format detected, use SINGLE column when explicitly specified
@@ -616,6 +620,11 @@ function parseAndValidate(
         outputFormat: step.outputFormat || '',
         inputColumns: inputCols,
         outputColumn: outputCol,
+        // Set outputColumns to prevent frontend from re-expanding
+        // null means frontend can expand if needed, array means it's already decided
+        outputColumns: outputCols,
+        // Flag to signal frontend that user explicitly requested single column
+        explicitSingleColumn,
         dependsOn: idx > 0 ? `step_${idx}` : null,
         usesResultOf: idx > 0 ? `step_${idx}` : null,
       };
