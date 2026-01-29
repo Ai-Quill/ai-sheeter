@@ -23,6 +23,10 @@ export interface DataContext {
   headers: Record<string, string>;
   sampleData: Record<string, string[]>;
   rowCount: number;
+  // Extended properties for accurate range information
+  dataRange?: string;    // Full A1 notation like "A6:E18"
+  startRow?: number;     // First row of data (e.g., 6)
+  endRow?: number;       // Last row of data (e.g., 18)
 }
 
 interface WorkflowExample {
@@ -180,22 +184,48 @@ CRITICAL RULES - FOLLOW STRICTLY:
 
 RESPONSE FORMAT:
 
-For SHEET mode (charts, formatting, validation, filters):
+For SHEET mode - CHART (visualizations):
 {
   "outputMode": "sheet",
   "sheetAction": "chart",
   "sheetConfig": {
     "chartType": "line",
-    "dataRange": "A1:C10",
-    "xColumn": "A",
-    "yColumns": ["B", "C"],
-    "title": "Sales Over Time",
-    "xAxisTitle": "Date",
-    "yAxisTitle": "Revenue"
+    "xAxisColumn": "B",
+    "dataColumns": ["C", "D", "E"],
+    "title": "Revenue Trends Over Time",
+    "xAxisTitle": "Month",
+    "yAxisTitle": "Revenue",
+    "seriesNames": ["PK Himlam", "PK Thanh Nhàn", "PK Văn Phú"],
+    "curveType": "smooth"
   },
-  "summary": "Create line chart of sales data",
-  "clarification": "Creating a line chart showing sales trends over time."
+  "summary": "Create line chart for revenue trends",
+  "clarification": "Creating a line chart to visualize revenue trends over time."
 }
+
+CRITICAL for CHARTS - Column-Based Approach:
+
+YOUR JOB: Identify WHICH COLUMNS to use based on sample data. The frontend will detect the full data range.
+
+1. COLUMN SELECTION (not row ranges!):
+   - xAxisColumn: The column letter containing dates/labels for X-axis (e.g., "B")
+   - dataColumns: Array of column letters containing numeric data series (e.g., ["C", "D", "E"])
+   - Look at SAMPLE DATA to identify: dates are usually text like "01/01/2025", numeric data are numbers
+   - The frontend will automatically detect ALL rows with data in these columns
+
+2. DETECTING DATE vs NUMERIC COLUMNS from sample data:
+   - Date columns have: "01/01/2025", "Jan 2025", "Tháng 1", "Monday", etc.
+   - Numeric columns have: numbers, currency values, percentages
+   - Use the date/label column as xAxisColumn
+   - Use numeric columns as dataColumns
+
+3. SERIES NAMES:
+   - Extract from column HEADERS shown in context
+   - Example headers: "PK Himlam", "PK Thanh Nhàn" → use these as seriesNames
+   - Order should match dataColumns order
+
+4. CHART OPTIONS:
+   - curveType: "smooth" for curved lines, omit for straight
+   - legendPosition: "bottom", "right", "top", "none"
 
 For FORMAT sheet action:
 {
@@ -370,8 +400,17 @@ ${JSON.stringify(ex.workflow, null, 2)}
 function formatDataContext(ctx: DataContext): string {
   const parts: string[] = [];
   
+  // IMPORTANT: Actual data range - AI MUST use this for sheetConfig.dataRange
+  if (ctx.dataRange) {
+    parts.push(`📍 ACTUAL DATA RANGE: ${ctx.dataRange}`);
+    parts.push(`   (Use this exact range for sheetConfig.dataRange - do NOT guess!)`);
+  }
+  if (ctx.startRow && ctx.endRow) {
+    parts.push(`   Data rows: ${ctx.startRow} to ${ctx.endRow} (${ctx.endRow - ctx.startRow + 1} rows including header)`);
+  }
+  
   // Columns with headers
-  parts.push(`Columns with data: ${ctx.dataColumns.join(', ')}`);
+  parts.push(`\nColumns with data: ${ctx.dataColumns.join(', ')}`);
   
   // Headers if available - show what each column represents
   if (Object.keys(ctx.headers).length > 0) {
