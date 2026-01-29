@@ -206,7 +206,11 @@ CRITICAL for CHARTS - Unified Column-Based Approach:
 
 YOUR JOB: Identify WHICH COLUMNS to use based on CURRENT sample data. The frontend will detect the full data range.
 
-IMPORTANT: Always analyze the CURRENT data context shown above. Do NOT reuse column info from previous requests!
+⚠️ CRITICAL - FRESH CONTEXT ONLY:
+1. IGNORE any column info from previous messages in this conversation
+2. Look ONLY at the "DATA CONTEXT" section shown above for THIS request
+3. Count the columns: if context shows columns B, C, D, E → use ALL relevant ones
+4. Extract seriesNames from the ACTUAL headers shown in context, not from memory
 
 == UNIFIED SCHEMA FOR ALL CHART TYPES ==
 {
@@ -219,28 +223,35 @@ IMPORTANT: Always analyze the CURRENT data context shown above. Do NOT reuse col
 
 COLUMN RULES:
 1. domainColumn: The column containing categories, labels, or dates (usually TEXT)
-   - Look for: dates ("01/01/2025"), categories ("Product A"), months ("Jan")
+   - Look for: dates ("01/01/2025"), categories ("Product A"), months ("Jan", "Feb")
    
 2. dataColumns: Array of columns containing NUMERIC values
-   - For PIE: Use exactly ONE column, e.g., ["B"]
-   - For LINE/BAR/AREA: Use multiple columns, e.g., ["B", "C", "D"]
-   - For SCATTER: Use one or more Y-value columns
+   - For PIE: Use exactly ONE numeric column, e.g., ["B"]
+   - For LINE/BAR/COLUMN/AREA: Include ALL numeric columns from context!
+     * If context shows 3 numeric columns (D, E, F) → use ["D", "E", "F"]
+     * Each column becomes a separate series in the chart
+   - For SCATTER: Use Y-value column(s)
 
-3. seriesNames: Extract from column HEADERS in context (match dataColumns order)
+3. seriesNames: Extract from column HEADERS shown in the current context
+   - If headers show "Store A", "Store B", "Store C" → use those exact names
+   - Order must match dataColumns order
+   - DO NOT use names from previous requests!
 
 EXAMPLES:
 
-Line chart (multiple series):
-  Data: Month | Revenue | Expenses | Profit
-  → domainColumn: "A", dataColumns: ["B", "C", "D"], seriesNames: ["Revenue", "Expenses", "Profit"]
+Line chart (3 series):
+  Context columns: A=Month, B=Store A, C=Store B, D=Store C
+  → domainColumn: "A", dataColumns: ["B", "C", "D"], seriesNames: ["Store A", "Store B", "Store C"]
 
-Pie chart (single series):
-  Data: Category | Amount
+Bar chart (3 series):
+  Context columns: A=Month, B=Store A, C=Store B, D=Store C
+  → domainColumn: "A", dataColumns: ["B", "C", "D"], seriesNames: ["Store A", "Store B", "Store C"]
+  (Include ALL numeric columns to compare all stores!)
+
+Pie chart (1 series):
+  Context columns: A=Category, B=Amount
   → domainColumn: "A", dataColumns: ["B"], seriesNames: ["Amount"]
-
-Bar chart (comparison):
-  Data: Product | Q1 | Q2 | Q3
-  → domainColumn: "A", dataColumns: ["B", "C", "D"], seriesNames: ["Q1", "Q2", "Q3"]
+  (Pie charts use only ONE data column)
 
 CHART OPTIONS:
 - curveType: "smooth" for curved lines
