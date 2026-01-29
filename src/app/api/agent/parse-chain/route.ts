@@ -123,8 +123,41 @@ interface TaskChain {
   estimatedTime?: string;
   
   // CRITICAL: Output mode determines execution path
-  outputMode?: 'chat' | 'columns' | 'formula';  // 'chat' = display in chat, 'columns' = write to spreadsheet, 'formula' = native formula
+  outputMode?: 'chat' | 'columns' | 'formula' | 'sheet';  // 'chat' = display in chat, 'columns' = write to spreadsheet, 'formula' = native formula, 'sheet' = native sheet manipulation
   chatResponse?: string;             // If outputMode='chat', this contains the actual answer
+  
+  // Sheet action config (if outputMode='sheet')
+  sheetAction?: 'chart' | 'format' | 'conditionalFormat' | 'dataValidation' | 'filter';
+  sheetConfig?: {
+    // Chart config
+    chartType?: 'bar' | 'column' | 'line' | 'pie' | 'area' | 'scatter';
+    dataRange?: string;
+    xColumn?: string;
+    yColumns?: string[];
+    title?: string;
+    xAxisTitle?: string;
+    yAxisTitle?: string;
+    legendPosition?: 'top' | 'bottom' | 'right' | 'none';
+    // Format config
+    formatType?: 'currency' | 'percent' | 'number' | 'date' | 'text';
+    range?: string;
+    options?: Record<string, any>;
+    // Conditional format config
+    rules?: Array<{
+      condition: string;
+      value: any;
+      format: Record<string, any>;
+    }>;
+    // Validation config
+    validationType?: 'dropdown' | 'number' | 'checkbox' | 'date' | 'email' | 'url';
+    values?: string[];
+    // Filter config
+    criteria?: Array<{
+      column: string;
+      condition: string;
+      value: any;
+    }>;
+  };
   
   // Chain-level input configuration (for frontend executeTaskChain)
   inputRange?: string;           // A1 notation like "C8:F15"
@@ -520,6 +553,46 @@ function parseAndValidate(
         clarification: parsed.clarification || `Using native Google Sheets formula.\n\n✅ FREE - no AI cost\n✅ Instant - no processing time\n✅ Auto-updates when data changes`,
         estimatedTime: 'Instant',
         outputMode: 'formula',
+        
+        // Include input config
+        inputRange: dataContext.dataRange,
+        inputColumn: dataContext.dataColumns[0],
+        inputColumns: dataContext.dataColumns,
+        hasMultipleInputColumns: dataContext.dataColumns.length > 1,
+        rowCount: dataContext.rowCount,
+        
+        _embedding: embedding || undefined,
+        _command: originalCommand,
+      };
+    }
+    
+    // SHEET MODE: AI decided to use native sheet manipulation (chart, format, etc.) - instant execution
+    if (parsed.outputMode === 'sheet') {
+      console.log('[parse-chain] ✅ SHEET MODE: AI chose native sheet action (instant execution)');
+      console.log('[parse-chain] Sheet action:', parsed.sheetAction);
+      console.log('[parse-chain] Sheet config:', JSON.stringify(parsed.sheetConfig || {}).substring(0, 200));
+      
+      return {
+        isMultiStep: false,
+        isCommand: true,
+        steps: [{
+          id: 'step_1',
+          order: 1,
+          action: parsed.sheetAction || 'chart',
+          description: parsed.summary || 'Apply sheet action',
+          prompt: '',
+          outputFormat: 'sheet',
+          inputColumns: dataContext.dataColumns,
+          outputColumn: '',
+          dependsOn: null,
+          usesResultOf: null,
+        }],
+        summary: parsed.summary || 'Apply native sheet action',
+        clarification: parsed.clarification || `Executing native Google Sheets action.\n\n✅ Instant - no AI processing\n✅ Native features`,
+        estimatedTime: 'Instant',
+        outputMode: 'sheet',
+        sheetAction: parsed.sheetAction,
+        sheetConfig: parsed.sheetConfig,
         
         // Include input config
         inputRange: dataContext.dataRange,

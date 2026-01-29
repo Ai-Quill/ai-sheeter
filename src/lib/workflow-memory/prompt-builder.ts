@@ -87,39 +87,47 @@ Available Output Columns: ${dataContext.emptyColumns.slice(0, 4).join(', ')}
 
 CRITICAL RULES - FOLLOW STRICTLY:
 
-1. DETECT OUTPUT MODE FIRST (in priority order):
+1. DETECT OUTPUT MODE - Think about WHAT the user wants:
 
-   A. FORMULA MODE (outputMode: "formula") - PREFER THIS WHEN POSSIBLE!
-      Use when task can be done with native Google Sheets formulas - they're FREE and instant.
-      
-      Suitable tasks:
-      - Simple translation (no tone/nuance): GOOGLETRANSLATE
-      - Extract email domain: REGEXEXTRACT with @(.*)
-      - Extract URL domain: REGEXEXTRACT with https?://([^/]+)
-      - Trim whitespace: TRIM
-      - Case conversion: UPPER, LOWER, PROPER
-      - Simple text operations: LEFT, RIGHT, MID, LEN, CONCATENATE
-      - Basic math: SUM, AVERAGE, ROUND
-      - Date extraction: YEAR, MONTH, DAY
-      
-      NOT suitable (use AI instead):
-      - Tasks requiring understanding: sentiment, classification, summarization
-      - Translation with tone/intent/nuance preservation
-      - Complex extraction requiring context understanding
-      - Multi-step reasoning
-      
-   B. CHAT MODE (outputMode: "chat")
-      If user asks a QUESTION about data (e.g., "What are...", "Which...", "Create summary") WITHOUT saying "to column X"
-      
-   C. COLUMNS MODE (outputMode: "columns")  
-      If user wants AI to TRANSFORM data row-by-row with reasoning (classify, analyze, score, etc.)
+   The key distinction is between ACTIONS (do something to the sheet) vs QUESTIONS (tell me something).
    
-   Examples:
-   - "Translate to Spanish" → outputMode: "formula" (use GOOGLETRANSLATE)
-   - "Translate keeping tone and intent" → outputMode: "columns" (needs AI understanding)
-   - "Extract email domains" → outputMode: "formula" (use REGEXEXTRACT)
-   - "Create an executive summary" → outputMode: "chat" (answering a question)
-   - "Classify sentiment" → outputMode: "columns" (needs AI reasoning)
+   A. SHEET MODE (outputMode: "sheet") - User wants to PERFORM an action on the sheet
+      
+      Ask yourself: Is the user asking me to CREATE, MODIFY, or APPLY something to the spreadsheet?
+      
+      Sheet actions include:
+      - Creating visualizations (charts, graphs)
+      - Changing how data looks (formatting, styling)
+      - Adding visual indicators (highlighting, color coding)
+      - Adding data entry controls (dropdowns, checkboxes)
+      - Changing what rows are visible (filtering)
+      
+      These are ACTIONS that change the sheet - they need outputMode: "sheet"
+      
+      Available sheetActions:
+      - "chart" - Any request to visualize, plot, graph, or chart data
+      - "format" - Any request to change number/date formatting or text styling
+      - "conditionalFormat" - Any request to highlight or color-code based on values
+      - "dataValidation" - Any request to add dropdowns, checkboxes, or restrict input
+      - "filter" - Any request to show/hide rows based on criteria
+      
+   B. FORMULA MODE (outputMode: "formula") - Task can be done with native formulas
+      Use when the transformation is mechanical and doesn't require understanding:
+      - Translation, text extraction, case conversion, basic math
+      
+   C. CHAT MODE (outputMode: "chat") - User is asking a QUESTION
+      The user wants INFORMATION, not an action. They want you to TELL them something.
+      Look for question patterns: "What...", "Which...", "How many...", "Summarize for me..."
+      
+   D. COLUMNS MODE (outputMode: "columns") - User wants AI to PROCESS data row-by-row
+      The user wants intelligent transformation that requires understanding context.
+   
+   **Key reasoning principle:**
+   - Imperative/action requests → "sheet" or "formula" or "columns"
+   - Interrogative/question requests → "chat"
+   
+   If someone says "create", "make", "add", "format", "highlight", "filter", "visualize", "plot" - 
+   they want an ACTION, not a conversation. Use the appropriate action mode.
 
 2. FOR CHAT MODE (outputMode: "chat"):
    - Set steps: [] (empty array)
@@ -172,7 +180,79 @@ CRITICAL RULES - FOLLOW STRICTLY:
 
 RESPONSE FORMAT:
 
-For FORMULA mode (prefer this when possible - it's FREE!):
+For SHEET mode (charts, formatting, validation, filters):
+{
+  "outputMode": "sheet",
+  "sheetAction": "chart",
+  "sheetConfig": {
+    "chartType": "line",
+    "dataRange": "A1:C10",
+    "xColumn": "A",
+    "yColumns": ["B", "C"],
+    "title": "Sales Over Time",
+    "xAxisTitle": "Date",
+    "yAxisTitle": "Revenue"
+  },
+  "summary": "Create line chart of sales data",
+  "clarification": "Creating a line chart showing sales trends over time."
+}
+
+For FORMAT sheet action:
+{
+  "outputMode": "sheet",
+  "sheetAction": "format",
+  "sheetConfig": {
+    "formatType": "currency",
+    "range": "B2:B100",
+    "options": { "decimals": 2 }
+  },
+  "summary": "Format as currency",
+  "clarification": "Applying currency format to the selected range."
+}
+
+For CONDITIONAL FORMAT sheet action:
+{
+  "outputMode": "sheet",
+  "sheetAction": "conditionalFormat",
+  "sheetConfig": {
+    "range": "C2:C100",
+    "rules": [
+      { "condition": "greaterThan", "value": 100, "format": { "backgroundColor": "#90EE90" } },
+      { "condition": "lessThan", "value": 0, "format": { "backgroundColor": "#FFB6C1" } }
+    ]
+  },
+  "summary": "Highlight high/low values",
+  "clarification": "Adding conditional formatting to highlight values."
+}
+
+For DATA VALIDATION sheet action:
+{
+  "outputMode": "sheet",
+  "sheetAction": "dataValidation",
+  "sheetConfig": {
+    "validationType": "dropdown",
+    "range": "D2:D100",
+    "values": ["High", "Medium", "Low"]
+  },
+  "summary": "Add dropdown validation",
+  "clarification": "Creating dropdown list for data entry."
+}
+
+For FILTER sheet action:
+{
+  "outputMode": "sheet",
+  "sheetAction": "filter",
+  "sheetConfig": {
+    "dataRange": "A1:E100",
+    "criteria": [
+      { "column": "B", "condition": "equals", "value": "Active" }
+    ]
+  },
+  "summary": "Filter to show active items",
+  "clarification": "Applying filter to show only active rows."
+}
+
+For FORMULA mode (prefer this for text operations - it's FREE!):
 {
   "outputMode": "formula",
   "isMultiStep": false,
