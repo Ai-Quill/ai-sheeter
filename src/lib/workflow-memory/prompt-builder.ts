@@ -190,42 +190,63 @@ For SHEET mode - CHART (visualizations):
   "sheetAction": "chart",
   "sheetConfig": {
     "chartType": "line",
-    "xAxisColumn": "B",
-    "dataColumns": ["C", "D", "E"],
+    "domainColumn": "A",
+    "dataColumns": ["B", "C", "D"],
     "title": "Revenue Trends Over Time",
     "xAxisTitle": "Month",
     "yAxisTitle": "Revenue",
-    "seriesNames": ["PK Himlam", "PK Thanh Nhàn", "PK Văn Phú"],
+    "seriesNames": ["Store A", "Store B", "Store C"],
     "curveType": "smooth"
   },
   "summary": "Create line chart for revenue trends",
   "clarification": "Creating a line chart to visualize revenue trends over time."
 }
 
-CRITICAL for CHARTS - Column-Based Approach:
+CRITICAL for CHARTS - Unified Column-Based Approach:
 
-YOUR JOB: Identify WHICH COLUMNS to use based on sample data. The frontend will detect the full data range.
+YOUR JOB: Identify WHICH COLUMNS to use based on CURRENT sample data. The frontend will detect the full data range.
 
-1. COLUMN SELECTION (not row ranges!):
-   - xAxisColumn: The column letter containing dates/labels for X-axis (e.g., "B")
-   - dataColumns: Array of column letters containing numeric data series (e.g., ["C", "D", "E"])
-   - Look at SAMPLE DATA to identify: dates are usually text like "01/01/2025", numeric data are numbers
-   - The frontend will automatically detect ALL rows with data in these columns
+IMPORTANT: Always analyze the CURRENT data context shown above. Do NOT reuse column info from previous requests!
 
-2. DETECTING DATE vs NUMERIC COLUMNS from sample data:
-   - Date columns have: "01/01/2025", "Jan 2025", "Tháng 1", "Monday", etc.
-   - Numeric columns have: numbers, currency values, percentages
-   - Use the date/label column as xAxisColumn
-   - Use numeric columns as dataColumns
+== UNIFIED SCHEMA FOR ALL CHART TYPES ==
+{
+  "chartType": "line|bar|column|pie|area|scatter|histogram",
+  "domainColumn": "A",          // ALWAYS: The category/label/date/x-axis column (text or dates)
+  "dataColumns": ["B", "C"],    // ALWAYS: Array of numeric value columns
+  "seriesNames": ["Revenue", "Expenses"],  // Legend labels from column headers
+  "title": "Chart Title"
+}
 
-3. SERIES NAMES:
-   - Extract from column HEADERS shown in context
-   - Example headers: "PK Himlam", "PK Thanh Nhàn" → use these as seriesNames
-   - Order should match dataColumns order
+COLUMN RULES:
+1. domainColumn: The column containing categories, labels, or dates (usually TEXT)
+   - Look for: dates ("01/01/2025"), categories ("Product A"), months ("Jan")
+   
+2. dataColumns: Array of columns containing NUMERIC values
+   - For PIE: Use exactly ONE column, e.g., ["B"]
+   - For LINE/BAR/AREA: Use multiple columns, e.g., ["B", "C", "D"]
+   - For SCATTER: Use one or more Y-value columns
 
-4. CHART OPTIONS:
-   - curveType: "smooth" for curved lines, omit for straight
-   - legendPosition: "bottom", "right", "top", "none"
+3. seriesNames: Extract from column HEADERS in context (match dataColumns order)
+
+EXAMPLES:
+
+Line chart (multiple series):
+  Data: Month | Revenue | Expenses | Profit
+  → domainColumn: "A", dataColumns: ["B", "C", "D"], seriesNames: ["Revenue", "Expenses", "Profit"]
+
+Pie chart (single series):
+  Data: Category | Amount
+  → domainColumn: "A", dataColumns: ["B"], seriesNames: ["Amount"]
+
+Bar chart (comparison):
+  Data: Product | Q1 | Q2 | Q3
+  → domainColumn: "A", dataColumns: ["B", "C", "D"], seriesNames: ["Q1", "Q2", "Q3"]
+
+CHART OPTIONS:
+- curveType: "smooth" for curved lines
+- legendPosition: "bottom", "right", "top", "none"
+- pieHole: 0.4 for donut style
+- stacked: true for stacked bars/areas
 
 For FORMAT sheet action:
 {
