@@ -354,6 +354,40 @@ For currency formatting:
   "clarification": "Applying currency format to the selected range."
 }
 
+For STYLING (borders, alignment, bold, etc.) - ALWAYS use "format" action with formatType "text":
+{
+  "outputMode": "sheet",
+  "sheetAction": "format",
+  "sheetConfig": {
+    "formatType": "text",
+    "range": "B3:H11",
+    "options": { 
+      "borders": true,
+      "alignment": "right"
+    }
+  },
+  "summary": "Add borders and right-align",
+  "clarification": "Adding borders and right alignment to the data range."
+}
+
+IMPORTANT - Format options you can combine:
+- borders: true (adds borders around all cells)
+- alignment: "left", "center", "right" (horizontal alignment)
+- verticalAlign: "top", "middle", "bottom"
+- bold: true
+- italic: true
+- underline: true
+- backgroundColor: "#RRGGBB"
+- textColor: "#RRGGBB" 
+- fontSize: number (e.g., 12)
+- fontFamily: "Arial", "Times New Roman", etc.
+- wrap: true (text wrapping)
+
+⚠️ CRITICAL: When user requests MULTIPLE format operations (e.g., "borders AND right-align"):
+- Use a SINGLE "format" action with ALL options combined
+- Do NOT try to split into multiple steps
+- sheetAction MUST be "format" (not undefined!)
+
 For CONDITIONAL FORMAT sheet action:
 {
   "outputMode": "sheet",
