@@ -2,9 +2,17 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, MessageSquare, Shield, Workflow, Sliders, BrainCircuit, Sparkles, History } from 'lucide-react';
+import { Zap, MessageSquare, Shield, Workflow, Sliders, BrainCircuit, Sparkles, History, BarChart3 } from 'lucide-react';
 
 const features = [
+  {
+    title: "Instant AI Charts",
+    description: "\"Create a combo chart with trendlines\" - 10 chart types, AI picks the perfect one for your data.",
+    icon: <BarChart3 size={24} className="text-[#FFB701]" />,
+    color: "bg-[#FFB701]",
+    colSpan: "md:col-span-1",
+    tag: "New"
+  },
   {
     title: "Multi-Step Task Chains",
     description: "One command executes multiple steps. Extract → Score → Recommend in a single conversation.",

@@ -22,6 +22,31 @@ interface DemoScenario {
 
 const scenarios: DemoScenario[] = [
   {
+    id: 'charts',
+    title: 'Instant Charts',
+    icon: '📈',
+    description: 'Create beautiful charts with natural language',
+    conversation: [
+      { type: 'user', content: "Create a combo chart with Store A as line and Store B,C as columns", delay: 0 },
+      { type: 'agent', content: "I see 12 months of sales data for 3 stores. Creating a combo chart with:\n• Store A: Line (trend visualization)\n• Store B & C: Columns (comparison)\n\nGenerating chart...", delay: 1500 },
+      { type: 'result', content: "✅ Chart created!\n\n• Title: Store Performance Comparison\n• Legend at bottom\n• All 12 months displayed\n\nWant me to add a scatter plot showing marketing ROI correlation?", delay: 3000 },
+      { type: 'user', content: "Yes, create a scatter chart with trendlines showing marketing ROI", delay: 4000 },
+      { type: 'result', content: "✅ Scatter chart created!\n\n• X-axis: Marketing Spend\n• Y-axis: Revenue & Profit\n• Trendlines: Revenue ROI, Profit ROI\n\nShows $5.61 revenue per $1 spent, $2.39 profit per $1 spent.", delay: 5500 }
+    ],
+    beforeData: [
+      ['Month', 'Store A', 'Store B', 'Store C'],
+      ['Jan', '12000', '15000', '8000'],
+      ['Feb', '14500', '16200', '9500'],
+      ['Mar', '13800', '17500', '11000']
+    ],
+    afterData: [
+      ['Month', 'Store A', 'Store B', 'Store C', '📊'],
+      ['Jan', '12000', '15000', '8000', '→ Combo Chart'],
+      ['Feb', '14500', '16200', '9500', '→ Scatter + ROI'],
+      ['Mar', '13800', '17500', '11000', '']
+    ]
+  },
+  {
     id: 'sales',
     title: 'Sales Pipeline',
     icon: '📊',
