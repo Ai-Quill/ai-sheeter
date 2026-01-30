@@ -46,35 +46,34 @@ For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheet
     "validationType": "dropdown|checkbox|number|date|email|url|custom",
     "range": "D2:D100",
     "values": ["Option 1", "Option 2"],  // For dropdown
-    "options": {
-      // Number validation
-      "min": 0,
-      "max": 100,
-      
-      // Checkbox
-      "checkedValue": "Yes",
-      "uncheckedValue": "No",
-      
-      // Date validation
-      "after": "2024-01-01",
-      "before": "2024-12-31",
-      
-      // Custom formula
-      "formula": "=A1>10"
-    }
+    "min": 0,      // For number validation - put directly in sheetConfig
+    "max": 100     // For number validation - put directly in sheetConfig
   },
   "summary": "Add [type] validation",
   "clarification": "Creating [type] validation for [range]."
 }
 
 ### Validation Types
-- dropdown/list: Select from predefined values
-- checkbox: True/false with optional custom values
-- number: Numeric constraints (min, max, between)
-- date: Date constraints (after, before, between)
-- email: Valid email format
-- url: Valid URL format
-- custom: Custom formula validation
+- **dropdown** or **list**: Select from predefined values → use "values" array
+- **checkbox**: True/false checkboxes
+- **number**: Numeric constraints → use "min" and "max" directly in sheetConfig
+- **date**: Date constraints → use "after" and "before"  
+- **email**: Valid email format
+- **url**: Valid URL format
+
+### IMPORTANT for Number Validation
+When restricting to number ranges, use validationType: "number" (NOT "numberRange")
+Put min/max directly in sheetConfig, not nested in options:
+
+CORRECT:
+{
+  "sheetConfig": {
+    "validationType": "number",
+    "range": "G2:G100",
+    "min": 1000,
+    "max": 100000
+  }
+}
 `;
 
 const DATA_VALIDATION_EXAMPLES: SkillExample[] = [
@@ -113,10 +112,26 @@ const DATA_VALIDATION_EXAMPLES: SkillExample[] = [
       sheetConfig: {
         validationType: "number",
         range: "F2:F100",
-        options: { min: 1, max: 100 }
+        min: 1,
+        max: 100
       },
       summary: "Add number validation",
       clarification: "Restricting values to numbers between 1 and 100."
+    }
+  },
+  {
+    command: "Only allow numbers between 1000 and 100000 on column G",
+    response: {
+      outputMode: "sheet",
+      sheetAction: "dataValidation",
+      sheetConfig: {
+        validationType: "number",
+        range: "G2:G100",
+        min: 1000,
+        max: 100000
+      },
+      summary: "Add number range validation",
+      clarification: "Restricting column G to numbers between 1000 and 100000."
     }
   }
 ];
