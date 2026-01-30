@@ -263,11 +263,37 @@ Scatter chart (correlation):
   → domainColumn: "B", dataColumns: ["C", "D"], seriesNames: ["Revenue", "Profit"]
   (domainColumn is X-axis, dataColumns are Y-axis - do NOT include X column in dataColumns!)
 
-CHART OPTIONS:
-- curveType: "smooth" for curved lines
-- legendPosition: "bottom", "right", "top", "none"
-- pieHole: 0.4 for donut style
-- stacked: true for stacked bars/areas
+CHART OPTIONS - BE SMART, PROVIDE COMPLETE CONFIG:
+The frontend just executes what you specify. You decide ALL visual aspects based on context.
+
+REQUIRED for every chart:
+- legendPosition: "bottom" (many series/long names), "right" (pie), "top" (default), "none"
+- yAxisFormat: "currency" (money), "percent" (%), "decimal" (numbers), "short" (auto-abbreviate)
+
+OPTIONAL - provide when relevant:
+- curveType: "smooth" for trends, "none" for precise data points
+- pieHole: 0.4 for donut, 0 for pie
+- pieSliceText: "percentage" (default), "value" (small datasets), "label", "none"
+- stacked: true for comparing parts of whole
+- pointSize: 3-5 (dense data), 7-10 (sparse data)
+- barGroupWidth: "50%" (many bars), "75%" (default), "90%" (few bars)
+- slantedTextAngle: 45 (short labels), 60-90 (dates/long labels)
+
+TRENDLINES (scatter charts):
+Format: [{"type":"linear", "series":0, "labelInLegend":"Revenue ROI", "color":"#1f77b4"}]
+- labelInLegend: MEANINGFUL label based on user intent
+  * "ROI trend" → "Revenue ROI", "Profit ROI"
+  * "growth trend" → "Revenue growth", "Sales growth"
+  * "correlation" → "Revenue vs Spend"
+  * NEVER use generic "Linear trend"!
+
+SMART DEFAULTS - Think about what the user needs:
+- Revenue/Sales/Price data → yAxisFormat: "currency"
+- Percentage data → yAxisFormat: "percent"  
+- Date columns on X-axis → slantedTextAngle: 60
+- Many data series (5+) → legendPosition: "bottom"
+- Pie with percentages shown → pieSliceText: "percentage"
+- Small pie (3-5 slices) → pieSliceText: "value"
 
 For FORMAT sheet action:
 {
