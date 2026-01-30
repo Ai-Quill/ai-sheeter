@@ -53,33 +53,46 @@ For questions, ambiguous requests, or when no specific action is clear, return o
   "isMultiStep": false,
   "isCommand": true,
   "steps": [],
-  "summary": "Analyzing data to answer your question",
-  "clarification": "Brief description of what you're doing",
-  "chatResponse": "Your detailed answer in MARKDOWN format"
+  "summary": "Brief summary",
+  "clarification": "Brief description",
+  "chatResponse": "Your response in MARKDOWN format",
+  "suggestedActions": [
+    { "label": "Format as currency", "command": "Format columns B and C as currency" },
+    { "label": "Add borders", "command": "Add borders to all cells" }
+  ]
 }
 
 ### Response Formatting
 Use proper Markdown in chatResponse:
 - ## for main sections
-- ### for subsections  
 - **bold** for emphasis
-- Bullet lists (- or 1.)
-- Tables for structured data
-- Add spacing between sections
+- Bullet lists for options
+- Keep it concise
 
-### Example Response Format
-"## Top 3 Products by Revenue\\n\\n1. **Product A** - $50,000\\n2. **Product B** - $35,000\\n3. **Product C** - $28,000\\n\\n### Key Insight\\nProduct A accounts for 40% of total revenue."
+### IMPORTANT: For Vague/Ambiguous Requests
+When user asks something vague like "format professionally" or "make it look nice":
 
-### For Ambiguous/Unclear Requests
-If you can't determine what specific action the user wants, provide helpful guidance:
+1. Analyze the ACTUAL DATA in the context
+2. Provide SPECIFIC suggestions based on the data types you see
+3. Include "suggestedActions" array with clickable commands
 
-"I'd be happy to help! Here are some things I can do with your data:\\n\\n**Visualize:**\\n- 'Create a pie chart of sales by region'\\n- 'Show a line chart of revenue over time'\\n\\n**Format:**\\n- 'Format column C as currency'\\n- 'Make headers bold with blue background'\\n\\n**Highlight:**\\n- 'Highlight negative values in red'\\n- 'Color code status column'\\n\\n**Analyze:**\\n- 'What are the top 5 products?'\\n- 'Summarize the sales data'\\n\\nWhat would you like me to do?"
+Example for sales data with numbers and percentages:
+{
+  "outputMode": "chat",
+  "chatResponse": "I can help format your sales data professionally! Based on your data, here are some options:",
+  "suggestedActions": [
+    { "label": "Bold headers with blue background", "command": "Make headers bold with dark blue background and white text" },
+    { "label": "Format as currency", "command": "Format columns B, C, D as currency" },
+    { "label": "Highlight high achievers", "command": "Highlight Achievement values above 100% in green" },
+    { "label": "Add borders", "command": "Add borders to all cells and right-align numbers" }
+  ]
+}
 
-### Important
+### Important Rules
 - ALWAYS return valid JSON with outputMode: "chat"
-- If analyzing data, use the ACTUAL data in the context
-- Provide specific insights, not generic answers
-- If unsure what user wants, ASK for clarification in a helpful way
+- ALWAYS include "suggestedActions" array when providing options
+- Make suggestedActions SPECIFIC to the user's data (use actual column names/letters)
+- Each action should be directly executable as a command
 - NEVER return an empty response or undefined sheetAction
 `;
 
@@ -97,16 +110,44 @@ const CHAT_EXAMPLES: SkillExample[] = [
     }
   },
   {
-    command: "Summarize the sales data",
+    command: "Help me format the table to look professional",
+    context: "Columns: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement",
     response: {
       outputMode: "chat",
       isMultiStep: false,
       isCommand: true,
       steps: [],
-      summary: "Summarizing sales data",
-      clarification: "Creating overview of sales performance",
-      chatResponse: "## Sales Summary\n\n**Total Revenue:** $125,000\n**Total Orders:** 450\n**Average Order Value:** $278\n\n### By Region\n- North: $45,000 (36%)\n- South: $40,000 (32%)\n- West: $40,000 (32%)\n\n### Trend\nSales increased 15% compared to last period."
-    }
+      summary: "Suggest professional formatting options",
+      clarification: "Based on your sales data, here are formatting options",
+      chatResponse: "I can help format your sales data professionally! Here are some options based on your data:",
+      suggestedActions: [
+        { label: "Bold headers with blue background", command: "Make headers bold with dark blue background and white text" },
+        { label: "Format sales as currency", command: "Format columns B, C, D as currency" },
+        { label: "Highlight top performers", command: "Highlight Achievement values above 100% in green" },
+        { label: "Add borders and alignment", command: "Add borders to all cells and right-align number columns" },
+        { label: "Complete professional look", command: "Format headers bold with blue background, format B C D as currency, add borders, right-align numbers" }
+      ]
+    },
+    relevanceHints: ["professional", "format", "look nice", "style"]
+  },
+  {
+    command: "Make it look nice",
+    response: {
+      outputMode: "chat",
+      isMultiStep: false,
+      isCommand: true,
+      steps: [],
+      summary: "Suggest formatting options",
+      clarification: "Here are some formatting options for your data",
+      chatResponse: "I'd be happy to help make your data look great! What would you like to do?",
+      suggestedActions: [
+        { label: "Style headers", command: "Make headers bold with dark blue background" },
+        { label: "Add borders", command: "Add borders to all cells" },
+        { label: "Format numbers", command: "Format number columns as currency with 2 decimals" },
+        { label: "Highlight important values", command: "Highlight cells with values above average in green" }
+      ]
+    },
+    relevanceHints: ["nice", "look good", "pretty", "style"]
   }
 ];
 

@@ -56,6 +56,16 @@ export type SheetActionType =
   | 'writeData';
 
 /**
+ * Suggested action that can be executed by the user
+ */
+export interface SuggestedAction {
+  /** Display label for the action button */
+  label: string;
+  /** Command to execute when clicked */
+  command: string;
+}
+
+/**
  * Example for few-shot learning within a skill
  */
 export interface SkillExample {
@@ -67,6 +77,21 @@ export interface SkillExample {
   response: Record<string, unknown>;
   /** When this example is most relevant */
   relevanceHints?: string[];
+}
+
+/**
+ * Chat response structure with optional actionable suggestions
+ */
+export interface ChatResponse {
+  outputMode: 'chat';
+  isMultiStep: boolean;
+  isCommand: boolean;
+  steps: unknown[];
+  summary: string;
+  clarification: string;
+  chatResponse: string;
+  /** Actionable suggestions the user can click to execute */
+  suggestedActions?: SuggestedAction[];
 }
 
 /**

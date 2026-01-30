@@ -12,11 +12,13 @@
 import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
 
 const WRITE_DATA_PATTERNS: RegExp[] = [
-  /\b(write|paste|insert)\s+(this\s+)?(data|table)\b/i,
+  /\b(write|paste|insert|put|add)\s+(this\s+)?(data|table|into)\b/i,
   /\bcreate\s+(a\s+)?table\s+(from|based|with)\b/i,
   /\|.*\|.*\|/,  // Markdown table pattern
-  /\bhelp\s+me\s+(paste|create|write)\b/i,
+  /\bhelp\s+(me\s+)?(paste|create|write|insert)\b/i,
   /\bhere\s*(is|are)\s+(the\s+)?(data|table)\b/i,
+  /\b(insert|paste|write)\s+.*\s*(data|table|:)\s*\|/i,  // "insert this data: |..."
+  /\bput\s+(this|the)\s+(data|table|into)\b/i,
 ];
 
 function calculateIntentScore(command: string, context?: DataContext): number {
