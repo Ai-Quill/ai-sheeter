@@ -230,7 +230,12 @@ COLUMN RULES:
    - For LINE/BAR/COLUMN/AREA: Include ALL numeric columns from context!
      * If context shows 3 numeric columns (D, E, F) → use ["D", "E", "F"]
      * Each column becomes a separate series in the chart
-   - For SCATTER: Use Y-value column(s)
+   - For SCATTER: 
+     * domainColumn = X values (first numeric column)
+     * dataColumns = Y values ONLY (remaining numeric columns, NOT the X column!)
+     * Example: Columns B=Spend, C=Revenue, D=Profit
+       → domainColumn: "B", dataColumns: ["C", "D"]
+       → This plots Revenue vs Spend AND Profit vs Spend
 
 3. seriesNames: Extract from column HEADERS shown in the current context
    - If headers show "Store A", "Store B", "Store C" → use those exact names
@@ -252,6 +257,11 @@ Pie chart (1 series):
   Context columns: A=Category, B=Amount
   → domainColumn: "A", dataColumns: ["B"], seriesNames: ["Amount"]
   (Pie charts use only ONE data column)
+
+Scatter chart (correlation):
+  Context columns: B=Marketing Spend, C=Revenue, D=Profit
+  → domainColumn: "B", dataColumns: ["C", "D"], seriesNames: ["Revenue", "Profit"]
+  (domainColumn is X-axis, dataColumns are Y-axis - do NOT include X column in dataColumns!)
 
 CHART OPTIONS:
 - curveType: "smooth" for curved lines
