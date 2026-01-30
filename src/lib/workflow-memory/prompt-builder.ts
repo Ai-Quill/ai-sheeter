@@ -280,12 +280,20 @@ OPTIONAL - provide when relevant:
 - slantedTextAngle: 45 (short labels), 60-90 (dates/long labels)
 
 TRENDLINES (scatter charts):
-Format: [{"type":"linear", "series":0, "labelInLegend":"Revenue ROI", "color":"#1f77b4"}]
-- labelInLegend: MEANINGFUL label based on user intent
+⚠️ IMPORTANT: Provide labelInLegend for EVERY trendline - one per series!
+Format for 2 series:
+[
+  {"type":"linear", "series":0, "labelInLegend":"Revenue ROI"},
+  {"type":"linear", "series":1, "labelInLegend":"Profit ROI"}
+]
+
+labelInLegend rules:
+- EVERY trendline MUST have labelInLegend - Google Charts shows equations otherwise!
+- Use context-aware labels matching user intent:
   * "ROI trend" → "Revenue ROI", "Profit ROI"
   * "growth trend" → "Revenue growth", "Sales growth"
-  * "correlation" → "Revenue vs Spend"
-  * NEVER use generic "Linear trend"!
+  * "correlation" → "Revenue correlation", "Profit correlation"
+- NEVER use generic "Linear trend" or leave labelInLegend empty!
 
 SMART DEFAULTS - Think about what the user needs:
 - Revenue/Sales/Price data → yAxisFormat: "currency"
