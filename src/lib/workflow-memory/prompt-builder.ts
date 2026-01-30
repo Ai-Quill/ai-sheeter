@@ -27,6 +27,16 @@ export interface DataContext {
   dataRange?: string;    // Full A1 notation like "A6:E18"
   startRow?: number;     // First row of data (e.g., 6)
   endRow?: number;       // Last row of data (e.g., 18)
+  // Explicit row information for precise targeting (e.g., header formatting)
+  explicitRowInfo?: {
+    headerRowNumber: number | null;
+    headerRange: string | null;          // e.g., "B3:H3" - EXACT range for header row
+    dataStartRow: number;
+    dataEndRow: number;
+    dataRange: string;                   // e.g., "B4:H11" - data only, no headers
+    fullRangeIncludingHeader: string | null;  // e.g., "B3:H11" - includes header
+    headerNames?: Array<{ column: string; name: string }>;
+  };
 }
 
 interface WorkflowExample {
@@ -111,6 +121,10 @@ CRITICAL RULES - FOLLOW STRICTLY:
       Available sheetActions:
       - "chart" - Any request to visualize, plot, graph, or chart data
       - "format" - Any request to change number/date formatting or text styling
+        ⚠️ IMPORTANT: For "format" actions, use explicitRowInfo to get correct ranges:
+        - "format headers" → Use explicitRowInfo.headerRange (NOT first row of dataRange!)
+        - "format data" → Use explicitRowInfo.dataRange
+        - The headerRange and dataRange are different! Headers might not be at row 1.
       - "conditionalFormat" - Any request to highlight or color-code based on values
       - "dataValidation" - Any request to add dropdowns, checkboxes, or restrict input
       - "filter" - Any request to show/hide rows based on criteria
@@ -304,12 +318,36 @@ SMART DEFAULTS - Think about what the user needs:
 - Small pie (3-5 slices) → pieSliceText: "value"
 
 For FORMAT sheet action:
+
+⚠️ CRITICAL - Use explicitRowInfo for accurate range targeting!
+
+When user says "format headers":
+  → Use the HEADER RANGE from explicitRowInfo (e.g., "B3:H3")
+  → Do NOT use the first row of dataRange - that's DATA, not headers!
+
+When user says "format data":
+  → Use the DATA-ONLY RANGE from explicitRowInfo (e.g., "B4:H11")
+
+Examples:
+{
+  "outputMode": "sheet",
+  "sheetAction": "format",
+  "sheetConfig": {
+    "formatType": "text",
+    "range": "[USE explicitRowInfo.headerRange for headers, e.g., B3:H3]",
+    "options": { "bold": true, "backgroundColor": "#003366", "textColor": "#FFFFFF", "alignment": "center" }
+  },
+  "summary": "Format headers bold with blue background",
+  "clarification": "Applying bold formatting, dark blue background, white text, and center alignment to the header row."
+}
+
+For currency formatting:
 {
   "outputMode": "sheet",
   "sheetAction": "format",
   "sheetConfig": {
     "formatType": "currency",
-    "range": "B2:B100",
+    "range": "B4:B11",
     "options": { "decimals": 2 }
   },
   "summary": "Format as currency",
@@ -475,6 +513,24 @@ ${JSON.stringify(ex.workflow, null, 2)}
  */
 function formatDataContext(ctx: DataContext): string {
   const parts: string[] = [];
+  
+  // ⭐ EXPLICIT ROW INFO - Use this for precise range targeting!
+  // This is the source of truth for header vs data rows
+  if (ctx.explicitRowInfo) {
+    const rowInfo = ctx.explicitRowInfo;
+    parts.push('⭐ EXPLICIT ROW INFORMATION (USE FOR FORMAT ACTIONS):');
+    if (rowInfo.headerRowNumber) {
+      parts.push(`   📍 HEADER ROW: Row ${rowInfo.headerRowNumber}`);
+      parts.push(`   📍 HEADER RANGE: ${rowInfo.headerRange} ← Use this for "format headers" commands!`);
+    }
+    parts.push(`   📍 DATA START ROW: Row ${rowInfo.dataStartRow}`);
+    parts.push(`   📍 DATA END ROW: Row ${rowInfo.dataEndRow}`);
+    parts.push(`   📍 DATA-ONLY RANGE: ${rowInfo.dataRange} ← Use this for "format data" commands`);
+    if (rowInfo.fullRangeIncludingHeader) {
+      parts.push(`   📍 FULL RANGE (with header): ${rowInfo.fullRangeIncludingHeader}`);
+    }
+    parts.push('');
+  }
   
   // IMPORTANT: Actual data range - AI MUST use this for sheetConfig.dataRange
   if (ctx.dataRange) {

@@ -212,6 +212,10 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Has columnDataRanges:', !!context?.columnDataRanges);
     console.log('[parse-chain] Has sampleData:', !!context?.sampleData);
     console.log('[parse-chain] Has headers:', Array.isArray(context?.headers) ? context.headers.length : !!context?.headerRow);
+    console.log('[parse-chain] Has explicitRowInfo:', !!context?.explicitRowInfo);
+    if (context?.explicitRowInfo) {
+      console.log('[parse-chain] explicitRowInfo:', JSON.stringify(context.explicitRowInfo));
+    }
     
     // 1. Extract explicit output column from command (e.g., "to column H", "for column G")
     let explicitOutputColumn: string | null = null;
@@ -326,6 +330,16 @@ interface ExtendedDataContext extends DataContext {
   startRow: number;
   endRow: number;
   dataRange: string;  // Full A1 notation range
+  // Explicit row information for precise targeting (e.g., header formatting)
+  explicitRowInfo?: {
+    headerRowNumber: number | null;
+    headerRange: string | null;
+    dataStartRow: number;
+    dataEndRow: number;
+    dataRange: string;
+    fullRangeIncludingHeader: string | null;
+    headerNames?: Array<{ column: string; name: string }>;
+  };
 }
 
 function extractDataContext(context: any): ExtendedDataContext {
@@ -468,7 +482,13 @@ function extractDataContext(context: any): ExtendedDataContext {
   
   console.log('[parse-chain] Final dataRange:', dataRange, '| dataColumns:', dataColumns.join(','));
   
-  return { dataColumns, emptyColumns, headers, sampleData, rowCount, startRow, endRow, dataRange };
+  // Include explicitRowInfo if available from frontend
+  const explicitRowInfo = context?.explicitRowInfo || null;
+  if (explicitRowInfo) {
+    console.log('[parse-chain] Including explicitRowInfo for AI:', JSON.stringify(explicitRowInfo));
+  }
+  
+  return { dataColumns, emptyColumns, headers, sampleData, rowCount, startRow, endRow, dataRange, explicitRowInfo };
 }
 
 // ============================================
