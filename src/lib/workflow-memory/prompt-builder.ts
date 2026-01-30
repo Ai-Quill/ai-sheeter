@@ -388,6 +388,16 @@ IMPORTANT - Format options you can combine:
 - Do NOT try to split into multiple steps
 - sheetAction MUST be "format" (not undefined!)
 
+⚠️ FOR VAGUE FORMATTING REQUESTS (e.g., "make it look professional", "format nicely"):
+If the user's request is too vague to determine specific formatting, use CHAT mode to suggest specific commands:
+{
+  "outputMode": "chat",
+  "chatResponse": "I can help you format your data professionally! Here are some specific commands you can try:\\n\\n1. **Format headers**: 'Make headers bold with dark blue background'\\n2. **Format currency**: 'Format Price, Revenue, Profit columns as currency'\\n3. **Format dates**: 'Format dates as Month Day, Year'\\n4. **Add styling**: 'Add borders and right-align numbers'\\n5. **Highlight values**: 'Make negative values red and bold'\\n\\nOr you can be specific, like: 'Format the entire table with professional styling including bold headers, currency formatting for money columns, and borders'",
+  "summary": "Suggesting formatting options"
+}
+
+DO NOT return outputMode: "sheet" with an empty sheetConfig - that will fail!
+
 For CONDITIONAL FORMAT sheet action:
 {
   "outputMode": "sheet",
