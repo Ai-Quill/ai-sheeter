@@ -7,7 +7,10 @@
  * This runs BEFORE the main AI call to reduce token usage
  * by loading only relevant skill instructions.
  * 
- * @version 1.0.0
+ * Uses the Request Analyzer for generic vagueness detection
+ * instead of hardcoding specific patterns.
+ * 
+ * @version 1.1.0
  */
 
 import { 
@@ -16,6 +19,8 @@ import {
   GoogleSheetSkill,
   SKILL_THRESHOLDS 
 } from './types';
+
+import { analyzeRequest, shouldShowSuggestions } from './request-analyzer';
 
 // Import all skills
 import { chartSkill } from './skills/chart.skill';
@@ -49,6 +54,9 @@ export const ALL_SKILLS: GoogleSheetSkill[] = [
 /**
  * Detect which skills are relevant for a command
  * 
+ * Uses the Request Analyzer to detect vague/composite requests
+ * and route them appropriately to chat for suggestions.
+ * 
  * @param command User's command text
  * @param context Optional data context for smarter matching
  * @returns Array of skill matches sorted by confidence
@@ -58,17 +66,39 @@ export function detectIntent(
   context?: DataContext
 ): SkillMatch[] {
   const matches: SkillMatch[] = [];
-  const cmdLower = command.toLowerCase();
+  
+  // Analyze request for vagueness/complexity
+  const requestAnalysis = analyzeRequest(command, context);
+  const needsSuggestions = shouldShowSuggestions(command);
+  
+  // Log analysis for debugging
+  if (requestAnalysis.type !== 'specific') {
+    console.log(`[IntentDetector] Request analysis: type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}, recommendation=${requestAnalysis.recommendation}`);
+  }
   
   for (const skill of ALL_SKILLS) {
-    // Calculate confidence using skill's own scoring function
-    const confidence = skill.intentScore(command, context);
+    // Calculate base confidence using skill's own scoring function
+    let confidence = skill.intentScore(command, context);
     
     // Find which patterns matched (for debugging)
     const matchedPatterns: string[] = [];
     for (const pattern of skill.triggerPatterns) {
       if (pattern.test(command)) {
         matchedPatterns.push(pattern.source);
+      }
+    }
+    
+    // GENERIC VAGUENESS HANDLING:
+    // If request is vague/composite and needs suggestions, boost chat skill
+    // and reduce confidence of action skills
+    if (needsSuggestions && requestAnalysis.type !== 'question') {
+      if (skill.id === 'chat') {
+        // Boost chat skill for vague requests
+        confidence = Math.max(confidence, 0.75);
+      } else if (skill.outputMode === 'sheet') {
+        // Reduce action skill confidence for vague requests
+        // They shouldn't execute directly without clarification
+        confidence *= (requestAnalysis.specificity * 0.8);
       }
     }
     

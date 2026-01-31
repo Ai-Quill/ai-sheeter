@@ -12,11 +12,15 @@
 import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
 
 const CHAT_PATTERNS: RegExp[] = [
+  // Question patterns
   /\b(what|which|who|how\s+many|how\s+much|where|when)\b.*\?/i,
   /\b(summarize|summary|overview|analyze|analysis)\b/i,
   /\b(tell\s+me|explain|describe)\b/i,
   /\b(list|show\s+me|give\s+me)\s+(the\s+)?(top|bottom|highest|lowest)/i,
   /\bwhat\s+(are|is|were|was)\b/i,
+  // NOTE: Vague request handling (professional, nice, etc.) is now done
+  // generically by the Request Analyzer in intent-detector.ts
+  // Chat skill gets boosted automatically for vague/composite requests
 ];
 
 function calculateIntentScore(command: string, context?: DataContext): number {
@@ -36,8 +40,13 @@ function calculateIntentScore(command: string, context?: DataContext): number {
   // List top/bottom requests
   if (/\b(list|show\s+me)\s+(the\s+)?(top|bottom)/i.test(cmdLower)) score += 0.4;
   
-  // Penalize if it looks like an action request
-  if (/\b(create|make|add|format|chart|filter)\b/i.test(cmdLower)) score -= 0.3;
+  // NOTE: Vague request handling (professional, nice, etc.) is now done
+  // generically by the Request Analyzer in intent-detector.ts
+  // Chat skill confidence gets boosted automatically for vague/composite requests
+  
+  // Penalize if it looks like a SPECIFIC action request (not vague)
+  if (/\b(currency|percent|border|bold|highlight|dropdown|checkbox)\b/i.test(cmdLower)) score -= 0.4;
+  if (/\b(chart|pie|bar|line|scatter)\b/i.test(cmdLower)) score -= 0.5;
   
   return Math.max(0, Math.min(score, 1.0));
 }

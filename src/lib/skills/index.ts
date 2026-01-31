@@ -5,12 +5,23 @@
  * - Loads skills dynamically based on detected intent
  * - Composes minimal prompts for token efficiency
  * - Learns from success/failure patterns
+ * - Uses generic request analysis to handle vague/composite requests
  * 
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 // Types
 export * from './types';
+
+// Request Analysis (generic vagueness/complexity detection)
+export {
+  analyzeRequest,
+  isSpecificEnough,
+  shouldShowSuggestions,
+  getVaguenessReason,
+  type RequestType,
+  type RequestAnalysis,
+} from './request-analyzer';
 
 // Intent Detection
 export { 

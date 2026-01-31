@@ -25,6 +25,11 @@ function calculateIntentScore(command: string, context?: DataContext): number {
   const cmdLower = command.toLowerCase();
   let score = 0;
   
+  // NOTE: Vague request handling (professional, nice, etc.) is now done
+  // generically by the Request Analyzer in intent-detector.ts
+  // This skill only scores based on specific formatting keywords
+  
+  // SPECIFIC formatting requests
   if (/\bformat\b/i.test(cmdLower)) score += 0.4;
   if (/\b(currency|percent|decimal)\b/i.test(cmdLower)) score += 0.5;
   if (/\b(bold|italic|underline)\b/i.test(cmdLower)) score += 0.4;
@@ -71,11 +76,27 @@ For formatting requests, return outputMode: "sheet" with sheetAction: "format".
   "clarification": "Applying [format] to [range]."
 }
 
+### ⚠️ CRITICAL: Professional/Vague Formatting Requests
+When user asks for "professional look", "make it look nice", "format professionally":
+→ Return outputMode: "chat" with suggestedActions instead!
+→ Do NOT apply header styling (dark background, white text) to the entire table!
+
+Professional formatting requires MULTIPLE separate steps:
+1. Style headers ONLY (row 1) - bold, dark blue background, white text
+2. Add borders to full table
+3. Format numbers as currency/percent
+
+Since this needs multiple actions, use CHAT mode with suggestedActions.
+
 ### Critical Rules
 ⚠️ Use explicitRowInfo for accurate range targeting:
-- "format headers" → Use explicitRowInfo.headerRange (e.g., "B3:H3")
-- "format data" → Use explicitRowInfo.dataRange (e.g., "B4:H11")
-- Headers and data ranges are different!
+- "format headers" → Use explicitRowInfo.headerRange ONLY (e.g., "A1:E1")
+- "format data" → Use explicitRowInfo.dataRange (e.g., "A2:E9")
+- Headers and data ranges are DIFFERENT - never apply header styling to data!
+
+⚠️ NEVER apply backgroundColor/textColor to the entire table range!
+- Header styling (dark background + white text) should ONLY go on the header row
+- Data rows should have NO background color (or light alternating colors)
 
 ### Format Types
 - currency: $#,##0.00 (supports USD, EUR, GBP, JPY, etc.)
