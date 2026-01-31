@@ -234,6 +234,13 @@ export interface SkillSelectionResult {
   
   /** Whether fallback was used */
   usedFallback: boolean;
+  
+  /** Request analysis metadata (for logging/debugging) */
+  requestAnalysis?: {
+    type: string;
+    specificity: number;
+    forcedChatMode: boolean;
+  };
 }
 
 // ============================================

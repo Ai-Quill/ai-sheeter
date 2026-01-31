@@ -54,7 +54,7 @@ function calculateIntentScore(command: string, context?: DataContext): number {
 const CHAT_INSTRUCTIONS = `
 ## CHAT Skill
 
-For questions, ambiguous requests, or when no specific action is clear, return outputMode: "chat".
+Return outputMode: "chat" for questions, ambiguous requests, or when no specific action is clear.
 
 ### Schema
 {
@@ -66,43 +66,51 @@ For questions, ambiguous requests, or when no specific action is clear, return o
   "clarification": "Brief description",
   "chatResponse": "Your response in MARKDOWN format",
   "suggestedActions": [
-    { "label": "Format as currency", "command": "Format columns B and C as currency" },
-    { "label": "Add borders", "command": "Add borders to all cells" }
+    { "label": "Human-readable label", "command": "Exact command to execute" }
   ]
 }
 
-### Response Formatting
-Use proper Markdown in chatResponse:
-- ## for main sections
-- **bold** for emphasis
-- Bullet lists for options
-- Keep it concise
+### CRITICAL: Use Data Context to Generate Suggestions
+Study the DATA CONTEXT provided. It contains:
+- **headers**: Column letters and their header names (e.g., "A: Salesperson", "B: Q1 Sales")
+- **dataRange**: The actual data range (e.g., "A2:F9")
+- **headerRange**: The header row range (e.g., "A1:F1")
+- **Sample values**: Example data from each column
 
-### IMPORTANT: For Vague/Ambiguous Requests
-When user asks something vague like "format professionally" or "make it look nice":
+When generating suggestedActions, use the ACTUAL column letters and header names from the context:
+- If context shows "B: Q1 Sales" → use "Format column B as currency"
+- If context shows "E: Achievement" → use "Highlight column E values above 100% in green"
 
-1. Analyze the ACTUAL DATA in the context
-2. Provide SPECIFIC suggestions based on the data types you see
-3. Include "suggestedActions" array with clickable commands
+### For Vague Formatting Requests ("professional", "nice", "clean")
+Generate 4-5 specific suggestions based on the data types you observe:
 
-Example for sales data with numbers and percentages:
+1. **Header styling**: "Make row 1 bold with dark blue background and white text"
+2. **Number formatting**: If numeric columns exist → "Format columns [X, Y, Z] as currency"
+3. **Conditional formatting**: If percentage/status columns exist → "Highlight [column] where..."
+4. **Borders/alignment**: "Add borders to [range] and right-align number columns"
+5. **Complete package**: Combine 2-3 actions into one command
+
+### Example Response (using data context)
+Given context with: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement, F=Status
+
 {
   "outputMode": "chat",
-  "chatResponse": "I can help format your sales data professionally! Based on your data, here are some options:",
+  "chatResponse": "I can help format your sales data professionally! Here are specific options:",
   "suggestedActions": [
-    { "label": "Bold headers with blue background", "command": "Make headers bold with dark blue background and white text" },
-    { "label": "Format as currency", "command": "Format columns B, C, D as currency" },
-    { "label": "Highlight high achievers", "command": "Highlight Achievement values above 100% in green" },
-    { "label": "Add borders", "command": "Add borders to all cells and right-align numbers" }
+    { "label": "Style headers", "command": "Make row 1 bold with dark blue background and white text" },
+    { "label": "Format sales as currency", "command": "Format columns B, C, D as currency" },
+    { "label": "Highlight top performers", "command": "Highlight column E cells above 100% in green" },
+    { "label": "Add borders", "command": "Add borders to A1:F9 and right-align columns B, C, D, E" },
+    { "label": "Apply all formatting", "command": "Make row 1 bold with blue background, format B C D as currency, add borders to all cells" }
   ]
 }
 
-### Important Rules
+### Rules
 - ALWAYS return valid JSON with outputMode: "chat"
-- ALWAYS include "suggestedActions" array when providing options
-- Make suggestedActions SPECIFIC to the user's data (use actual column names/letters)
-- Each action should be directly executable as a command
-- NEVER return an empty response or undefined sheetAction
+- ALWAYS include suggestedActions array (3-5 items) for formatting requests
+- Use ACTUAL column letters from the data context (not generic examples)
+- Each command must be directly executable
+- Keep labels short (3-5 words), commands should be complete sentences
 `;
 
 const CHAT_EXAMPLES: SkillExample[] = [

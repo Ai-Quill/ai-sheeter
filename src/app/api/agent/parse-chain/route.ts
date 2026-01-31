@@ -30,7 +30,8 @@ import { generateText } from 'ai';
 
 import { generateEmbedding } from '@/lib/ai/embeddings';
 import { findSimilarWorkflowsByEmbedding, getBaseExamplesFromDB, StoredWorkflow } from '@/lib/workflow-memory';
-import { buildFewShotPrompt, DataContext } from '@/lib/workflow-memory/prompt-builder';
+import { buildSmartPrompt, DataContext } from '@/lib/workflow-memory/prompt-builder';
+import { analyzeRequest } from '@/lib/skills';
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
 import { getModel } from '@/lib/ai/models';
 
@@ -266,8 +267,18 @@ export async function POST(request: NextRequest) {
       // Will use minimal hardcoded fallback in prompt-builder
     }
 
-    // 4. Build few-shot prompt
-    const prompt = buildFewShotPrompt(command, dataContext, similarWorkflows, baseExamples);
+    // 4. Analyze request for vagueness/complexity
+    const requestAnalysis = analyzeRequest(command, dataContext);
+    console.log('[parse-chain] Request analysis:', {
+      type: requestAnalysis.type,
+      specificity: requestAnalysis.specificity.toFixed(2),
+      recommendation: requestAnalysis.recommendation,
+      hasVagueAdjectives: requestAnalysis.hasVagueAdjectives,
+      impliedActions: requestAnalysis.impliedActionCount
+    });
+    
+    // 4.5. Build smart prompt (uses adaptive skills or legacy based on config)
+    const prompt = await buildSmartPrompt(command, dataContext, similarWorkflows, baseExamples);
     console.log('[parse-chain] Prompt length:', prompt.length, 'chars');
     console.log('[parse-chain] Prompt preview (first 500):', prompt.substring(0, 500));
     

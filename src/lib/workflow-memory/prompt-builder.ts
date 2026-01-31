@@ -806,7 +806,8 @@ function getFallbackExamples(command: string): WorkflowExample[] {
  * 
  * This is the NEW approach that:
  * - Detects user intent first
- * - Loads only relevant skill instructions
+ * - Loads ONLY relevant skill instructions (no mixed signals)
+ * - For vague/composite requests, ONLY loads chat skill
  * - Reduces token usage by 50-70%
  * 
  * @param command User's original command
@@ -819,16 +820,26 @@ export async function buildAdaptivePrompt(
 ): Promise<BuiltPrompt> {
   const startTime = Date.now();
   
-  // 1. Detect intent and select skills
+  // 1. Select skills (includes request analysis internally)
+  // For vague/composite requests, selectSkills now ONLY returns chat skill
   const selectionStartTime = Date.now();
   const selection = await selectSkills(command, dataContext as SkillDataContext);
   const skillSelectionTime = Date.now() - selectionStartTime;
   
+  // Log selection result with request analysis
   console.log('[PromptBuilder:Adaptive] Selected skills:', 
     selection.selectedSkills.map(s => s.id).join(', '));
   console.log('[PromptBuilder:Adaptive] Estimated tokens:', selection.estimatedTokens);
+  if (selection.requestAnalysis) {
+    console.log('[PromptBuilder:Adaptive] Request analysis:', {
+      type: selection.requestAnalysis.type,
+      specificity: selection.requestAnalysis.specificity.toFixed(2),
+      forcedChatMode: selection.requestAnalysis.forcedChatMode
+    });
+  }
   
-  // 2. Load skill instructions
+  // 2. Load skill instructions (ONLY for selected skills)
+  // If chat skill was forced, this will ONLY include chat instructions
   const skillInstructions = loadSkillInstructions(selection.selectedSkills);
   
   // 3. Load skill-specific examples
@@ -839,6 +850,8 @@ export async function buildAdaptivePrompt(
   const contextStr = formatDataContext(dataContext);
   
   // 5. Compose the adaptive prompt
+  // Note: No redundant request guidance - skill selection already handles routing
+  // The selected skill's instructions contain everything the AI needs
   const prompt = `${CORE_INSTRUCTIONS}
 ${skillInstructions}
 

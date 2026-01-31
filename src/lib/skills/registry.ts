@@ -27,6 +27,9 @@ import { detectIntent, ALL_SKILLS, getSkillById } from './intent-detector';
  * Select the best skills for a command
  * Falls back to chat skill if no other skills match
  * 
+ * IMPORTANT: For vague/composite requests, ONLY load chat skill
+ * to avoid giving the AI mixed signals between action and chat modes.
+ * 
  * @param command User's command
  * @param context Data context
  * @param options Selection options
@@ -43,7 +46,14 @@ export async function selectSkills(
     forceSkills = [],
   } = options;
   
-  // Get all matches
+  // Import request analyzer dynamically
+  const { analyzeRequest, shouldShowSuggestions } = await import('./request-analyzer');
+  
+  // Analyze request for vagueness/complexity
+  const requestAnalysis = analyzeRequest(command, context);
+  const needsSuggestions = shouldShowSuggestions(command);
+  
+  // Get all matches from intent detector
   const allMatches = detectIntent(command, context);
   
   // Start with forced skills
@@ -55,31 +65,48 @@ export async function selectSkills(
     }
   }
   
-  // Add matched skills up to max
-  for (const match of allMatches) {
-    if (selectedSkills.length >= maxSkills) break;
-    if (match.confidence < minConfidence) break;
-    
-    // Skip if already added (forced)
-    if (selectedSkills.some(s => s.id === match.skillId)) continue;
-    
-    // Check conflicts
-    const skill = getSkillById(match.skillId);
-    if (!skill) continue;
-    
-    const hasConflict = selectedSkills.some(selected => 
-      selected.conflicts?.includes(skill.id) || 
-      skill.conflicts?.includes(selected.id)
-    );
-    
-    if (!hasConflict) {
-      selectedSkills.push(skill);
+  // CRITICAL: For vague/composite requests, ONLY use chat skill
+  // This prevents AI from seeing both format and chat instructions
+  // which causes it to pick the wrong mode
+  let usedFallback = false;
+  let forcedChatMode = false;
+  
+  if (needsSuggestions && requestAnalysis.type !== 'question' && forceSkills.length === 0) {
+    const chatSkill = getSkillById('chat');
+    if (chatSkill) {
+      selectedSkills.push(chatSkill);
+      forcedChatMode = true;
+      console.log(`[SkillRegistry] Vague/composite request detected (type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}) - using ONLY chat skill`);
+    }
+  }
+  
+  // Only add other skills if NOT forced to chat mode
+  if (!forcedChatMode) {
+    // Add matched skills up to max
+    for (const match of allMatches) {
+      if (selectedSkills.length >= maxSkills) break;
+      if (match.confidence < minConfidence) break;
+      
+      // Skip if already added (forced)
+      if (selectedSkills.some(s => s.id === match.skillId)) continue;
+      
+      // Check conflicts
+      const skill = getSkillById(match.skillId);
+      if (!skill) continue;
+      
+      const hasConflict = selectedSkills.some(selected => 
+        selected.conflicts?.includes(skill.id) || 
+        skill.conflicts?.includes(selected.id)
+      );
+      
+      if (!hasConflict) {
+        selectedSkills.push(skill);
+      }
     }
   }
   
   // FALLBACK: If no skills matched, use chat skill
   // This ensures we always have a valid response mode
-  let usedFallback = false;
   if (selectedSkills.length === 0) {
     const chatSkill = getSkillById('chat');
     if (chatSkill) {
@@ -105,6 +132,12 @@ export async function selectSkills(
     allMatches,
     estimatedTokens,
     usedFallback,
+    // Include request analysis for logging/debugging
+    requestAnalysis: {
+      type: requestAnalysis.type,
+      specificity: requestAnalysis.specificity,
+      forcedChatMode,
+    },
   };
 }
 
