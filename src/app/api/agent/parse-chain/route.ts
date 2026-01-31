@@ -127,6 +127,12 @@ interface TaskChain {
   outputMode?: 'chat' | 'columns' | 'formula' | 'sheet';  // 'chat' = display in chat, 'columns' = write to spreadsheet, 'formula' = native formula, 'sheet' = native sheet manipulation
   chatResponse?: string;             // If outputMode='chat', this contains the actual answer
   
+  // Suggested actions for vague/ambiguous requests (when outputMode='chat')
+  suggestedActions?: Array<{
+    label: string;    // Human-readable label for the button
+    command: string;  // Command to execute when clicked
+  }>;
+  
   // Sheet action config (if outputMode='sheet')
   sheetAction?: 'chart' | 'format' | 'conditionalFormat' | 'dataValidation' | 'filter';
   sheetConfig?: {
@@ -534,6 +540,14 @@ function parseAndValidate(
     if (parsed.outputMode === 'chat') {
       console.log('[parse-chain] Chat mode detected - returning response without steps');
       
+      // Log suggested actions if present
+      if (parsed.suggestedActions && Array.isArray(parsed.suggestedActions)) {
+        console.log('[parse-chain] suggestedActions found:', parsed.suggestedActions.length, 'actions');
+        console.log('[parse-chain] suggestedActions preview:', JSON.stringify(parsed.suggestedActions.slice(0, 2)));
+      } else {
+        console.log('[parse-chain] No suggestedActions in response');
+      }
+      
       return {
         isMultiStep: false,
         isCommand: true,
@@ -542,6 +556,9 @@ function parseAndValidate(
         clarification: parsed.clarification || '',
         outputMode: 'chat',
         chatResponse: parsed.chatResponse || parsed.clarification || '',
+        
+        // CRITICAL: Include suggested actions for vague/ambiguous requests
+        suggestedActions: parsed.suggestedActions || [],
         
         // Include input config for context tracking
         inputRange: dataContext.dataRange,
