@@ -65,26 +65,31 @@ export async function selectSkills(
     }
   }
   
-  // CRITICAL: Only force chat mode for VAGUE requests, NOT for specific composite requests
-  // Example: "Make row 2 bold with dark blue background" is composite but SPECIFIC
-  //          "Make it look professional" is VAGUE and needs suggestions
+  // CRITICAL: Route based on request specificity
+  // - VAGUE requests → chat skill only (show suggestions)
+  // - SPECIFIC requests → action skills only (execute directly)
+  // - Don't mix chat + action skills or AI gets confused
   let usedFallback = false;
   let forcedChatMode = false;
+  let excludeChatSkill = false;
   
-  // Only force chat for truly VAGUE requests (low specificity)
-  // Composite requests with high specificity should use their action skill
+  // Determine routing
   const isVagueEnoughForChat = requestAnalysis.type === 'vague' || 
     (requestAnalysis.type === 'composite' && requestAnalysis.specificity < 0.5);
+  const isSpecificEnough = requestAnalysis.specificity >= 0.7 && requestAnalysis.type !== 'question';
   
   if (needsSuggestions && isVagueEnoughForChat && requestAnalysis.type !== 'question' && forceSkills.length === 0) {
+    // VAGUE: Only use chat skill
     const chatSkill = getSkillById('chat');
     if (chatSkill) {
       selectedSkills.push(chatSkill);
       forcedChatMode = true;
-      console.log(`[SkillRegistry] Vague request detected (type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}) - using ONLY chat skill`);
+      console.log(`[SkillRegistry] Vague request (type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}) - using ONLY chat skill`);
     }
-  } else if (requestAnalysis.type === 'composite' && requestAnalysis.specificity >= 0.5) {
-    console.log(`[SkillRegistry] Specific composite request (type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}) - using action skills`);
+  } else if (isSpecificEnough) {
+    // SPECIFIC: Don't include chat skill - let action skills handle it directly
+    excludeChatSkill = true;
+    console.log(`[SkillRegistry] Specific request (type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}) - using action skills ONLY (excluding chat)`);
   }
   
   // Only add other skills if NOT forced to chat mode
@@ -96,6 +101,12 @@ export async function selectSkills(
       
       // Skip if already added (forced)
       if (selectedSkills.some(s => s.id === match.skillId)) continue;
+      
+      // Skip chat skill if we're handling a specific request
+      if (excludeChatSkill && match.skillId === 'chat') {
+        console.log(`[SkillRegistry] Excluding chat skill for specific request`);
+        continue;
+      }
       
       // Check conflicts
       const skill = getSkillById(match.skillId);
