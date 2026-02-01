@@ -213,11 +213,82 @@ export function loadSkillInstructions(skills: GoogleSheetSkill[]): string {
 /**
  * Load examples from selected skills
  * 
+ * STRATEGY:
+ * 1. Try to load dynamic examples from database (semantic similarity)
+ * 2. Fall back to hardcoded examples if dynamic ones are insufficient
+ * 3. Combine both if needed to meet maxExamples target
+ * 
  * @param skills Selected skills
  * @param command User command (for relevance filtering)
  * @param maxExamples Maximum examples per skill
  */
-export function loadSkillExamples(
+export async function loadSkillExamples(
+  skills: GoogleSheetSkill[],
+  command: string,
+  maxExamples: number = 2
+): Promise<SkillExample[]> {
+  // Import dynamic examples loader
+  const { loadDynamicExamples, scoreHardcodedExample } = await import('./dynamic-examples');
+  
+  const examples: SkillExample[] = [];
+  
+  for (const skill of skills) {
+    const skillExamples: SkillExample[] = [];
+    
+    // 1. Try dynamic examples first (from database)
+    try {
+      const dynamicExamples = await loadDynamicExamples(
+        skill.id,
+        command,
+        maxExamples,
+        0.5 // Similarity threshold
+      );
+      
+      if (dynamicExamples.length > 0) {
+        console.log(`[SkillRegistry] Loaded ${dynamicExamples.length} dynamic examples for ${skill.id}`);
+        skillExamples.push(...dynamicExamples);
+      }
+    } catch (error) {
+      console.error(`[SkillRegistry] Error loading dynamic examples for ${skill.id}:`, error);
+      // Continue to fallback
+    }
+    
+    // 2. If we don't have enough, add hardcoded examples
+    if (skillExamples.length < maxExamples && skill.examples && skill.examples.length > 0) {
+      const remainingNeeded = maxExamples - skillExamples.length;
+      
+      // Score and sort hardcoded examples by relevance
+      const scoredHardcoded = skill.examples.map(ex => ({
+        example: ex,
+        score: scoreHardcodedExample(ex, command)
+      }));
+      
+      scoredHardcoded.sort((a, b) => b.score - a.score);
+      
+      // Add top scoring hardcoded examples
+      const topHardcoded = scoredHardcoded
+        .slice(0, remainingNeeded)
+        .map(s => s.example);
+      
+      if (topHardcoded.length > 0) {
+        console.log(`[SkillRegistry] Adding ${topHardcoded.length} hardcoded examples for ${skill.id}`);
+        skillExamples.push(...topHardcoded);
+      }
+    }
+    
+    examples.push(...skillExamples.slice(0, maxExamples));
+  }
+  
+  return examples;
+}
+
+/**
+ * Load examples synchronously (for backward compatibility)
+ * Uses only hardcoded examples without database lookup
+ * 
+ * @deprecated Use loadSkillExamples (async) for dynamic examples
+ */
+export function loadSkillExamplesSync(
   skills: GoogleSheetSkill[],
   command: string,
   maxExamples: number = 2
@@ -226,6 +297,8 @@ export function loadSkillExamples(
   const cmdLower = command.toLowerCase();
   
   for (const skill of skills) {
+    if (!skill.examples || skill.examples.length === 0) continue;
+    
     // Score examples by relevance
     const scoredExamples = skill.examples.map(ex => {
       let score = 0;

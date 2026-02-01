@@ -34,6 +34,7 @@ import { buildSmartPrompt, DataContext } from '@/lib/workflow-memory/prompt-buil
 import { analyzeRequest } from '@/lib/skills';
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
 import { getModel } from '@/lib/ai/models';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // ============================================
 // COLUMN UTILITIES (NO HARDCODED VALUES)
@@ -196,6 +197,58 @@ const VALID_ACTIONS = [
 ];
 
 // ============================================
+// SKILL USAGE RECORDING (for dynamic examples)
+// ============================================
+
+/**
+ * Record a successful skill execution as a potential example
+ * 
+ * This feeds the dynamic examples system - successful executions
+ * can be retrieved as few-shot examples for similar future requests.
+ */
+async function recordSkillExecution(params: {
+  skillId: string;
+  command: string;
+  embedding: number[] | null;
+  aiResponse: Record<string, unknown>;
+  dataContext?: Record<string, unknown>;
+}): Promise<void> {
+  const { skillId, command, embedding, aiResponse, dataContext } = params;
+  
+  if (!embedding) {
+    console.log('[parse-chain] No embedding available - skipping skill recording');
+    return;
+  }
+  
+  try {
+    // Format embedding as Postgres array string for pgvector
+    const embeddingStr = `[${embedding.join(',')}]`;
+    
+    // Record the skill usage with is_good_example = true (successful execution)
+    const { error } = await supabaseAdmin.rpc('record_skill_usage', {
+      p_skill_id: skillId,
+      p_skill_version: '1.0.0',
+      p_command: command,
+      p_command_embedding: embeddingStr,
+      p_success: true,
+      p_ai_response: aiResponse,
+      p_data_context: dataContext || {},
+      p_is_good_example: true,
+      p_example_quality_score: 0.8  // Default quality for auto-recorded examples
+    });
+    
+    if (error) {
+      console.error('[parse-chain] Error recording skill usage:', error);
+    } else {
+      console.log(`[parse-chain] ✅ Recorded skill execution as potential example: ${skillId}`);
+    }
+  } catch (err) {
+    // Non-fatal - don't block the response
+    console.error('[parse-chain] Error recording skill execution:', err);
+  }
+}
+
+// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -332,6 +385,27 @@ export async function POST(request: NextRequest) {
       stepCount: chain.steps?.length
     });
     console.log('[parse-chain] Response JSON (input config):', responseJson);
+    
+    // ============================================
+    // RECORD SUCCESSFUL SKILL EXECUTION
+    // This feeds the dynamic examples system - successful sheet actions
+    // can be used as few-shot examples for similar future requests.
+    // ============================================
+    if (chain.outputMode === 'sheet' && chain.sheetAction && embedding) {
+      // Record asynchronously (don't block the response)
+      recordSkillExecution({
+        skillId: chain.sheetAction,
+        command,
+        embedding,
+        aiResponse: {
+          outputMode: chain.outputMode,
+          sheetAction: chain.sheetAction,
+          sheetConfig: chain.sheetConfig || {},
+          summary: chain.summary,
+        },
+        dataContext: dataContext as unknown as Record<string, unknown>,
+      }).catch(err => console.error('[parse-chain] Background skill recording failed:', err));
+    }
     
     const elapsed = Date.now() - startTime;
     console.log(`[parse-chain] Completed in ${elapsed}ms`);

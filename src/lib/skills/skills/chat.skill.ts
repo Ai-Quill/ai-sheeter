@@ -72,17 +72,21 @@ Return outputMode: "chat" for questions, vague requests, or when clarification n
 - Each suggestion must be ATOMIC (single action)
 
 ### For Vague Requests ("professional", "nice")
-Generate 4-5 atomic suggestions using context:
-1. "Convert [fullRange from context] to a table"
-2. "Make row [headerRowNumber] bold with dark blue background"
-3. "Format columns [numeric columns from context] as currency"
-4. "Add borders to [fullRange]"
-5. "Highlight highest values in green"
+Generate 4 atomic suggestions using context (NOT 5 - avoid composite):
+1. "Make row [headerRowNumber] bold with dark blue background and white text"
+2. "Format columns [numeric columns] as currency"
+3. "Add borders to [fullRange]"
+4. "Highlight [condition] in [color]"
+
+⚠️ CRITICAL: Generate ONLY 4 suggestions, NOT 5!
+⚠️ NEVER add a 5th "complete package" or combined suggestion!
+⚠️ Each suggestion must be ONE action only!
 
 ### Key Rules
 - Use context for all ranges/columns (see GOLDEN RULE 1)
-- Keep suggestions ATOMIC - no combined actions
-- Labels: 3-5 words, Commands: complete sentences
+- ATOMIC only - NEVER combine actions with "and" or commas
+- Maximum 4 suggestions (not 5)
+- Labels: 3-5 words, Commands: single action sentences
 `;
 
 const CHAT_EXAMPLES: SkillExample[] = [
@@ -100,7 +104,7 @@ const CHAT_EXAMPLES: SkillExample[] = [
   },
   {
     command: "Help me format the table to look professional",
-    context: "Columns: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement",
+    context: "Columns: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement, Range=A1:E9",
     response: {
       outputMode: "chat",
       isMultiStep: false,
@@ -108,13 +112,12 @@ const CHAT_EXAMPLES: SkillExample[] = [
       steps: [],
       summary: "Suggest professional formatting options",
       clarification: "Based on your sales data, here are formatting options",
-      chatResponse: "I can help format your sales data professionally! Here are some options based on your data:",
+      chatResponse: "I can help format your sales data professionally! Here are some options:",
       suggestedActions: [
-        { label: "Bold headers with blue background", command: "Make headers bold with dark blue background and white text" },
+        { label: "Bold headers with blue background", command: "Make row 1 bold with dark blue background and white text" },
         { label: "Format sales as currency", command: "Format columns B, C, D as currency" },
-        { label: "Highlight top performers", command: "Highlight Achievement values above 100% in green" },
-        { label: "Add borders and alignment", command: "Add borders to all cells and right-align number columns" },
-        { label: "Complete professional look", command: "Format headers bold with blue background, format B C D as currency, add borders, right-align numbers" }
+        { label: "Add borders", command: "Add borders to A1:E9" },
+        { label: "Highlight top performers", command: "Highlight values above 100% in column E with green" }
       ]
     },
     relevanceHints: ["professional", "format", "look nice", "style"]
@@ -128,12 +131,12 @@ const CHAT_EXAMPLES: SkillExample[] = [
       steps: [],
       summary: "Suggest formatting options",
       clarification: "Here are some formatting options for your data",
-      chatResponse: "I'd be happy to help make your data look great! What would you like to do?",
+      chatResponse: "I'd be happy to help make your data look great! Here are options:",
       suggestedActions: [
-        { label: "Style headers", command: "Make headers bold with dark blue background" },
-        { label: "Add borders", command: "Add borders to all cells" },
-        { label: "Format numbers", command: "Format number columns as currency with 2 decimals" },
-        { label: "Highlight important values", command: "Highlight cells with values above average in green" }
+        { label: "Style headers", command: "Make row 1 bold with dark blue background and white text" },
+        { label: "Add borders", command: "Add borders to the data range" },
+        { label: "Format as currency", command: "Format number columns as currency" },
+        { label: "Highlight values", command: "Highlight values above average in green" }
       ]
     },
     relevanceHints: ["nice", "look good", "pretty", "style"]

@@ -40,6 +40,7 @@ export {
   selectSkills,
   loadSkillInstructions,
   loadSkillExamples,
+  loadSkillExamplesSync,  // Backward-compatible sync version
   formatExamplesForPrompt,
   getAllSkills,
   getSkillStats,
@@ -56,6 +57,16 @@ export {
   markReviewed,
   createOutcome,
 } from './skill-learner';
+
+// Dynamic Examples (for loading from DB)
+export {
+  loadDynamicExamples,
+  markAsGoodExample,
+  getExampleCounts,
+  convertHardcodedExamples,
+  scoreHardcodedExample,
+  type DynamicSkillExample,
+} from './dynamic-examples';
 
 // Individual Skills (for direct access if needed)
 export { chartSkill } from './skills/chart.skill';

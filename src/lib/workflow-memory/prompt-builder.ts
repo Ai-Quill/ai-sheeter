@@ -842,8 +842,8 @@ export async function buildAdaptivePrompt(
   // If chat skill was forced, this will ONLY include chat instructions
   const skillInstructions = loadSkillInstructions(selection.selectedSkills);
   
-  // 3. Load skill-specific examples
-  const skillExamples = loadSkillExamples(selection.selectedSkills, command, 2);
+  // 3. Load skill-specific examples (async - tries DB first, falls back to hardcoded)
+  const skillExamples = await loadSkillExamples(selection.selectedSkills, command, 2);
   const formattedExamples = formatExamplesForPrompt(skillExamples);
   
   // 4. Format data context

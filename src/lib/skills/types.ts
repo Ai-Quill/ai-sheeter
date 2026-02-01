@@ -139,8 +139,8 @@ export interface GoogleSheetSkill {
   /** Core instructions for this skill (included in prompt) */
   instructions: string;
   
-  /** Few-shot examples specific to this skill */
-  examples: SkillExample[];
+  /** Few-shot examples specific to this skill (optional - can be loaded from DB) */
+  examples?: SkillExample[];
   
   /** Expected output schema */
   schema: SkillSchema;
