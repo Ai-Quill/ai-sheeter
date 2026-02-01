@@ -78,3 +78,4 @@ export { writeDataSkill } from './skills/write-data.skill';
 export { chatSkill } from './skills/chat.skill';
 export { formulaSkill } from './skills/formula.skill';
 export { tableSkill } from './skills/table.skill';
+export { sheetOpsSkill } from './skills/sheet-ops.skill';

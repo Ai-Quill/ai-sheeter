@@ -1,12 +1,11 @@
 /**
- * Conditional Format Skill
+ * Conditional Format Skill - EXPERT MODE
  * 
- * Handles conditional formatting/highlighting requests:
- * - Color coding based on values
- * - Highlighting thresholds
- * - Rule-based formatting
+ * You are a Google Sheets conditional formatting expert. This skill provides
+ * ALL 30 condition types including gradient/color scales and date conditions.
+ * Analyze the data and apply intelligent highlighting rules.
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Expert Mode
  */
 
 import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
@@ -18,8 +17,9 @@ const CONDITIONAL_FORMAT_PATTERNS: RegExp[] = [
   /\b(negative|positive)\s+(values?)?\s*(red|green)?\b/i,
   /\b(above|below|greater|less)\s+than?\s*\d+/i,
   /\bmark\s+(cells?|values?)\s+(that|where|if)/i,
-  // Pattern for "Highlight [specific value] with [color]" - this is conditional, not simple format
   /\bhighlight\s+['"]?[\w\s]+['"]?\s+(values?)?\s*(in|with)/i,
+  /\b(gradient|color\s*scale|heat\s*map)\b/i,
+  /\b(overdue|expired|past\s*due|today|yesterday|tomorrow)\b/i,
 ];
 
 function calculateIntentScore(command: string, context?: DataContext): number {
@@ -32,69 +32,135 @@ function calculateIntentScore(command: string, context?: DataContext): number {
   if (/\b(negative|positive)\b/i.test(cmdLower)) score += 0.4;
   if (/\b(above|below|greater|less)\s+than/i.test(cmdLower)) score += 0.4;
   if (/\bcolor.*(based|depending)/i.test(cmdLower)) score += 0.4;
-  
-  // CRITICAL: "Highlight [value] values" patterns = conditional formatting (not simple format)
-  // e.g., "Highlight 'Active' values", "Highlight Active in column F"
   if (/\bhighlight\s+['"]?[\w]+['"]?\s+(values?|in|with)/i.test(cmdLower)) score += 0.6;
-  // Also boost for "cells containing" or "where value is"
   if (/\b(containing|equals?|where)\b/i.test(cmdLower)) score += 0.3;
+  if (/\b(gradient|color\s*scale|heat\s*map)\b/i.test(cmdLower)) score += 0.6;
+  if (/\b(overdue|expired|today|yesterday)\b/i.test(cmdLower)) score += 0.4;
   
   return Math.min(score, 1.0);
 }
 
 const CONDITIONAL_FORMAT_INSTRUCTIONS = `
-## CONDITIONAL FORMAT Skill
+## CONDITIONAL FORMAT Skill - EXPERT MODE
 
-For highlighting/color-coding requests, return outputMode: "sheet" with sheetAction: "conditionalFormat".
+You are a Google Sheets conditional formatting expert. Apply intelligent
+highlighting using ANY of the 30 condition types below.
 
-### Schema
+### YOUR FULL CAPABILITIES
+
+**Number Conditions:**
+- greaterThan / gt: Value > threshold
+- greaterThanOrEqual / gte: Value >= threshold
+- lessThan / lt: Value < threshold
+- lessThanOrEqual / lte: Value <= threshold
+- equals / eq: Exact number match
+- notEquals / neq (NEW): Does not equal
+- between: Value between min and max
+- notBetween (NEW): Value outside range
+- negative: Value < 0
+- positive: Value > 0
+
+**Text Conditions:**
+- equals: Exact text match (e.g., "Active", "Complete")
+- notEquals: Does not match
+- contains: Contains substring
+- notContains / doesNotContain: Does not contain
+- startsWith: Starts with text
+- endsWith: Ends with text
+
+**Date Conditions (NEW):**
+- dateAfter: After specific date
+- dateBefore: Before specific date
+- dateEqual: On specific date
+- dateIsToday / today: Is today's date
+- dateIsTomorrow / tomorrow: Is tomorrow
+- dateIsYesterday / yesterday: Is yesterday
+- dateInPastWeek / pastWeek: Within last 7 days
+- dateInPastMonth / pastMonth: Within last 30 days
+- dateInPastYear / pastYear: Within last year
+
+**Cell State:**
+- isEmpty / empty / blank: Cell is empty
+- isNotEmpty / notEmpty / notBlank: Cell has content
+
+**Special:**
+- max / isMax / highest: Is the maximum value in range
+- min / isMin / lowest: Is the minimum value in range
+- formula / customFormula: Custom formula (value is the formula)
+
+### Format Options (in rule.format):
+- backgroundColor / background: Hex color
+- textColor / fontColor / color: Hex color
+- bold: true/false
+- italic: true/false
+- strikethrough: true/false
+- underline: true/false
+
+### Standard Rule Schema
 {
   "outputMode": "sheet",
   "sheetAction": "conditionalFormat",
   "sheetConfig": {
-    "range": "[derive from context - data rows only]",
+    "range": "[from context]",
     "rules": [
       {
-        "condition": "greaterThan|lessThan|equals|contains|between|negative|positive|max|min",
-        "value": <user's threshold>,
+        "condition": "[condition type]",
+        "value": "[threshold/text]",
+        "min": 0, "max": 100,  // for between
         "format": { "backgroundColor": "#90EE90", "bold": true }
       }
     ]
   }
 }
 
-### Conditions
-- greaterThan, lessThan, between (use min/max)
-- equals: exact match (e.g., "Active", "Complete", "Yes")
-- contains: partial match (e.g., contains "error")
-- negative (< 0), positive (> 0)
-- max/highest, min/lowest (column max/min)
-- isEmpty, isNotEmpty
+### GRADIENT / COLOR SCALE (NEW)
+For heat maps and visual data representation:
 
-### IMPORTANT: Highlight [value] = Conditional Format!
-When user says "Highlight Active values" or "Highlight cells with Active":
-- This is CONDITIONAL formatting (not simple format)
-- Use condition: "equals", value: "Active"
-- This highlights ONLY cells that match, not the entire range
+**Two-Color Scale:**
+{
+  "rules": [{
+    "type": "gradient",
+    "minColor": "#FFFFFF",  // Color for minimum
+    "maxColor": "#FF0000"   // Color for maximum
+  }]
+}
 
-### Colors (use user's color or these defaults)
-- Red: #FFB6C1 (light), #FF0000 (bold)
-- Green: #90EE90 (light)
-- Yellow: #FFFF00
+**Three-Color Scale (with midpoint):**
+{
+  "rules": [{
+    "type": "gradient",
+    "minColor": "#FF0000",   // Red for low
+    "midColor": "#FFFF00",   // Yellow for middle
+    "maxColor": "#00FF00",   // Green for high
+    "minType": "MIN",        // MIN, NUMBER, PERCENT, PERCENTILE
+    "midType": "PERCENTILE",
+    "midValue": "50",        // Midpoint value
+    "maxType": "MAX"
+  }]
+}
 
-### Range from Context
-- "highlight column C" → derive C[dataStartRow]:C[dataEndRow] from context
-- Multiple rules can be applied to same range
+### EXPERT DECISIONS (analyze the data):
+1. **Numeric KPIs** → Gradient color scale (red-yellow-green)
+2. **Status columns** → Equals conditions for each status
+3. **Date columns** → Date conditions (overdue = red, due today = yellow)
+4. **Financial data** → Negative red, positive green
+5. **Performance metrics** → Highlight max/min values
+6. **Percentage columns** → Color scale from 0-100%
+
+### Colors (use user's colors or these defaults)
+- Bad/Low: #FFB6C1 (light red), #FF0000 (bold red)
+- Good/High: #90EE90 (light green), #00FF00 (bold green)
+- Warning/Mid: #FFFF00 (yellow), #FFA500 (orange)
+- Neutral: #E0E0E0 (light gray)
 `;
 
-// Minimal seed examples - database will provide better examples over time
 const CONDITIONAL_FORMAT_EXAMPLES: SkillExample[] = [];
 
 export const conditionalFormatSkill: GoogleSheetSkill = {
   id: 'conditionalFormat',
   name: 'Conditional Formatting',
-  version: '1.0.0',
-  description: 'Highlight cells based on values or conditions',
+  version: '2.0.0',
+  description: 'Expert highlighting: 30 conditions, gradient/color scale, date rules',
   
   triggerPatterns: CONDITIONAL_FORMAT_PATTERNS,
   intentScore: calculateIntentScore,
@@ -109,7 +175,7 @@ export const conditionalFormatSkill: GoogleSheetSkill = {
     optionalFields: []
   },
   
-  tokenCost: 350,
+  tokenCost: 450,
   outputMode: 'sheet',
   sheetAction: 'conditionalFormat',
   priority: 8,

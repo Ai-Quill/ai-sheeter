@@ -32,6 +32,7 @@ import { writeDataSkill } from './skills/write-data.skill';
 import { chatSkill } from './skills/chat.skill';
 import { formulaSkill } from './skills/formula.skill';
 import { tableSkill } from './skills/table.skill';
+import { sheetOpsSkill } from './skills/sheet-ops.skill';
 
 // ============================================
 // ALL SKILLS (ordered by priority)
@@ -47,6 +48,7 @@ export const ALL_SKILLS: GoogleSheetSkill[] = [
   tableSkill,
   chatSkill,
   formulaSkill,
+  sheetOpsSkill,
 ].sort((a, b) => b.priority - a.priority);
 
 // ============================================
@@ -159,6 +161,14 @@ export function quickSkillCheck(command: string): string | null {
   // Format keywords (check after more specific skills)
   if (/\b(format|currency|percent|bold|border)\b/i.test(cmdLower)) {
     return 'format';
+  }
+  
+  // Sheet operations keywords
+  if (/\b(freeze|unfreeze|hide|unhide|insert|delete)\s*(row|column)/i.test(cmdLower)) {
+    return 'sheetOps';
+  }
+  if (/\b(sort|clear|resize|auto\s*fit|rename\s*sheet|tab\s*color|group|protect)\b/i.test(cmdLower)) {
+    return 'sheetOps';
   }
   
   // Question patterns -> chat
