@@ -722,6 +722,32 @@ function parseAndValidate(
         console.log('[parse-chain] Corrected sheetConfig:', JSON.stringify(sheetConfig));
       }
       
+      // ============================================
+      // FIX 4: Extract min/max from command if AI forgot to include them
+      // AI sometimes returns validationType: "number" but forgets min/max
+      // Try to extract from the original command text
+      // ============================================
+      if (sheetAction === 'dataValidation' && sheetConfig?.validationType === 'number') {
+        if (sheetConfig.min === undefined || sheetConfig.max === undefined) {
+          console.log('[parse-chain] ⚠️ Number validation missing min/max - extracting from command');
+          // Try to find number patterns in command like "between X and Y" or "from X to Y"
+          const betweenMatch = originalCommand.match(/between\s+([\d,]+)\s+and\s+([\d,]+)/i);
+          const fromToMatch = originalCommand.match(/from\s+([\d,]+)\s+to\s+([\d,]+)/i);
+          const rangeMatch = originalCommand.match(/([\d,]+)\s*[-–]\s*([\d,]+)/);
+          
+          const match = betweenMatch || fromToMatch || rangeMatch;
+          if (match) {
+            const num1 = parseInt(match[1].replace(/,/g, ''), 10);
+            const num2 = parseInt(match[2].replace(/,/g, ''), 10);
+            if (!isNaN(num1) && !isNaN(num2)) {
+              sheetConfig.min = Math.min(num1, num2);
+              sheetConfig.max = Math.max(num1, num2);
+              console.log('[parse-chain] Extracted min/max from command:', sheetConfig.min, sheetConfig.max);
+            }
+          }
+        }
+      }
+      
       // Infer action from config if still undefined
       if (!sheetAction && sheetConfig) {
         if (sheetConfig.chartType) sheetAction = 'chart';

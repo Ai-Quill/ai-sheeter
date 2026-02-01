@@ -395,10 +395,19 @@ OUTPUT MODES:
 - "chat": Answer questions about the data
 - "columns": AI-powered row-by-row transformation
 
+⭐ GOLDEN RULE - RESPECT ALL USER-SPECIFIED VALUES:
+Extract and include EVERY value the user mentions in your response config:
+- Numbers: "between 1000 and 100000" → include min: 1000, max: 100000
+- Options: "High, Medium, Low" → include values: ["High", "Medium", "Low"]
+- Colors: "dark blue background" → include backgroundColor: "#003366"
+- Ranges: "column G" → include the correct range for column G
+NEVER omit values that the user explicitly specified - they are REQUIRED!
+
 CRITICAL RULES:
 1. Return ONLY valid JSON - no markdown, no explanation
 2. Match the schema exactly for the selected outputMode
 3. Use the DATA CONTEXT to understand the actual data structure
 4. When ranges are provided in explicitRowInfo, USE THEM exactly
+5. Include ALL user-specified values in your config - don't summarize them into messages only
 
 `;
