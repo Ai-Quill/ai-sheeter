@@ -676,7 +676,15 @@ function parseAndValidate(
       }
       
       // ============================================
-      // FIX: Detect if AI incorrectly returned "format" with validation config
+      // FIX 1: Correct "validation" → "dataValidation" (common AI mistake)
+      // ============================================
+      if (sheetAction === 'validation') {
+        console.log('[parse-chain] ⚠️ AI returned "validation" - correcting to "dataValidation"');
+        sheetAction = 'dataValidation';
+      }
+      
+      // ============================================
+      // FIX 2: Detect if AI incorrectly returned "format" with validation config
       // Common mistake: returning format action with nested validation
       // Example: { sheetAction: "format", sheetConfig: { options: { validation: { type: "checkbox" } } } }
       // Should be: { sheetAction: "dataValidation", sheetConfig: { validationType: "checkbox", range: "..." } }
@@ -694,6 +702,23 @@ function parseAndValidate(
         };
         // Remove the now-extracted 'type' to avoid confusion
         delete sheetConfig.type;
+        console.log('[parse-chain] Corrected sheetConfig:', JSON.stringify(sheetConfig));
+      }
+      
+      // ============================================
+      // FIX 3: Flatten nested criteria for number validation
+      // AI sometimes returns: { criteria: { minimum: 1000, maximum: 100000 } }
+      // Should be: { min: 1000, max: 100000 }
+      // ============================================
+      if (sheetAction === 'dataValidation' && sheetConfig?.criteria) {
+        console.log('[parse-chain] ⚠️ AI returned nested criteria - flattening to min/max');
+        const criteria = sheetConfig.criteria;
+        if (criteria.minimum !== undefined) sheetConfig.min = criteria.minimum;
+        if (criteria.maximum !== undefined) sheetConfig.max = criteria.maximum;
+        if (criteria.condition === 'between' && !sheetConfig.validationType) {
+          sheetConfig.validationType = 'number';
+        }
+        delete sheetConfig.criteria;
         console.log('[parse-chain] Corrected sheetConfig:', JSON.stringify(sheetConfig));
       }
       

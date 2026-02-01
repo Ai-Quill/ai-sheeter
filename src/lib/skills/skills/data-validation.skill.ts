@@ -38,10 +38,11 @@ const DATA_VALIDATION_INSTRUCTIONS = `
 
 For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheetAction: "dataValidation".
 
-⚠️ CRITICAL: Checkboxes are DATA VALIDATION, NOT formatting!
-- "Add checkboxes" → sheetAction: "dataValidation", validationType: "checkbox"
-- DO NOT use sheetAction: "format" for checkboxes!
-- DO NOT nest validation inside options - use validationType directly in sheetConfig
+⚠️ CRITICAL RULES:
+1. Always use sheetAction: "dataValidation" (NOT "validation" - that will fail!)
+2. Checkboxes are DATA VALIDATION, NOT formatting!
+3. DO NOT nest validation inside options - use validationType directly in sheetConfig
+4. For number validation: put min/max DIRECTLY in sheetConfig (NOT nested in criteria or options)
 
 ### Schema
 {
@@ -50,7 +51,9 @@ For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheet
   "sheetConfig": {
     "validationType": "dropdown|checkbox|number|date|email|url|custom",
     "range": "D2:D100",
-    "values": ["Option 1", "Option 2"]  // For dropdown only
+    "values": ["Option 1", "Option 2"],  // For dropdown only
+    "min": 0,     // For number validation - DIRECTLY in sheetConfig
+    "max": 100    // For number validation - DIRECTLY in sheetConfig
   },
   "summary": "Add [type] validation",
   "clarification": "Creating [type] validation for [range]."
@@ -59,12 +62,12 @@ For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheet
 ### Validation Types
 - **dropdown** or **list**: Select from predefined values → use "values" array
 - **checkbox**: True/false checkboxes → validationType: "checkbox" (NO values needed)
-- **number**: Numeric constraints → use "min" and "max" directly in sheetConfig
+- **number**: Numeric constraints → use "min" and "max" DIRECTLY in sheetConfig
 - **date**: Date constraints → use "after" and "before"  
 - **email**: Valid email format
 - **url**: Valid URL format
 
-### CHECKBOX EXAMPLES - Use EXACTLY this format:
+### CHECKBOX EXAMPLE:
 For "Add checkboxes to column F":
 {
   "outputMode": "sheet",
@@ -75,15 +78,33 @@ For "Add checkboxes to column F":
   }
 }
 
-⚠️ WRONG (do NOT do this):
+### NUMBER VALIDATION EXAMPLE:
+For "Only allow numbers between 1000 and 100000 on column G":
 {
-  "sheetAction": "format",
+  "outputMode": "sheet",
+  "sheetAction": "dataValidation",
+  "sheetConfig": {
+    "validationType": "number",
+    "range": "G2:G100",
+    "min": 1000,
+    "max": 100000
+  }
+}
+
+⚠️ WRONG EXAMPLES (do NOT do these):
+{
+  "sheetAction": "validation",  // WRONG! Use "dataValidation"
+  "sheetConfig": { "criteria": { "minimum": 1000 } }  // WRONG! Use "min" directly
+}
+
+{
+  "sheetAction": "format",  // WRONG! Checkboxes are dataValidation
   "sheetConfig": { "options": { "validation": { "type": "checkbox" } } }
 }
 
 ### IMPORTANT for Number Validation
 When restricting to number ranges, use validationType: "number" (NOT "numberRange")
-Put min/max directly in sheetConfig, not nested in options:
+Put min/max directly in sheetConfig, not nested in criteria or options:
 
 CORRECT:
 {
