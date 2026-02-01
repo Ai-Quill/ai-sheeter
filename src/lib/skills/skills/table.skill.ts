@@ -37,42 +37,27 @@ function calculateIntentScore(command: string, _context?: DataContext): number {
 }
 
 const TABLE_INSTRUCTIONS = `
-### Table Creation (sheetAction: "createTable")
-Convert data ranges to native Google Sheets Tables. Tables provide:
-- Automatic header styling with filters
-- Structured data with column types
-- Frozen header rows
-- Professional appearance instantly
+## TABLE Skill
+
+Convert data to native Google Sheets Tables with auto-formatting and filters.
 
 ### Schema
 {
   "outputMode": "sheet",
   "sheetAction": "createTable",
   "sheetConfig": {
-    "range": "A1:D14",
-    "tableName": "SalesData",
+    "range": "[use explicitRowInfo.fullRangeIncludingHeader from context]",
+    "tableName": "[user's name or auto-generate]",
     "freezeHeader": true
-  },
-  "summary": "Convert data to table",
-  "clarification": "Creating a native Google Sheets table with automatic formatting and filters."
+  }
 }
 
-### Config Options
-- range: The data range to convert (required)
-- tableName: Name for the table (optional, auto-generated if not provided)
-- freezeHeader: Whether to freeze the header row (default: true)
+### Key Rules
+- range: Derive from context (include headers)
+- tableName: Use user's specified name, or omit for auto-generation
+- freezeHeader: Default true
 
-### When to Use
-Use createTable when user requests:
-- "Create a table" / "Make this a table"
-- "Convert to table" / "Table format"
-- "Professional table with filters"
-- "Structured data table"
-
-### Example Commands
-- "Create a table from A2:D14" → createTable
-- "Convert this data to a table" → createTable
-- "Make a table called SalesData" → createTable with tableName
+### Tables provide: Auto-formatting, filters, frozen headers, professional look
 `;
 
 const TABLE_EXAMPLES: SkillExample[] = [

@@ -395,19 +395,25 @@ OUTPUT MODES:
 - "chat": Answer questions about the data
 - "columns": AI-powered row-by-row transformation
 
-⭐ GOLDEN RULE - RESPECT ALL USER-SPECIFIED VALUES:
-Extract and include EVERY value the user mentions in your response config:
-- Numbers: "between 1000 and 100000" → include min: 1000, max: 100000
-- Options: "High, Medium, Low" → include values: ["High", "Medium", "Low"]
-- Colors: "dark blue background" → include backgroundColor: "#003366"
-- Ranges: "column G" → include the correct range for column G
-NEVER omit values that the user explicitly specified - they are REQUIRED!
+⭐ GOLDEN RULE 1 - USE THE CONTEXT:
+The DATA CONTEXT provides exact row/column information. ALWAYS use it:
+- explicitRowInfo.headerRange → exact header row (e.g., "A1:G1")
+- explicitRowInfo.dataStartRow / dataEndRow → data rows (e.g., 2 to 7)
+- explicitRowInfo.dataRange → exact data range (e.g., "A2:G7")
+
+When user says "column G", derive the range from context:
+- If dataStartRow=2, dataEndRow=7 → use "G2:G7" (NOT "G:G" or "G1:G100")
+
+⭐ GOLDEN RULE 2 - RESPECT USER VALUES:
+Include EVERY value the user explicitly mentions:
+- Numbers: "between 1000 and 100000" → min: 1000, max: 100000
+- Options: "High, Medium, Low" → values: ["High", "Medium", "Low"]
+- Colors: "dark blue" → backgroundColor: "#003366"
 
 CRITICAL RULES:
 1. Return ONLY valid JSON - no markdown, no explanation
-2. Match the schema exactly for the selected outputMode
-3. Use the DATA CONTEXT to understand the actual data structure
-4. When ranges are provided in explicitRowInfo, USE THEM exactly
-5. Include ALL user-specified values in your config - don't summarize them into messages only
+2. ALWAYS derive ranges from explicitRowInfo in context (never guess)
+3. Include ALL user-specified values directly in config
+4. Data actions should target DATA rows, not headers
 
 `;

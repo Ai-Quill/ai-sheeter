@@ -54,66 +54,35 @@ function calculateIntentScore(command: string, context?: DataContext): number {
 const CHAT_INSTRUCTIONS = `
 ## CHAT Skill
 
-Return outputMode: "chat" for questions, ambiguous requests, or when no specific action is clear.
+Return outputMode: "chat" for questions, vague requests, or when clarification needed.
 
 ### Schema
 {
   "outputMode": "chat",
-  "isMultiStep": false,
-  "isCommand": true,
   "steps": [],
-  "summary": "Brief summary",
-  "clarification": "Brief description",
-  "chatResponse": "Your response in MARKDOWN format",
+  "chatResponse": "Your response in MARKDOWN",
   "suggestedActions": [
-    { "label": "Human-readable label", "command": "Exact command to execute" }
+    { "label": "Short label", "command": "Executable command using context" }
   ]
 }
 
-### CRITICAL: Use Data Context to Generate Suggestions
-Study the DATA CONTEXT provided. It contains:
-- **headers**: Column letters and their header names (e.g., "A: Salesperson", "B: Q1 Sales")
-- **dataRange**: The actual data range (e.g., "A2:F9")
-- **headerRange**: The header row range (e.g., "A1:F1")
-- **Sample values**: Example data from each column
+### CRITICAL: Derive suggestions from DATA CONTEXT
+- Use ACTUAL column letters/names from context headers
+- Use ACTUAL ranges from explicitRowInfo
+- Each suggestion must be ATOMIC (single action)
 
-When generating suggestedActions, use the ACTUAL column letters and header names from the context:
-- If context shows "B: Q1 Sales" → use "Format column B as currency"
-- If context shows "E: Achievement" → use "Highlight column E values above 100% in green"
+### For Vague Requests ("professional", "nice")
+Generate 4-5 atomic suggestions using context:
+1. "Convert [fullRange from context] to a table"
+2. "Make row [headerRowNumber] bold with dark blue background"
+3. "Format columns [numeric columns from context] as currency"
+4. "Add borders to [fullRange]"
+5. "Highlight highest values in green"
 
-### For Vague Formatting Requests ("professional", "nice", "clean")
-Generate 4-5 ATOMIC suggestions - each should be a SINGLE action that can execute independently:
-
-1. **Create Table** (RECOMMENDED first option): "Convert [range] to a table" - creates a native Google Sheets Table with auto-formatting, filters, and frozen headers
-2. **Header styling**: "Make row [N] bold with dark blue background and white text"
-3. **Number formatting**: "Format columns [X, Y, Z] as currency with 2 decimals"
-4. **Borders and alignment**: "Add borders to [range]"
-5. **Conditional formatting**: "Highlight highest value in each column with light green"
-
-IMPORTANT: Keep each suggestion ATOMIC (single action). Users can select multiple suggestions via checkboxes.
-Do NOT combine multiple actions into one suggestion - this causes parsing issues.
-
-### Example Response (using data context)
-Given context with: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement, F=Status, Range=A1:F9
-
-{
-  "outputMode": "chat",
-  "chatResponse": "I can help format your sales data professionally! Here are specific options:",
-  "suggestedActions": [
-    { "label": "Convert to Table", "command": "Convert A1:F9 to a table" },
-    { "label": "Style headers", "command": "Make row 1 bold with dark blue background and white text" },
-    { "label": "Format sales as currency", "command": "Format columns B, C, D as currency with 2 decimals" },
-    { "label": "Add borders", "command": "Add borders to A1:F9" },
-    { "label": "Highlight top performers", "command": "Highlight highest value in each column with light green" }
-  ]
-}
-
-### Rules
-- ALWAYS return valid JSON with outputMode: "chat"
-- ALWAYS include suggestedActions array (3-5 items) for formatting requests
-- Use ACTUAL column letters from the data context (not generic examples)
-- Each command must be directly executable
-- Keep labels short (3-5 words), commands should be complete sentences
+### Key Rules
+- Use context for all ranges/columns (see GOLDEN RULE 1)
+- Keep suggestions ATOMIC - no combined actions
+- Labels: 3-5 words, Commands: complete sentences
 `;
 
 const CHAT_EXAMPLES: SkillExample[] = [

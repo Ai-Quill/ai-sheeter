@@ -81,52 +81,30 @@ For chart/visualization requests, return outputMode: "sheet" with sheetAction: "
   "sheetAction": "chart",
   "sheetConfig": {
     "chartType": "line|bar|column|pie|area|scatter|histogram",
-    "domainColumn": "A",          // Category/label/date column (X-axis)
-    "dataColumns": ["B", "C"],    // Numeric value columns (array)
-    "seriesNames": ["Series1", "Series2"],  // Legend labels from headers
-    "title": "Chart Title",
-    "legendPosition": "top|bottom|right|left|none",
-    "yAxisFormat": "currency|percent|decimal|short"
-  },
-  "summary": "Create [type] chart for [purpose]",
-  "clarification": "Creating a [type] chart to visualize [description]."
+    "domainColumn": "[from context - category/date column]",
+    "dataColumns": ["[from context - numeric columns]"],
+    "seriesNames": ["[from context - column headers]"],
+    "title": "[user's title or derive from data]",
+    "legendPosition": "top|bottom|right|none",
+    "yAxisFormat": "currency|percent|decimal"
+  }
 }
 
-### Column Rules
-1. **domainColumn**: Contains categories, labels, or dates (usually TEXT)
-   - Look for: dates, categories ("Product A"), months ("Jan", "Feb")
-   
-2. **dataColumns**: Array of NUMERIC value columns
-   - PIE: Exactly ONE column, e.g., ["B"]
-   - LINE/BAR/COLUMN/AREA: Include ALL relevant numeric columns
-   - SCATTER: domainColumn = X values, dataColumns = Y values only
+### Derive from Context
+- **domainColumn**: Look at context headers for category/date column (usually first)
+- **dataColumns**: Look at context for numeric columns (check sample data)
+- **seriesNames**: Extract from actual column headers in context
 
-3. **seriesNames**: Extract from column HEADERS in the data context
-   - Order must match dataColumns order
+### Chart Type Rules
+- PIE: exactly ONE dataColumn
+- LINE/BAR/AREA: include ALL relevant numeric columns from context
+- SCATTER: domainColumn=X values, dataColumns=Y values only
 
-### Chart-Specific Options
-
-**Line Charts:**
-- curveType: "smooth" for trends, "none" for precise data
-- pointSize: 3-5 (dense data), 7-10 (sparse data)
-
-**Bar/Column Charts:**
-- stacked: true for comparing parts of whole
-- barGroupWidth: "50%" (many bars), "75%" (default), "90%" (few bars)
-
-**Pie/Donut Charts:**
-- pieHole: 0.4 for donut, 0 for pie
-- pieSliceText: "percentage" (default), "value", "label", "none"
-
-**Scatter Charts:**
-- trendlines: Array with { type: "linear", series: 0, labelInLegend: "Trend Name" }
-- EVERY trendline MUST have labelInLegend!
-
-### Smart Defaults
-- Revenue/Sales/Price data → yAxisFormat: "currency"
+### Smart Options
+- Revenue/Sales data → yAxisFormat: "currency"
 - Percentage data → yAxisFormat: "percent"
 - Date X-axis → slantedTextAngle: 60
-- Many series (5+) → legendPosition: "bottom"
+- Trendlines MUST have labelInLegend
 `;
 
 // ============================================

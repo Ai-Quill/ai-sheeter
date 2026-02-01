@@ -44,47 +44,31 @@ For highlighting/color-coding requests, return outputMode: "sheet" with sheetAct
   "outputMode": "sheet",
   "sheetAction": "conditionalFormat",
   "sheetConfig": {
-    "range": "C2:C100",
+    "range": "[derive from context - data rows only]",
     "rules": [
       {
-        "condition": "greaterThan|lessThan|equals|contains|between|negative|positive|isEmpty",
-        "value": 100,
-        "min": 50,  // For 'between'
-        "max": 150, // For 'between'
-        "format": {
-          "backgroundColor": "#90EE90",
-          "textColor": "#000000",
-          "bold": true
-        }
+        "condition": "greaterThan|lessThan|equals|contains|between|negative|positive|max|min",
+        "value": <user's threshold>,
+        "format": { "backgroundColor": "#90EE90", "bold": true }
       }
     ]
-  },
-  "summary": "Highlight [condition] values",
-  "clarification": "Adding conditional formatting to [describe]."
+  }
 }
 
-### Supported Conditions
-- greaterThan, gt: Value > threshold
-- lessThan, lt: Value < threshold
-- greaterThanOrEqual, gte: Value >= threshold
-- lessThanOrEqual, lte: Value <= threshold
-- equals, eq: Exact match
-- contains: Text contains substring
-- between: Value in range (use min/max)
-- negative: Value < 0
-- positive: Value > 0
-- isEmpty, isNotEmpty: Cell empty/not empty
-- max, isMax, maximum, highest: Highlight cell if it equals max value in its column
-- min, isMin, minimum, lowest: Highlight cell if it equals min value in its column
+### Conditions
+- greaterThan, lessThan, equals, contains, between (use min/max)
+- negative (< 0), positive (> 0)
+- max/highest, min/lowest (column max/min)
+- isEmpty, isNotEmpty
 
-### Common Color Codes
-- Red (negative/bad): #FFB6C1 (light), #FF0000 (bold)
-- Green (positive/good): #90EE90 (light), #00FF00 (bold)
-- Yellow (warning): #FFFF00
-- Blue (info): #ADD8E6
+### Colors (use user's color or these defaults)
+- Red: #FFB6C1 (light), #FF0000 (bold)
+- Green: #90EE90 (light)
+- Yellow: #FFFF00
 
-### Multiple Rules
-You can apply multiple rules to the same range - they stack in order.
+### Range from Context
+- "highlight column C" → derive C[dataStartRow]:C[dataEndRow] from context
+- Multiple rules can be applied to same range
 `;
 
 const CONDITIONAL_FORMAT_EXAMPLES: SkillExample[] = [

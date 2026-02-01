@@ -748,6 +748,23 @@ function parseAndValidate(
         }
       }
       
+      // ============================================
+      // FIX 5: Correct full-column ranges to use data rows only
+      // AI sometimes returns "G:G" instead of "G2:G7"
+      // Data validation should NOT include header row
+      // ============================================
+      if (sheetAction === 'dataValidation' && sheetConfig?.range) {
+        const fullColumnMatch = sheetConfig.range.match(/^([A-Z]+):([A-Z]+)$/i);
+        if (fullColumnMatch && dataContext.explicitRowInfo) {
+          const col = fullColumnMatch[1].toUpperCase();
+          const startRow = dataContext.explicitRowInfo.dataStartRow;
+          const endRow = dataContext.explicitRowInfo.dataEndRow;
+          const correctedRange = `${col}${startRow}:${col}${endRow}`;
+          console.log(`[parse-chain] ⚠️ Correcting full-column range ${sheetConfig.range} → ${correctedRange}`);
+          sheetConfig.range = correctedRange;
+        }
+      }
+      
       // Infer action from config if still undefined
       if (!sheetAction && sheetConfig) {
         if (sheetConfig.chartType) sheetAction = 'chart';

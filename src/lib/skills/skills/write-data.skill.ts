@@ -46,42 +46,23 @@ function calculateIntentScore(command: string, context?: DataContext): number {
 const WRITE_DATA_INSTRUCTIONS = `
 ## WRITE DATA Skill
 
-When user pastes table data in their command, return outputMode: "sheet" with sheetAction: "writeData".
-
-### Detect Pasted Data
-Look for these patterns in the command:
-- Markdown tables: | Header1 | Header2 | ... | Value1 | Value2 |
-- Pipe-separated: Header1|Header2|Header3
-- CSV-like: value1, value2, value3
-- Tab or newline separated rows
+When user pastes table data in their command, parse it and write to sheet.
 
 ### Schema
 {
   "outputMode": "sheet",
   "sheetAction": "writeData",
   "sheetConfig": {
-    "data": [
-      ["Header1", "Header2", "Header3"],
-      ["Value1", "Value2", "Value3"],
-      ["Value4", "Value5", "Value6"]
-    ],
-    "startCell": "A1"
-  },
-  "summary": "Write table data to sheet",
-  "clarification": "Parsed your table and writing X columns x Y rows starting at [cell]."
+    "data": [["Header1", "Header2"], ["Value1", "Value2"]],
+    "startCell": "[user's location or 'A1']"
+  }
 }
 
-### Parsing Rules
-1. First row of table = headers (first array element)
-2. Subsequent rows = data rows
-3. Handle empty cells as empty strings ""
-4. If user specifies location (e.g., "paste in B5"), use that as startCell
-5. If no location specified, use "A1" as default
-
-### Important
-- Parse the ACTUAL data from the command text
-- Convert to a proper 2D array
-- Don't just echo back - parse and structure the data
+### Key Rules
+- Parse the ACTUAL data from user's command into 2D array
+- First row = headers
+- startCell: Use user's specified location, or "A1" if not specified
+- Handle empty cells as ""
 `;
 
 const WRITE_DATA_EXAMPLES: SkillExample[] = [

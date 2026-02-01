@@ -51,64 +51,28 @@ For formatting requests, return outputMode: "sheet" with sheetAction: "format".
   "sheetAction": "format",
   "sheetConfig": {
     "formatType": "currency|percent|number|date|text",
-    "range": "B3:H3",  // Use explicitRowInfo for headers!
+    "range": "[derive from context - see GOLDEN RULE 1]",
     "options": {
-      // Number options
-      "decimals": 2,
-      "locale": "USD|EUR|GBP",
-      "pattern": "yyyy-mm-dd",
-      
-      // Style options
-      "bold": true,
-      "italic": true,
-      "underline": true,
-      "backgroundColor": "#003366",
-      "textColor": "#FFFFFF",
-      "fontSize": 12,
-      "fontFamily": "Arial",
-      "alignment": "left|center|right",
-      "verticalAlign": "top|middle|bottom",
-      "borders": true,
-      "wrap": true
+      "decimals": 2, "locale": "USD|EUR|GBP", "pattern": "yyyy-mm-dd",
+      "bold": true, "italic": true, "backgroundColor": "#003366", "textColor": "#FFFFFF",
+      "alignment": "left|center|right", "borders": true
     }
-  },
-  "summary": "Format [range] as [type]",
-  "clarification": "Applying [format] to [range]."
+  }
 }
 
-### ⚠️ CRITICAL: Professional/Vague Formatting Requests
-When user asks for "professional look", "make it look nice", "format professionally":
-→ Return outputMode: "chat" with suggestedActions instead!
-→ Do NOT apply header styling (dark background, white text) to the entire table!
+### Range Targeting (from context)
+- "format headers" → use explicitRowInfo.headerRange
+- "format data" / "format column X" → derive from explicitRowInfo.dataStartRow to dataEndRow
+- "format entire table" → use explicitRowInfo.fullRangeIncludingHeader
 
-Professional formatting requires MULTIPLE separate steps:
-1. Style headers ONLY (row 1) - bold, dark blue background, white text
-2. Add borders to full table
-3. Format numbers as currency/percent
+### Vague Requests ("professional", "nice")
+→ Return outputMode: "chat" with suggestedActions instead
+→ Professional formatting needs multiple separate steps
 
-Since this needs multiple actions, use CHAT mode with suggestedActions.
-
-### Critical Rules
-⚠️ Use explicitRowInfo for accurate range targeting:
-- "format headers" → Use explicitRowInfo.headerRange ONLY (e.g., "A1:E1")
-- "format data" → Use explicitRowInfo.dataRange (e.g., "A2:E9")
-- Headers and data ranges are DIFFERENT - never apply header styling to data!
-
-⚠️ NEVER apply backgroundColor/textColor to the entire table range!
-- Header styling (dark background + white text) should ONLY go on the header row
-- Data rows should have NO background color (or light alternating colors)
-
-### Format Types
-- currency: $#,##0.00 (supports USD, EUR, GBP, JPY, etc.)
-- percent: 0.00%
-- number: #,##0.00
-- date: yyyy-mm-dd (or custom pattern)
-- text: Plain text with style options
-
-### Combining Multiple Options
-You can combine formatting in one request:
-- "Add borders and right-align" → { borders: true, alignment: "right" }
-- "Bold headers with blue background" → { bold: true, backgroundColor: "#003366" }
+### Key Rules
+1. Header styling (dark background) → ONLY headerRange, never entire table
+2. Data formatting (currency, etc.) → ONLY dataRange rows
+3. Combine multiple options in one request: { borders: true, alignment: "right" }
 `;
 
 const FORMAT_EXAMPLES: SkillExample[] = [

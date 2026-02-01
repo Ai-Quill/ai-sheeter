@@ -40,36 +40,26 @@ For filtering requests, return outputMode: "sheet" with sheetAction: "filter".
   "outputMode": "sheet",
   "sheetAction": "filter",
   "sheetConfig": {
-    "dataRange": "A1:E100",
+    "dataRange": "[use explicitRowInfo.fullRangeIncludingHeader from context]",
     "criteria": [
       {
-        "column": "B",
-        "condition": "equals|contains|greaterThan|lessThan|between|isEmpty|isNotEmpty",
-        "value": "Active",
-        "min": 50,   // For 'between'
-        "max": 100   // For 'between'
+        "column": "[column letter from context]",
+        "condition": "equals|contains|greaterThan|lessThan|between",
+        "value": <user's filter value>
       }
     ]
-  },
-  "summary": "Filter to show [criteria]",
-  "clarification": "Applying filter to show only [description]."
+  }
 }
 
-### Supported Conditions
-- equals, eq: Exact match
-- notEquals, neq: Not equal
-- contains: Text contains
-- notContains: Text doesn't contain
-- startsWith, endsWith: Text patterns
-- greaterThan, gt: Value > threshold
-- lessThan, lt: Value < threshold
-- between: Value in range
-- isEmpty, isNotEmpty: Cell state
+### Conditions
+- equals, notEquals, contains, notContains
+- greaterThan, lessThan, between (use min/max)
+- isEmpty, isNotEmpty
 
-### Notes
-- Filter replaces any existing filter on the sheet
+### Key Rules
+- dataRange should include headers (for filter dropdowns)
+- Use column letter from context headers
 - Multiple criteria are AND-ed together
-- Column can be letter ("B") or index (2)
 `;
 
 const FILTER_EXAMPLES: SkillExample[] = [

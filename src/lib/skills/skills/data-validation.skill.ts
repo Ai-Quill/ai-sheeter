@@ -44,23 +44,22 @@ For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheet
   "sheetAction": "dataValidation",
   "sheetConfig": {
     "validationType": "dropdown|checkbox|number|date|email|url",
-    "range": "D2:D100",
-    "values": ["Option 1", "Option 2"],  // For dropdown
-    "min": 0,     // For number validation
-    "max": 100    // For number validation
+    "range": "[column][dataStartRow]:[column][dataEndRow]",  // From context!
+    "values": ["...user's options..."],  // For dropdown
+    "min": <user's min>,     // For number
+    "max": <user's max>      // For number
   }
 }
 
-### Validation Types & Required Fields
-- **dropdown**: validationType + range + values (user's exact options)
-- **checkbox**: validationType + range only
-- **number**: validationType + range + min + max (user's exact numbers)
-- **date**: validationType + range + after/before
+### Validation Types
+- **dropdown**: range + values (user's exact options)
+- **checkbox**: range only
+- **number**: range + min + max (user's exact numbers)
 
 ### Key Rules
 1. Use sheetAction: "dataValidation" (NOT "validation")
-2. Put min, max, values DIRECTLY in sheetConfig (NOT nested in criteria/options)
-3. Checkboxes are dataValidation, NOT format
+2. Put min, max, values DIRECTLY in sheetConfig (NOT nested in options/criteria)
+3. Derive range from explicitRowInfo in context (see GOLDEN RULE 1)
 `;
 
 const DATA_VALIDATION_EXAMPLES: SkillExample[] = [

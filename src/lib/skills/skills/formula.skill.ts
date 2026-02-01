@@ -56,34 +56,26 @@ For mechanical transformations, return outputMode: "formula" with a native Googl
   "isCommand": true,
   "steps": [{
     "action": "formula",
-    "description": "Apply native Google Sheets formula",
-    "prompt": "=FORMULA({{ROW}})",
+    "description": "Apply native formula",
+    "prompt": "=FORMULA([column from context]{{ROW}})",
     "outputFormat": "formula"
   }],
   "summary": "Apply [formula type]",
-  "clarification": "Using native Google Sheets formula.\\n\\n✅ FREE - no AI cost\\n✅ Instant - no processing time\\n✅ Auto-updates when data changes",
-  "estimatedTime": "Instant"
+  "clarification": "Using native formula.\\n✅ FREE ✅ Instant ✅ Auto-updates"
 }
 
-### Formula Placeholder
-Use {{ROW}} as placeholder for row number - it will be replaced: {{ROW}} → 2, 3, 4...
+### Key Rules
+- Use {{ROW}} placeholder for row number
+- Derive source column from context (e.g., if user says "translate column B" → use B{{ROW}})
+- Use user's target language for translation
 
 ### Common Formulas
-- GOOGLETRANSLATE(B{{ROW}}, "auto", "es") - Translate to Spanish
-- GOOGLETRANSLATE(B{{ROW}}, "auto", "vi") - Translate to Vietnamese
-- REGEXEXTRACT(B{{ROW}}, "@(.*)") - Extract email domain
-- UPPER(B{{ROW}}) - Convert to uppercase
-- LOWER(B{{ROW}}) - Convert to lowercase
-- PROPER(B{{ROW}}) - Capitalize first letters
-- TRIM(B{{ROW}}) - Remove extra whitespace
-- LEN(B{{ROW}}) - Text length
-- LEFT(B{{ROW}}, 5) - First N characters
-- RIGHT(B{{ROW}}, 5) - Last N characters
+- GOOGLETRANSLATE([col]{{ROW}}, "auto", "[target lang]")
+- UPPER/LOWER/PROPER([col]{{ROW}})
+- REGEXEXTRACT([col]{{ROW}}, "[pattern]")
+- TRIM([col]{{ROW}})
 
-### Benefits vs AI
-- FREE: No token cost
-- INSTANT: No processing delay
-- REACTIVE: Auto-updates when source changes
+### Benefits: FREE, Instant, Auto-updates
 `;
 
 const FORMULA_EXAMPLES: SkillExample[] = [
