@@ -123,14 +123,44 @@ export async function selectSkills(
     }
   }
   
-  // FALLBACK: If no skills matched, use chat skill
-  // This ensures we always have a valid response mode
+  // FALLBACK: If no skills matched
   if (selectedSkills.length === 0) {
-    const chatSkill = getSkillById('chat');
-    if (chatSkill) {
-      selectedSkills.push(chatSkill);
-      usedFallback = true;
-      console.log('[SkillRegistry] No skills matched - falling back to chat skill');
+    // If we explicitly excluded chat for a specific request, 
+    // try to load the appropriate action skill directly based on detected categories
+    if (excludeChatSkill && requestAnalysis.detectedCategories.length > 0) {
+      const category = requestAnalysis.detectedCategories[0];
+      const categoryToSkill: Record<string, string> = {
+        'format': 'format',
+        'conditionalFormat': 'conditionalFormat',
+        'chart': 'chart',
+        'filter': 'filter',
+        'dataValidation': 'dataValidation',
+      };
+      const skillId = categoryToSkill[category];
+      if (skillId) {
+        const skill = getSkillById(skillId);
+        if (skill) {
+          selectedSkills.push(skill);
+          console.log(`[SkillRegistry] No skills matched threshold, but loading ${skillId} skill based on detected category: ${category}`);
+        }
+      }
+    }
+    
+    // If still no skills, fall back to chat (but not if we explicitly excluded it)
+    if (selectedSkills.length === 0 && !excludeChatSkill) {
+      const chatSkill = getSkillById('chat');
+      if (chatSkill) {
+        selectedSkills.push(chatSkill);
+        usedFallback = true;
+        console.log('[SkillRegistry] No skills matched - falling back to chat skill');
+      }
+    } else if (selectedSkills.length === 0) {
+      // Last resort: load format skill for any sheet-related request
+      const formatSkill = getSkillById('format');
+      if (formatSkill) {
+        selectedSkills.push(formatSkill);
+        console.log('[SkillRegistry] No skills matched and chat excluded - defaulting to format skill');
+      }
     }
   }
   

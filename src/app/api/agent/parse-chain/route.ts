@@ -173,6 +173,17 @@ interface TaskChain {
   hasMultipleInputColumns?: boolean;
   rowCount?: number;
   
+  // Explicit row info for accurate range targeting (passed to frontend)
+  explicitRowInfo?: {
+    headerRowNumber: number | null;
+    headerRange: string | null;
+    dataStartRow: number;
+    dataEndRow: number;
+    dataRange: string;
+    fullRangeIncludingHeader: string | null;
+    headerNames?: Array<{ column: string; name: string }>;
+  };
+  
   // For learning callback
   _embedding?: number[];
   _command?: string;
@@ -617,8 +628,64 @@ function parseAndValidate(
     // SHEET MODE: AI decided to use native sheet manipulation (chart, format, etc.) - instant execution
     if (parsed.outputMode === 'sheet') {
       console.log('[parse-chain] ✅ SHEET MODE: AI chose native sheet action (instant execution)');
-      console.log('[parse-chain] Sheet action:', parsed.sheetAction);
-      console.log('[parse-chain] Sheet config:', JSON.stringify(parsed.sheetConfig || {}).substring(0, 200));
+      
+      // ============================================
+      // FLEXIBLE PARSING: Accept AI's natural response format
+      // AI might return:
+      // 1. { sheetAction: "format", sheetConfig: {...} } - our defined schema
+      // 2. { steps: [{ action: "format", range: "...", formatting: {...} }] } - AI's natural format
+      // ============================================
+      
+      let sheetAction = parsed.sheetAction;
+      let sheetConfig = parsed.sheetConfig || {};
+      
+      // If AI returned steps array with format actions, extract and combine them
+      if (!sheetAction && Array.isArray(parsed.steps) && parsed.steps.length > 0) {
+        console.log('[parse-chain] AI returned steps array, extracting sheet actions');
+        
+        // Determine action type from steps
+        const firstStep = parsed.steps[0];
+        if (firstStep.action === 'format' || firstStep.formatting || firstStep.borders) {
+          sheetAction = 'format';
+          
+          // Build sheetConfig from steps - combine multiple format operations
+          const formatOperations = parsed.steps.map((step: any) => ({
+            range: step.range,
+            formatting: step.formatting || {},
+            // Also check for direct properties
+            borders: step.borders,
+            alignment: step.alignment || step.formatting?.horizontalAlignment,
+            bold: step.bold,
+            backgroundColor: step.backgroundColor,
+            textColor: step.textColor,
+          }));
+          
+          sheetConfig = {
+            formatType: 'text',
+            operations: formatOperations,  // Multiple operations
+            // For backward compatibility, also set single operation fields
+            range: formatOperations[0]?.range || dataContext.dataRange,
+            options: formatOperations[0]?.formatting || {},
+          };
+          
+          console.log('[parse-chain] Extracted format config from steps:', JSON.stringify(sheetConfig).substring(0, 300));
+        } else if (firstStep.chartType || firstStep.action === 'chart') {
+          sheetAction = 'chart';
+          sheetConfig = firstStep;
+        }
+      }
+      
+      // Infer action from config if still undefined
+      if (!sheetAction && sheetConfig) {
+        if (sheetConfig.chartType) sheetAction = 'chart';
+        else if (sheetConfig.rules) sheetAction = 'conditionalFormat';
+        else if (sheetConfig.validationType) sheetAction = 'dataValidation';
+        else if (sheetConfig.criteria) sheetAction = 'filter';
+        else if (sheetConfig.formatType || sheetConfig.options || sheetConfig.operations) sheetAction = 'format';
+      }
+      
+      console.log('[parse-chain] Sheet action:', sheetAction);
+      console.log('[parse-chain] Sheet config:', JSON.stringify(sheetConfig).substring(0, 200));
       
       return {
         isMultiStep: false,
@@ -626,7 +693,7 @@ function parseAndValidate(
         steps: [{
           id: 'step_1',
           order: 1,
-          action: parsed.sheetAction || 'chart',
+          action: sheetAction || 'format',  // Default to format for sheet mode
           description: parsed.summary || 'Apply sheet action',
           prompt: '',
           outputFormat: 'sheet',
@@ -639,8 +706,8 @@ function parseAndValidate(
         clarification: parsed.clarification || `Executing native Google Sheets action.\n\n✅ Instant - no AI processing\n✅ Native features`,
         estimatedTime: 'Instant',
         outputMode: 'sheet',
-        sheetAction: parsed.sheetAction,
-        sheetConfig: parsed.sheetConfig,
+        sheetAction: sheetAction,
+        sheetConfig: sheetConfig,
         
         // Include input config
         inputRange: dataContext.dataRange,
@@ -648,6 +715,9 @@ function parseAndValidate(
         inputColumns: dataContext.dataColumns,
         hasMultipleInputColumns: dataContext.dataColumns.length > 1,
         rowCount: dataContext.rowCount,
+        
+        // Include explicitRowInfo for frontend
+        explicitRowInfo: dataContext.explicitRowInfo,
         
         _embedding: embedding || undefined,
         _command: originalCommand,
