@@ -38,6 +38,11 @@ const DATA_VALIDATION_INSTRUCTIONS = `
 
 For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheetAction: "dataValidation".
 
+⚠️ CRITICAL: Checkboxes are DATA VALIDATION, NOT formatting!
+- "Add checkboxes" → sheetAction: "dataValidation", validationType: "checkbox"
+- DO NOT use sheetAction: "format" for checkboxes!
+- DO NOT nest validation inside options - use validationType directly in sheetConfig
+
 ### Schema
 {
   "outputMode": "sheet",
@@ -45,9 +50,7 @@ For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheet
   "sheetConfig": {
     "validationType": "dropdown|checkbox|number|date|email|url|custom",
     "range": "D2:D100",
-    "values": ["Option 1", "Option 2"],  // For dropdown
-    "min": 0,      // For number validation - put directly in sheetConfig
-    "max": 100     // For number validation - put directly in sheetConfig
+    "values": ["Option 1", "Option 2"]  // For dropdown only
   },
   "summary": "Add [type] validation",
   "clarification": "Creating [type] validation for [range]."
@@ -55,11 +58,28 @@ For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheet
 
 ### Validation Types
 - **dropdown** or **list**: Select from predefined values → use "values" array
-- **checkbox**: True/false checkboxes
+- **checkbox**: True/false checkboxes → validationType: "checkbox" (NO values needed)
 - **number**: Numeric constraints → use "min" and "max" directly in sheetConfig
 - **date**: Date constraints → use "after" and "before"  
 - **email**: Valid email format
 - **url**: Valid URL format
+
+### CHECKBOX EXAMPLES - Use EXACTLY this format:
+For "Add checkboxes to column F":
+{
+  "outputMode": "sheet",
+  "sheetAction": "dataValidation",
+  "sheetConfig": {
+    "validationType": "checkbox",
+    "range": "F2:F100"
+  }
+}
+
+⚠️ WRONG (do NOT do this):
+{
+  "sheetAction": "format",
+  "sheetConfig": { "options": { "validation": { "type": "checkbox" } } }
+}
 
 ### IMPORTANT for Number Validation
 When restricting to number ranges, use validationType: "number" (NOT "numberRange")

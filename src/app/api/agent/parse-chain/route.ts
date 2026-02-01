@@ -675,6 +675,28 @@ function parseAndValidate(
         }
       }
       
+      // ============================================
+      // FIX: Detect if AI incorrectly returned "format" with validation config
+      // Common mistake: returning format action with nested validation
+      // Example: { sheetAction: "format", sheetConfig: { options: { validation: { type: "checkbox" } } } }
+      // Should be: { sheetAction: "dataValidation", sheetConfig: { validationType: "checkbox", range: "..." } }
+      // ============================================
+      if (sheetAction === 'format' && sheetConfig?.options?.validation) {
+        console.log('[parse-chain] ⚠️ AI returned format with nested validation - correcting to dataValidation');
+        const nestedValidation = sheetConfig.options.validation;
+        sheetAction = 'dataValidation';
+        sheetConfig = {
+          validationType: nestedValidation.type || 'checkbox',
+          range: sheetConfig.range || dataContext.dataRange,
+          values: nestedValidation.values,
+          // Preserve any additional validation options
+          ...nestedValidation
+        };
+        // Remove the now-extracted 'type' to avoid confusion
+        delete sheetConfig.type;
+        console.log('[parse-chain] Corrected sheetConfig:', JSON.stringify(sheetConfig));
+      }
+      
       // Infer action from config if still undefined
       if (!sheetAction && sheetConfig) {
         if (sheetConfig.chartType) sheetAction = 'chart';
