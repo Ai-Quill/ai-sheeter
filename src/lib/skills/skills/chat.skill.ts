@@ -76,11 +76,12 @@ Generate 4 atomic suggestions using context (NOT 5 - avoid composite):
 1. "Make row [headerRowNumber] bold with dark blue background and white text"
 2. "Format columns [numeric columns] as currency"
 3. "Add borders to [fullRange]"
-4. "Highlight [condition] in [color]"
+4. "Conditional format: highlight cells where [column] equals [value] in green" (for status columns)
 
 ⚠️ CRITICAL: Generate ONLY 4 suggestions, NOT 5!
 ⚠️ NEVER add a 5th "complete package" or combined suggestion!
 ⚠️ Each suggestion must be ONE action only!
+⚠️ For value-based highlighting, use "conditional format" or "where equals" language!
 
 ### Key Rules
 - Use context for all ranges/columns (see GOLDEN RULE 1)
@@ -89,59 +90,8 @@ Generate 4 atomic suggestions using context (NOT 5 - avoid composite):
 - Labels: 3-5 words, Commands: single action sentences
 `;
 
-const CHAT_EXAMPLES: SkillExample[] = [
-  {
-    command: "What are the top 3 products by revenue?",
-    response: {
-      outputMode: "chat",
-      isMultiStep: false,
-      isCommand: true,
-      steps: [],
-      summary: "Identifying top products",
-      clarification: "Analyzing revenue data to find top performers",
-      chatResponse: "## Top 3 Products by Revenue\n\n1. **Product A** - $50,000 (40% of total)\n2. **Product B** - $35,000 (28% of total)\n3. **Product C** - $28,000 (22% of total)\n\n### Key Insight\nThe top 3 products account for 90% of total revenue."
-    }
-  },
-  {
-    command: "Help me format the table to look professional",
-    context: "Columns: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement, Range=A1:E9",
-    response: {
-      outputMode: "chat",
-      isMultiStep: false,
-      isCommand: true,
-      steps: [],
-      summary: "Suggest professional formatting options",
-      clarification: "Based on your sales data, here are formatting options",
-      chatResponse: "I can help format your sales data professionally! Here are some options:",
-      suggestedActions: [
-        { label: "Bold headers with blue background", command: "Make row 1 bold with dark blue background and white text" },
-        { label: "Format sales as currency", command: "Format columns B, C, D as currency" },
-        { label: "Add borders", command: "Add borders to A1:E9" },
-        { label: "Highlight top performers", command: "Highlight values above 100% in column E with green" }
-      ]
-    },
-    relevanceHints: ["professional", "format", "look nice", "style"]
-  },
-  {
-    command: "Make it look nice",
-    response: {
-      outputMode: "chat",
-      isMultiStep: false,
-      isCommand: true,
-      steps: [],
-      summary: "Suggest formatting options",
-      clarification: "Here are some formatting options for your data",
-      chatResponse: "I'd be happy to help make your data look great! Here are options:",
-      suggestedActions: [
-        { label: "Style headers", command: "Make row 1 bold with dark blue background and white text" },
-        { label: "Add borders", command: "Add borders to the data range" },
-        { label: "Format as currency", command: "Format number columns as currency" },
-        { label: "Highlight values", command: "Highlight values above average in green" }
-      ]
-    },
-    relevanceHints: ["nice", "look good", "pretty", "style"]
-  }
-];
+// Minimal seed examples - database will provide better examples over time
+const CHAT_EXAMPLES: SkillExample[] = [];
 
 export const chatSkill: GoogleSheetSkill = {
   id: 'chat',

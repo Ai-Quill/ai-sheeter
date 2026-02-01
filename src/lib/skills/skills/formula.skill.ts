@@ -78,59 +78,8 @@ For mechanical transformations, return outputMode: "formula" with a native Googl
 ### Benefits: FREE, Instant, Auto-updates
 `;
 
-const FORMULA_EXAMPLES: SkillExample[] = [
-  {
-    command: "Translate column B to Spanish",
-    response: {
-      outputMode: "formula",
-      isMultiStep: false,
-      isCommand: true,
-      steps: [{
-        action: "formula",
-        description: "Translate to Spanish",
-        prompt: "=GOOGLETRANSLATE(B{{ROW}}, \"auto\", \"es\")",
-        outputFormat: "formula"
-      }],
-      summary: "Translate using GOOGLETRANSLATE",
-      clarification: "Using native GOOGLETRANSLATE formula.\n\n✅ FREE - no AI cost\n✅ Instant\n✅ Auto-updates",
-      estimatedTime: "Instant"
-    }
-  },
-  {
-    command: "Convert names to uppercase",
-    response: {
-      outputMode: "formula",
-      isMultiStep: false,
-      isCommand: true,
-      steps: [{
-        action: "formula",
-        description: "Convert to uppercase",
-        prompt: "=UPPER(B{{ROW}})",
-        outputFormat: "formula"
-      }],
-      summary: "Convert to uppercase",
-      clarification: "Using native UPPER formula.\n\n✅ FREE - no AI cost\n✅ Instant",
-      estimatedTime: "Instant"
-    }
-  },
-  {
-    command: "Extract email domains from column C",
-    response: {
-      outputMode: "formula",
-      isMultiStep: false,
-      isCommand: true,
-      steps: [{
-        action: "formula",
-        description: "Extract email domain",
-        prompt: "=REGEXEXTRACT(C{{ROW}}, \"@(.*)\")",
-        outputFormat: "formula"
-      }],
-      summary: "Extract domains with REGEXEXTRACT",
-      clarification: "Using REGEXEXTRACT to get the part after @.\n\n✅ FREE - no AI cost",
-      estimatedTime: "Instant"
-    }
-  }
-];
+// Minimal seed examples - database will provide better examples over time
+const FORMULA_EXAMPLES: SkillExample[] = [];
 
 export const formulaSkill: GoogleSheetSkill = {
   id: 'formula',

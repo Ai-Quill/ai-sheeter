@@ -75,50 +75,8 @@ For formatting requests, return outputMode: "sheet" with sheetAction: "format".
 3. Combine multiple options in one request: { borders: true, alignment: "right" }
 `;
 
-const FORMAT_EXAMPLES: SkillExample[] = [
-  {
-    command: "Format column C as currency",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "format",
-      sheetConfig: {
-        formatType: "currency",
-        range: "C4:C11",
-        options: { decimals: 2 }
-      },
-      summary: "Format as currency",
-      clarification: "Applying currency format to column C."
-    }
-  },
-  {
-    command: "Make headers bold with dark blue background",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "format",
-      sheetConfig: {
-        formatType: "text",
-        range: "B3:H3",
-        options: { bold: true, backgroundColor: "#003366", textColor: "#FFFFFF", alignment: "center" }
-      },
-      summary: "Style headers",
-      clarification: "Applying bold, blue background, white text to header row."
-    }
-  },
-  {
-    command: "Add borders and right-align numbers",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "format",
-      sheetConfig: {
-        formatType: "text",
-        range: "B3:H11",
-        options: { borders: true, alignment: "right" }
-      },
-      summary: "Add borders and alignment",
-      clarification: "Adding borders and right alignment to the data range."
-    }
-  }
-];
+// Minimal seed examples - database will provide better examples over time
+const FORMAT_EXAMPLES: SkillExample[] = [];
 
 export const formatSkill: GoogleSheetSkill = {
   id: 'format',

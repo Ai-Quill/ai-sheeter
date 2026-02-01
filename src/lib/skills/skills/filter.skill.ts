@@ -62,38 +62,8 @@ For filtering requests, return outputMode: "sheet" with sheetAction: "filter".
 - Multiple criteria are AND-ed together
 `;
 
-const FILTER_EXAMPLES: SkillExample[] = [
-  {
-    command: "Filter to show only Active items",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "filter",
-      sheetConfig: {
-        dataRange: "A1:E100",
-        criteria: [
-          { column: "B", condition: "equals", value: "Active" }
-        ]
-      },
-      summary: "Filter active items",
-      clarification: "Applying filter to show only Active items."
-    }
-  },
-  {
-    command: "Show rows where revenue is greater than 10000",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "filter",
-      sheetConfig: {
-        dataRange: "A1:E100",
-        criteria: [
-          { column: "C", condition: "greaterThan", value: 10000 }
-        ]
-      },
-      summary: "Filter high revenue",
-      clarification: "Filtering to show rows with revenue > 10000."
-    }
-  }
-];
+// Minimal seed examples - database will provide better examples over time
+const FILTER_EXAMPLES: SkillExample[] = [];
 
 export const filterSkill: GoogleSheetSkill = {
   id: 'filter',

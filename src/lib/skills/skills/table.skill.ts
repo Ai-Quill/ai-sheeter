@@ -60,49 +60,8 @@ Convert data to native Google Sheets Tables with auto-formatting and filters.
 ### Tables provide: Auto-formatting, filters, frozen headers, professional look
 `;
 
-const TABLE_EXAMPLES: SkillExample[] = [
-  {
-    command: "Create a table from the data",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "createTable",
-      sheetConfig: {
-        range: "A2:D14",
-        tableName: "DataTable",
-        freezeHeader: true
-      },
-      summary: "Create native Google Sheets table",
-      clarification: "Converting your data range to a native Google Sheets table with automatic formatting, filters, and frozen headers."
-    }
-  },
-  {
-    command: "Convert A1:E20 to a table called SalesReport",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "createTable",
-      sheetConfig: {
-        range: "A1:E20",
-        tableName: "SalesReport",
-        freezeHeader: true
-      },
-      summary: "Create SalesReport table",
-      clarification: "Creating a table named 'SalesReport' from range A1:E20 with automatic formatting and filters."
-    }
-  },
-  {
-    command: "Make this data look like a professional table",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "createTable",
-      sheetConfig: {
-        range: "A2:D14",
-        freezeHeader: true
-      },
-      summary: "Convert to professional table",
-      clarification: "Converting your data to a native Google Sheets table for a professional, structured appearance."
-    }
-  }
-];
+// Minimal seed examples - database will provide better examples over time
+const TABLE_EXAMPLES: SkillExample[] = [];
 
 export const tableSkill: GoogleSheetSkill = {
   id: 'table',

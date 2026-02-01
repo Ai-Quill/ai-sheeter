@@ -18,6 +18,8 @@ const CONDITIONAL_FORMAT_PATTERNS: RegExp[] = [
   /\b(negative|positive)\s+(values?)?\s*(red|green)?\b/i,
   /\b(above|below|greater|less)\s+than?\s*\d+/i,
   /\bmark\s+(cells?|values?)\s+(that|where|if)/i,
+  // Pattern for "Highlight [specific value] with [color]" - this is conditional, not simple format
+  /\bhighlight\s+['"]?[\w\s]+['"]?\s+(values?)?\s*(in|with)/i,
 ];
 
 function calculateIntentScore(command: string, context?: DataContext): number {
@@ -30,6 +32,12 @@ function calculateIntentScore(command: string, context?: DataContext): number {
   if (/\b(negative|positive)\b/i.test(cmdLower)) score += 0.4;
   if (/\b(above|below|greater|less)\s+than/i.test(cmdLower)) score += 0.4;
   if (/\bcolor.*(based|depending)/i.test(cmdLower)) score += 0.4;
+  
+  // CRITICAL: "Highlight [value] values" patterns = conditional formatting (not simple format)
+  // e.g., "Highlight 'Active' values", "Highlight Active in column F"
+  if (/\bhighlight\s+['"]?[\w]+['"]?\s+(values?|in|with)/i.test(cmdLower)) score += 0.6;
+  // Also boost for "cells containing" or "where value is"
+  if (/\b(containing|equals?|where)\b/i.test(cmdLower)) score += 0.3;
   
   return Math.min(score, 1.0);
 }
@@ -56,10 +64,18 @@ For highlighting/color-coding requests, return outputMode: "sheet" with sheetAct
 }
 
 ### Conditions
-- greaterThan, lessThan, equals, contains, between (use min/max)
+- greaterThan, lessThan, between (use min/max)
+- equals: exact match (e.g., "Active", "Complete", "Yes")
+- contains: partial match (e.g., contains "error")
 - negative (< 0), positive (> 0)
 - max/highest, min/lowest (column max/min)
 - isEmpty, isNotEmpty
+
+### IMPORTANT: Highlight [value] = Conditional Format!
+When user says "Highlight Active values" or "Highlight cells with Active":
+- This is CONDITIONAL formatting (not simple format)
+- Use condition: "equals", value: "Active"
+- This highlights ONLY cells that match, not the entire range
 
 ### Colors (use user's color or these defaults)
 - Red: #FFB6C1 (light), #FF0000 (bold)
@@ -71,69 +87,8 @@ For highlighting/color-coding requests, return outputMode: "sheet" with sheetAct
 - Multiple rules can be applied to same range
 `;
 
-const CONDITIONAL_FORMAT_EXAMPLES: SkillExample[] = [
-  {
-    command: "Highlight negative values in red",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "conditionalFormat",
-      sheetConfig: {
-        range: "C4:C11",
-        rules: [
-          { condition: "negative", format: { backgroundColor: "#FFB6C1", bold: true } }
-        ]
-      },
-      summary: "Highlight negative values",
-      clarification: "Adding red highlighting to negative values."
-    }
-  },
-  {
-    command: "Make values over 1000 green",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "conditionalFormat",
-      sheetConfig: {
-        range: "D4:D11",
-        rules: [
-          { condition: "greaterThan", value: 1000, format: { backgroundColor: "#90EE90" } }
-        ]
-      },
-      summary: "Highlight high values",
-      clarification: "Highlighting values greater than 1000 in green."
-    }
-  },
-  {
-    command: "Color code status - green for Complete, red for Pending",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "conditionalFormat",
-      sheetConfig: {
-        range: "E4:E11",
-        rules: [
-          { condition: "equals", value: "Complete", format: { backgroundColor: "#90EE90" } },
-          { condition: "equals", value: "Pending", format: { backgroundColor: "#FFB6C1" } }
-        ]
-      },
-      summary: "Color code status column",
-      clarification: "Adding color coding based on status values."
-    }
-  },
-  {
-    command: "Highlight the highest value in each column with light green",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "conditionalFormat",
-      sheetConfig: {
-        range: "B3:D14",
-        rules: [
-          { condition: "max", format: { backgroundColor: "#90EE90" } }
-        ]
-      },
-      summary: "Highlight maximum values",
-      clarification: "Adding light green highlighting to the highest value in each column."
-    }
-  }
-];
+// Minimal seed examples - database will provide better examples over time
+const CONDITIONAL_FORMAT_EXAMPLES: SkillExample[] = [];
 
 export const conditionalFormatSkill: GoogleSheetSkill = {
   id: 'conditionalFormat',

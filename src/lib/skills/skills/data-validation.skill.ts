@@ -62,65 +62,8 @@ For validation/dropdown/checkbox requests, return outputMode: "sheet" with sheet
 3. Derive range from explicitRowInfo in context (see GOLDEN RULE 1)
 `;
 
-const DATA_VALIDATION_EXAMPLES: SkillExample[] = [
-  {
-    command: "Add dropdown with High, Medium, Low options",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "dataValidation",
-      sheetConfig: {
-        validationType: "dropdown",
-        range: "D2:D100",
-        values: ["High", "Medium", "Low"]
-      },
-      summary: "Add priority dropdown",
-      clarification: "Creating dropdown with High, Medium, Low options."
-    }
-  },
-  {
-    command: "Add checkboxes to column E",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "dataValidation",
-      sheetConfig: {
-        validationType: "checkbox",
-        range: "E2:E100"
-      },
-      summary: "Add checkboxes",
-      clarification: "Adding checkboxes to column E."
-    }
-  },
-  {
-    command: "Restrict column F to numbers between 1 and 100",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "dataValidation",
-      sheetConfig: {
-        validationType: "number",
-        range: "F2:F100",
-        min: 1,
-        max: 100
-      },
-      summary: "Add number validation",
-      clarification: "Restricting values to numbers between 1 and 100."
-    }
-  },
-  {
-    command: "Only allow numbers between 1000 and 100000 on column G",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "dataValidation",
-      sheetConfig: {
-        validationType: "number",
-        range: "G2:G100",
-        min: 1000,
-        max: 100000
-      },
-      summary: "Add number range validation",
-      clarification: "Restricting column G to numbers between 1000 and 100000."
-    }
-  }
-];
+// Minimal seed examples - database will provide better examples over time
+const DATA_VALIDATION_EXAMPLES: SkillExample[] = [];
 
 export const dataValidationSkill: GoogleSheetSkill = {
   id: 'dataValidation',

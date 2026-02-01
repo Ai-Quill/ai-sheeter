@@ -65,42 +65,8 @@ When user pastes table data in their command, parse it and write to sheet.
 - Handle empty cells as ""
 `;
 
-const WRITE_DATA_EXAMPLES: SkillExample[] = [
-  {
-    command: "Create a table from this: | Task | Assignee | Status |\n| Design | Alice | Done |\n| Review | Bob | Pending |",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "writeData",
-      sheetConfig: {
-        data: [
-          ["Task", "Assignee", "Status"],
-          ["Design", "Alice", "Done"],
-          ["Review", "Bob", "Pending"]
-        ],
-        startCell: "A1"
-      },
-      summary: "Write task table to sheet",
-      clarification: "Parsed your table and writing 3 columns x 3 rows starting at A1."
-    }
-  },
-  {
-    command: "Paste this in B5: Name, Age, City\nJohn, 30, NYC\nJane, 25, LA",
-    response: {
-      outputMode: "sheet",
-      sheetAction: "writeData",
-      sheetConfig: {
-        data: [
-          ["Name", "Age", "City"],
-          ["John", "30", "NYC"],
-          ["Jane", "25", "LA"]
-        ],
-        startCell: "B5"
-      },
-      summary: "Write data starting at B5",
-      clarification: "Parsed your data and writing 3 columns x 3 rows starting at B5."
-    }
-  }
-];
+// Minimal seed examples - database will provide better examples over time
+const WRITE_DATA_EXAMPLES: SkillExample[] = [];
 
 export const writeDataSkill: GoogleSheetSkill = {
   id: 'writeData',
