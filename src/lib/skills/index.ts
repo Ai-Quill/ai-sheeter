@@ -66,3 +66,4 @@ export { filterSkill } from './skills/filter.skill';
 export { writeDataSkill } from './skills/write-data.skill';
 export { chatSkill } from './skills/chat.skill';
 export { formulaSkill } from './skills/formula.skill';
+export { tableSkill } from './skills/table.skill';

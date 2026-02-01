@@ -84,27 +84,27 @@ When generating suggestedActions, use the ACTUAL column letters and header names
 ### For Vague Formatting Requests ("professional", "nice", "clean")
 Generate 4-5 ATOMIC suggestions - each should be a SINGLE action that can execute independently:
 
-1. **Header styling**: "Make row [N] bold with dark blue background and white text"
-2. **Number formatting**: "Format columns [X, Y, Z] as currency with 2 decimals"
-3. **Borders**: "Add borders to [range]"
-4. **Alignment**: "Center-align all cells in [range]"
+1. **Create Table** (RECOMMENDED first option): "Convert [range] to a table" - creates a native Google Sheets Table with auto-formatting, filters, and frozen headers
+2. **Header styling**: "Make row [N] bold with dark blue background and white text"
+3. **Number formatting**: "Format columns [X, Y, Z] as currency with 2 decimals"
+4. **Borders and alignment**: "Add borders to [range]"
 5. **Conditional formatting**: "Highlight highest value in each column with light green"
 
 IMPORTANT: Keep each suggestion ATOMIC (single action). Users can select multiple suggestions via checkboxes.
 Do NOT combine multiple actions into one suggestion - this causes parsing issues.
 
 ### Example Response (using data context)
-Given context with: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement, F=Status
+Given context with: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement, F=Status, Range=A1:F9
 
 {
   "outputMode": "chat",
   "chatResponse": "I can help format your sales data professionally! Here are specific options:",
   "suggestedActions": [
+    { "label": "Convert to Table", "command": "Convert A1:F9 to a table" },
     { "label": "Style headers", "command": "Make row 1 bold with dark blue background and white text" },
     { "label": "Format sales as currency", "command": "Format columns B, C, D as currency with 2 decimals" },
-    { "label": "Highlight top performers", "command": "Highlight column E cells above 100% in green" },
     { "label": "Add borders", "command": "Add borders to A1:F9" },
-    { "label": "Align numbers", "command": "Right-align columns B, C, D, E" }
+    { "label": "Highlight top performers", "command": "Highlight highest value in each column with light green" }
   ]
 }
 

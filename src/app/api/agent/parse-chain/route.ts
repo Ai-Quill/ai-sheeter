@@ -134,7 +134,7 @@ interface TaskChain {
   }>;
   
   // Sheet action config (if outputMode='sheet')
-  sheetAction?: 'chart' | 'format' | 'conditionalFormat' | 'dataValidation' | 'filter';
+  sheetAction?: 'chart' | 'format' | 'conditionalFormat' | 'dataValidation' | 'filter' | 'createTable';
   sheetConfig?: {
     // Chart config
     chartType?: 'bar' | 'column' | 'line' | 'pie' | 'area' | 'scatter';
@@ -678,6 +678,7 @@ function parseAndValidate(
       // Infer action from config if still undefined
       if (!sheetAction && sheetConfig) {
         if (sheetConfig.chartType) sheetAction = 'chart';
+        else if (sheetConfig.tableName !== undefined || sheetConfig.freezeHeader !== undefined) sheetAction = 'createTable';
         else if (sheetConfig.rules) sheetAction = 'conditionalFormat';
         else if (sheetConfig.validationType) sheetAction = 'dataValidation';
         else if (sheetConfig.criteria) sheetAction = 'filter';

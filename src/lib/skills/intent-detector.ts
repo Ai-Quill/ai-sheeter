@@ -31,6 +31,7 @@ import { filterSkill } from './skills/filter.skill';
 import { writeDataSkill } from './skills/write-data.skill';
 import { chatSkill } from './skills/chat.skill';
 import { formulaSkill } from './skills/formula.skill';
+import { tableSkill } from './skills/table.skill';
 
 // ============================================
 // ALL SKILLS (ordered by priority)
@@ -43,6 +44,7 @@ export const ALL_SKILLS: GoogleSheetSkill[] = [
   dataValidationSkill,
   filterSkill,
   writeDataSkill,
+  tableSkill,
   chatSkill,
   formulaSkill,
 ].sort((a, b) => b.priority - a.priority);

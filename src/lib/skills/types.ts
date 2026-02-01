@@ -53,7 +53,8 @@ export type SheetActionType =
   | 'conditionalFormat' 
   | 'dataValidation' 
   | 'filter' 
-  | 'writeData';
+  | 'writeData'
+  | 'createTable';
 
 /**
  * Suggested action that can be executed by the user
