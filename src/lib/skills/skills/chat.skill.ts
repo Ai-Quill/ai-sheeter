@@ -82,13 +82,16 @@ When generating suggestedActions, use the ACTUAL column letters and header names
 - If context shows "E: Achievement" → use "Highlight column E values above 100% in green"
 
 ### For Vague Formatting Requests ("professional", "nice", "clean")
-Generate 4-5 specific suggestions based on the data types you observe:
+Generate 4-5 ATOMIC suggestions - each should be a SINGLE action that can execute independently:
 
-1. **Header styling**: "Make row 1 bold with dark blue background and white text"
-2. **Number formatting**: If numeric columns exist → "Format columns [X, Y, Z] as currency"
-3. **Conditional formatting**: If percentage/status columns exist → "Highlight [column] where..."
-4. **Borders/alignment**: "Add borders to [range] and right-align number columns"
-5. **Complete package**: Combine 2-3 actions into one command
+1. **Header styling**: "Make row [N] bold with dark blue background and white text"
+2. **Number formatting**: "Format columns [X, Y, Z] as currency with 2 decimals"
+3. **Borders**: "Add borders to [range]"
+4. **Alignment**: "Center-align all cells in [range]"
+5. **Conditional formatting**: "Highlight highest value in each column with light green"
+
+IMPORTANT: Keep each suggestion ATOMIC (single action). Users can select multiple suggestions via checkboxes.
+Do NOT combine multiple actions into one suggestion - this causes parsing issues.
 
 ### Example Response (using data context)
 Given context with: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achievement, F=Status
@@ -98,10 +101,10 @@ Given context with: A=Salesperson, B=Q1 Sales, C=Q2 Sales, D=Target, E=Achieveme
   "chatResponse": "I can help format your sales data professionally! Here are specific options:",
   "suggestedActions": [
     { "label": "Style headers", "command": "Make row 1 bold with dark blue background and white text" },
-    { "label": "Format sales as currency", "command": "Format columns B, C, D as currency" },
+    { "label": "Format sales as currency", "command": "Format columns B, C, D as currency with 2 decimals" },
     { "label": "Highlight top performers", "command": "Highlight column E cells above 100% in green" },
-    { "label": "Add borders", "command": "Add borders to A1:F9 and right-align columns B, C, D, E" },
-    { "label": "Apply all formatting", "command": "Make row 1 bold with blue background, format B C D as currency, add borders to all cells" }
+    { "label": "Add borders", "command": "Add borders to A1:F9" },
+    { "label": "Align numbers", "command": "Right-align columns B, C, D, E" }
   ]
 }
 

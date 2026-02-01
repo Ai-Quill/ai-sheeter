@@ -74,6 +74,8 @@ For highlighting/color-coding requests, return outputMode: "sheet" with sheetAct
 - negative: Value < 0
 - positive: Value > 0
 - isEmpty, isNotEmpty: Cell empty/not empty
+- max, isMax, maximum, highest: Highlight cell if it equals max value in its column
+- min, isMin, minimum, lowest: Highlight cell if it equals min value in its column
 
 ### Common Color Codes
 - Red (negative/bad): #FFB6C1 (light), #FF0000 (bold)
@@ -130,6 +132,21 @@ const CONDITIONAL_FORMAT_EXAMPLES: SkillExample[] = [
       },
       summary: "Color code status column",
       clarification: "Adding color coding based on status values."
+    }
+  },
+  {
+    command: "Highlight the highest value in each column with light green",
+    response: {
+      outputMode: "sheet",
+      sheetAction: "conditionalFormat",
+      sheetConfig: {
+        range: "B3:D14",
+        rules: [
+          { condition: "max", format: { backgroundColor: "#90EE90" } }
+        ]
+      },
+      summary: "Highlight maximum values",
+      clarification: "Adding light green highlighting to the highest value in each column."
     }
   }
 ];
