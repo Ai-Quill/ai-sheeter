@@ -54,7 +54,8 @@ export type SheetActionType =
   | 'dataValidation' 
   | 'filter' 
   | 'writeData'
-  | 'createTable';
+  | 'createTable'
+  | 'sheetOps';
 
 /**
  * Suggested action that can be executed by the user
