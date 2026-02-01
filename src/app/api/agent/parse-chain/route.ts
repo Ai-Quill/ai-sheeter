@@ -249,6 +249,133 @@ async function recordSkillExecution(params: {
 }
 
 // ============================================
+// SMART CLARIFICATION GENERATOR
+// ============================================
+
+/**
+ * Generate a context-aware clarification message based on the action and config
+ * Much better than generic "Executing native Google Sheets action" messages
+ */
+function generateSmartClarification(
+  sheetAction: string | undefined,
+  sheetConfig: Record<string, unknown>,
+  originalCommand: string
+): string {
+  const range = sheetConfig.range as string || '';
+  
+  switch (sheetAction) {
+    case 'format': {
+      const formatType = sheetConfig.formatType as string;
+      const options = sheetConfig.options as Record<string, unknown> || {};
+      const parts: string[] = [];
+      
+      if (formatType === 'currency') {
+        parts.push(`Formatting ${range || 'cells'} as currency`);
+        if (options.locale) parts.push(`(${options.locale})`);
+      } else if (formatType === 'percent') {
+        parts.push(`Formatting ${range || 'cells'} as percentage`);
+      } else {
+        // Text/styling format
+        const styling: string[] = [];
+        if (options.bold) styling.push('bold');
+        if (options.italic) styling.push('italic');
+        if (options.backgroundColor) styling.push(`${options.backgroundColor} background`);
+        if (options.textColor) styling.push(`${options.textColor} text`);
+        if (options.borders) styling.push('borders');
+        if (options.alignment) styling.push(`${options.alignment} aligned`);
+        
+        if (styling.length > 0) {
+          parts.push(`Applying ${styling.join(', ')} to ${range || 'cells'}`);
+        } else {
+          parts.push(`Formatting ${range || 'cells'}`);
+        }
+      }
+      return parts.join(' ');
+    }
+    
+    case 'conditionalFormat': {
+      const rules = sheetConfig.rules as Array<Record<string, unknown>> || [];
+      if (rules.length > 0) {
+        const rule = rules[0];
+        const condition = rule.condition as string;
+        const value = rule.value;
+        const format = rule.format as Record<string, unknown> || {};
+        const color = format.backgroundColor || 'highlighted';
+        
+        if (condition === 'equals') {
+          return `Highlighting cells in ${range} where value equals "${value}" with ${color}`;
+        } else if (condition === 'greaterThan') {
+          return `Highlighting cells in ${range} where value > ${value} with ${color}`;
+        } else if (condition === 'lessThan') {
+          return `Highlighting cells in ${range} where value < ${value} with ${color}`;
+        } else if (condition === 'contains') {
+          return `Highlighting cells in ${range} containing "${value}" with ${color}`;
+        } else if (condition === 'negative') {
+          return `Highlighting negative values in ${range} with ${color}`;
+        } else if (condition === 'positive') {
+          return `Highlighting positive values in ${range} with ${color}`;
+        }
+        return `Adding conditional formatting to ${range}`;
+      }
+      return `Adding conditional formatting rules to ${range}`;
+    }
+    
+    case 'dataValidation': {
+      const validationType = sheetConfig.validationType as string;
+      if (validationType === 'dropdown') {
+        const values = sheetConfig.values as string[] || [];
+        return `Adding dropdown to ${range} with options: ${values.slice(0, 3).join(', ')}${values.length > 3 ? '...' : ''}`;
+      } else if (validationType === 'checkbox') {
+        return `Adding checkboxes to ${range}`;
+      } else if (validationType === 'number') {
+        const min = sheetConfig.min;
+        const max = sheetConfig.max;
+        return `Restricting ${range} to numbers between ${min} and ${max}`;
+      }
+      return `Adding ${validationType} validation to ${range}`;
+    }
+    
+    case 'chart': {
+      const chartType = sheetConfig.chartType as string || 'chart';
+      const title = sheetConfig.title as string;
+      return title 
+        ? `Creating ${chartType} chart: "${title}"`
+        : `Creating ${chartType} chart from your data`;
+    }
+    
+    case 'filter': {
+      const criteria = sheetConfig.criteria as Array<Record<string, unknown>> || [];
+      if (criteria.length > 0) {
+        const crit = criteria[0];
+        return `Filtering to show rows where ${crit.column} ${crit.condition} ${crit.value}`;
+      }
+      return 'Applying filter to data';
+    }
+    
+    case 'writeData': {
+      const data = sheetConfig.data as unknown[][];
+      if (data && data.length > 0) {
+        const rows = data.length;
+        const cols = data[0]?.length || 0;
+        const startCell = sheetConfig.startCell as string || 'A1';
+        return `Writing ${rows} rows × ${cols} columns starting at ${startCell}`;
+      }
+      return 'Writing data to sheet';
+    }
+    
+    case 'createTable': {
+      const tableName = sheetConfig.tableName as string;
+      return tableName 
+        ? `Creating table "${tableName}" from ${range}`
+        : `Converting ${range} to a Google Sheets table`;
+    }
+    
+    default:
+      return `Applying ${sheetAction || 'sheet action'} to ${range || 'selected range'}`;
+  }
+}
+
+// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -868,7 +995,7 @@ function parseAndValidate(
           usesResultOf: null,
         }],
         summary: parsed.summary || 'Apply native sheet action',
-        clarification: parsed.clarification || `Executing native Google Sheets action.\n\n✅ Instant - no AI processing\n✅ Native features`,
+        clarification: parsed.clarification || generateSmartClarification(sheetAction, sheetConfig, originalCommand),
         estimatedTime: 'Instant',
         outputMode: 'sheet',
         sheetAction: sheetAction,
