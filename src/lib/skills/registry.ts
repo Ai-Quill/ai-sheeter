@@ -65,19 +65,26 @@ export async function selectSkills(
     }
   }
   
-  // CRITICAL: For vague/composite requests, ONLY use chat skill
-  // This prevents AI from seeing both format and chat instructions
-  // which causes it to pick the wrong mode
+  // CRITICAL: Only force chat mode for VAGUE requests, NOT for specific composite requests
+  // Example: "Make row 2 bold with dark blue background" is composite but SPECIFIC
+  //          "Make it look professional" is VAGUE and needs suggestions
   let usedFallback = false;
   let forcedChatMode = false;
   
-  if (needsSuggestions && requestAnalysis.type !== 'question' && forceSkills.length === 0) {
+  // Only force chat for truly VAGUE requests (low specificity)
+  // Composite requests with high specificity should use their action skill
+  const isVagueEnoughForChat = requestAnalysis.type === 'vague' || 
+    (requestAnalysis.type === 'composite' && requestAnalysis.specificity < 0.5);
+  
+  if (needsSuggestions && isVagueEnoughForChat && requestAnalysis.type !== 'question' && forceSkills.length === 0) {
     const chatSkill = getSkillById('chat');
     if (chatSkill) {
       selectedSkills.push(chatSkill);
       forcedChatMode = true;
-      console.log(`[SkillRegistry] Vague/composite request detected (type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}) - using ONLY chat skill`);
+      console.log(`[SkillRegistry] Vague request detected (type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}) - using ONLY chat skill`);
     }
+  } else if (requestAnalysis.type === 'composite' && requestAnalysis.specificity >= 0.5) {
+    console.log(`[SkillRegistry] Specific composite request (type=${requestAnalysis.type}, specificity=${requestAnalysis.specificity.toFixed(2)}) - using action skills`);
   }
   
   // Only add other skills if NOT forced to chat mode
