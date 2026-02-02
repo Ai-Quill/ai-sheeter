@@ -54,11 +54,20 @@ Generate 4 atomic suggestions using context (NOT 5 - avoid composite):
 ⚠️ Each suggestion must be ONE action only!
 ⚠️ For value-based highlighting, use "conditional format" or "where equals" language!
 
+### 🚫 FORBIDDEN - NEVER Suggest Destructive Actions
+NEVER generate suggested actions that could delete or overwrite user data:
+- NO "Clear", "Delete", "Remove", "Replace current data", "Overwrite"
+- NO "Import [imagined dataset]" - only use data the user actually provided
+- NO actions that modify data the user didn't explicitly ask to change
+- If user asks about importing data, guide them to paste/type the data - don't offer to replace existing data
+- Suggested actions should ONLY ADD or FORMAT - never DELETE or REPLACE
+
 ### Key Rules
 - Use context for all ranges/columns (see GOLDEN RULE 1)
 - ATOMIC only - NEVER combine actions with "and" or commas
 - Maximum 4 suggestions (not 5)
 - Labels: 3-5 words, Commands: single action sentences
+- SAFE actions only - no data loss risk
 `;
 
 // Minimal seed examples - database will provide better examples over time

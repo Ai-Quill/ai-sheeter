@@ -156,8 +156,17 @@ export function quickSkillCheck(command: string): string | null {
     return 'filter';
   }
   
-  // Write data - check for pasted table
-  if (/\|.*\|.*\|/.test(command) || /\b(paste|write)\s+(this\s+)?(data|table)\b/i.test(cmdLower)) {
+  // Write data - check for pasted table or data import commands
+  // Patterns: "create table on/from/with this data", "paste data", "write this table", etc.
+  // Also check for inline data (comma/pipe/tab separated values after colon)
+  if (
+    /\|.*\|.*\|/.test(command) ||  // Markdown table
+    /\b(paste|write)\s+(this\s+)?(data|table)\b/i.test(cmdLower) ||  // "paste data", "write this table"
+    /\bcreate\s+table\s+(on|from|with)\s+(this\s+)?data\b/i.test(cmdLower) ||  // "create table on this data"
+    /\bcreate\s+(this\s+)?table\b/i.test(cmdLower) ||  // "create table", "create this table"
+    /\b(import|add|put)\s+(this\s+)?(data|table)\b/i.test(cmdLower) ||  // "import data", "add this table"
+    (/\b(data|table)\s*:/i.test(cmdLower) && /[\n,\t|]/.test(command))  // "data:" followed by values
+  ) {
     return 'writeData';
   }
   

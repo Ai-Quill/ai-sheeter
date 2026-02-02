@@ -141,7 +141,14 @@ export function analyzeRequest(command: string, context?: DataContext): RequestA
   if (/\b(dropdown|checkbox|validation|restrict)\b/i.test(command)) detectedCategories.push('dataValidation');
   if (/\b(border|align|currency|percent)\b/i.test(command)) detectedCategories.push('format');
   // Write data / table pasting - high specificity when markdown table is detected
-  if (/\|.*\|.*\|/.test(command) || /\b(paste|write|create)\s+(this\s+)?(table|data)\b/i.test(command)) {
+  // Expanded patterns to catch variations like "create table on this data", "import data", etc.
+  if (
+    /\|.*\|.*\|/.test(command) ||  // Markdown table
+    /\b(paste|write|create)\s+(this\s+)?(table|data)\b/i.test(command) ||  // "paste data", "create table"
+    /\bcreate\s+table\s+(on|from|with)\s+(this\s+)?data\b/i.test(command) ||  // "create table on this data"
+    /\b(import|add|put)\s+(this\s+)?(data|table)\b/i.test(command) ||  // "import data", "add this table"
+    (/\b(data|table)\s*:/i.test(command) && /[\n,\t|]/.test(command))  // "data:" followed by values
+  ) {
     detectedCategories.push('writeData');
   }
   // Sheet operations (freeze, hide, sort, etc.)
