@@ -37,9 +37,6 @@ const CACHE_SIMILARITY_THRESHOLD = 0.85;
 /** Minimum confidence to accept AI classification */
 const MIN_AI_CONFIDENCE = 0.6;
 
-/** Maximum tokens for classification prompt */
-const MAX_CLASSIFICATION_TOKENS = 150;
-
 // ============================================
 // MAIN CLASSIFIER
 // ============================================
@@ -109,7 +106,7 @@ export async function classifyIntent(
  * Uses a lightweight classification prompt (~200 tokens)
  */
 async function classifyWithAI(params: AIClassificationParams): Promise<IntentClassification> {
-  const { command, context, maxTokens = MAX_CLASSIFICATION_TOKENS } = params;
+  const { command, context } = params;
   
   // Build the classification prompt
   const prompt = buildClassificationPrompt(command, context);
@@ -127,7 +124,6 @@ async function classifyWithAI(params: AIClassificationParams): Promise<IntentCla
     const { text } = await generateText({
       model,
       prompt,
-      maxTokens,
       temperature: 0.1, // Low temperature for consistent classification
     });
     

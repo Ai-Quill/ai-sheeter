@@ -284,7 +284,7 @@ export async function areSeedEmbeddingsInitialized(): Promise<boolean> {
     
     // If we can find any with hit_count > 0, they're initialized
     // Otherwise, check if the first one works by trying a similarity search
-    return checkData && checkData.length > 0;
+    return !!(checkData && checkData.length > 0);
   } catch {
     return false;
   }
