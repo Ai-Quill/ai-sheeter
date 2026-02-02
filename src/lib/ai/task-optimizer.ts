@@ -649,7 +649,7 @@ export function getRecommendedModel(
 
 function parseUserModel(preference: string): { provider: string; model: string } {
   const providerMap: Record<string, { provider: string; model: string }> = {
-    'CHATGPT': { provider: 'CHATGPT', model: 'gpt-4o-mini' },
+    'CHATGPT': { provider: 'CHATGPT', model: 'gpt-5-mini' },
     'CLAUDE': { provider: 'CLAUDE', model: 'claude-haiku-4-5' },
     'GEMINI': { provider: 'GEMINI', model: 'gemini-1.5-flash' },
     'GROQ': { provider: 'GROQ', model: 'llama-3.3-70b-versatile' },

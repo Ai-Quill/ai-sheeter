@@ -39,8 +39,10 @@ import { classifyIntent, learnFromOutcome, IntentClassification } from '@/lib/in
 import { normalizeSheetResponse } from '@/lib/response';
 import { getSkillById, GoogleSheetSkill } from '@/lib/skills';
 
-// Feature flag for unified intent classification
-const USE_UNIFIED_INTENT = process.env.USE_UNIFIED_INTENT === 'true';
+// Unified intent classification is ALWAYS enabled
+// The whole point is to avoid brittle regex patterns - use AI to understand intent
+// Only disable if explicitly set to 'false' (for debugging purposes only)
+const USE_UNIFIED_INTENT = process.env.USE_UNIFIED_INTENT !== 'false';
 
 // ============================================
 // COLUMN UTILITIES (NO HARDCODED VALUES)
@@ -437,9 +439,10 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Sample data columns:', Object.keys(dataContext.sampleData).join(', ') || 'none');
     
     // ============================================
-    // 2.5. UNIFIED INTENT CLASSIFICATION (NEW)
+    // 2.5. UNIFIED INTENT CLASSIFICATION
     // ============================================
-    // When enabled, use AI-driven intent classification instead of regex patterns
+    // Always use AI-driven intent classification - no more brittle regex patterns
+    // The classifier uses embeddings + AI to understand intent semantically
     let intentClassification: IntentClassification | null = null;
     
     if (USE_UNIFIED_INTENT) {
@@ -459,11 +462,15 @@ export async function POST(request: NextRequest) {
           console.log('[parse-chain] ⚡ High-confidence cache hit - using optimized path');
         }
       } catch (classifyError) {
-        console.warn('[parse-chain] Intent classification failed, falling back to legacy:', classifyError);
+        // Classifier has built-in fallback, but if it completely fails, continue without classification
+        // The prompt builder will handle this gracefully
+        console.warn('[parse-chain] Intent classification failed:', classifyError);
         intentClassification = null;
       }
     } else {
-      console.log('[parse-chain] AI will decide: workflow or formula (single intelligent call)');
+      // This branch only executes if USE_UNIFIED_INTENT is explicitly set to 'false'
+      // Used only for debugging - should never happen in production
+      console.log('[parse-chain] ⚠️ Unified intent DISABLED - AI will make all decisions');
     }
 
     // 3. Generate embedding for semantic search

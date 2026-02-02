@@ -280,9 +280,11 @@ export const SKILL_METADATA: Record<SkillId, {
   },
   writeData: {
     name: 'Write Table Data',
-    description: 'Parse and write pasted table/CSV data to sheet',
+    description: 'Create table from user-provided data, parse pasted data (CSV, markdown, comma-separated), write data to sheet. Use when user provides inline data or asks to create/build a table from their data.',
     capabilities: [
-      'paste-table', 'markdown-table', 'csv', 'create-table', 'write-data'
+      'paste-table', 'markdown-table', 'csv', 'create-table', 'write-data',
+      'create-table-from-data', 'build-table', 'help-paste', 'insert-data',
+      'table-from-this-data', 'based-on-this-data'
     ]
   },
   table: {

@@ -37,6 +37,9 @@ const CACHE_SIMILARITY_THRESHOLD = 0.85;
 /** Minimum confidence to accept AI classification */
 const MIN_AI_CONFIDENCE = 0.6;
 
+/** Model used for intent classification - fast and cheap is ideal */
+const CLASSIFIER_MODEL = process.env.INTENT_CLASSIFIER_MODEL || 'gpt-5-mini';
+
 // ============================================
 // MAIN CLASSIFIER
 // ============================================
@@ -119,7 +122,7 @@ async function classifyWithAI(params: AIClassificationParams): Promise<IntentCla
     }
     
     const openai = createOpenAI({ apiKey });
-    const model = openai('gpt-4o-mini'); // Fast and cheap
+    const model = openai(CLASSIFIER_MODEL);
     
     const { text } = await generateText({
       model,
@@ -306,6 +309,21 @@ function classifyWithHeuristics(command: string): IntentClassification {
       confidence: 0.9,
       source: 'fallback',
       reasoning: 'Detected markdown table pattern'
+    };
+  }
+  
+  // Check for "create table" with data patterns
+  // Covers: "create table for/from/based on this data", "help me create a table", etc.
+  if (/\bcreate\s+(a\s+)?table\b/i.test(cmdLower) || 
+      /\btable\s+(for|from|based on|with)\s+(this\s+)?data\b/i.test(cmdLower) ||
+      (/\bdata\s*:/i.test(cmdLower) && /,/.test(command))) {
+    return {
+      outputMode: 'sheet',
+      skillId: 'writeData',
+      sheetAction: 'writeData',
+      confidence: 0.85,
+      source: 'fallback',
+      reasoning: 'Detected create table / data import pattern'
     };
   }
   

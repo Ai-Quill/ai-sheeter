@@ -157,16 +157,17 @@ export function quickSkillCheck(command: string): string | null {
   }
   
   // Write data - check for pasted table or data import commands
-  // Patterns: "create table on/from/with/for this data", "paste data", "write this table", etc.
+  // Patterns: "create table on/from/with/for/based on this data", "paste data", "write this table", etc.
   // Also check for inline data (comma/pipe/tab separated values after colon)
   if (
     /\|.*\|.*\|/.test(command) ||  // Markdown table
     /\b(paste|write)\s+(this\s+)?(data|table)\b/i.test(cmdLower) ||  // "paste data", "write this table"
-    /\bcreate\s+table\s+(on|from|with|for)\s+(this\s+)?data\b/i.test(cmdLower) ||  // "create table on/from/with/for this data"
-    /\bcreate\s+(this\s+)?table\b/i.test(cmdLower) ||  // "create table", "create this table"
+    /\bcreate\s+(a\s+)?table\s+(on|from|with|for)\s+(this\s+)?data\b/i.test(cmdLower) ||  // "create table on/from/with/for this data"
+    /\bcreate\s+(a\s+)?table\s+based\s+on\s+(this\s+)?data\b/i.test(cmdLower) ||  // "create a table based on this data"
+    /\bcreate\s+(a\s+)?(this\s+)?table\b/i.test(cmdLower) ||  // "create table", "create a table", "create this table"
     /\b(import|add|put)\s+(this\s+)?(data|table)\b/i.test(cmdLower) ||  // "import data", "add this table"
-    /\b(help\s+)?(me\s+)?create\s+table\s+for\b/i.test(cmdLower) ||  // "help create table for", "help me create table for"
-    (/\b(data|table)\s*:/i.test(cmdLower) && /[\n,\t|]/.test(command))  // "data:" followed by values
+    /\b(help\s+)?(me\s+)?create\s+(a\s+)?table\b/i.test(cmdLower) ||  // "help create table", "help me create a table"
+    (/\b(data|table)\s*:\s*/i.test(cmdLower) && /,/.test(command))  // "data:" or "table:" followed by comma-separated values
   ) {
     return 'writeData';
   }

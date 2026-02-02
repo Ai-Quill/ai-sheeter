@@ -141,14 +141,15 @@ export function analyzeRequest(command: string, context?: DataContext): RequestA
   if (/\b(dropdown|checkbox|validation|restrict)\b/i.test(command)) detectedCategories.push('dataValidation');
   if (/\b(border|align|currency|percent)\b/i.test(command)) detectedCategories.push('format');
   // Write data / table pasting - high specificity when markdown table is detected
-  // Expanded patterns to catch variations like "create table on/from/with/for this data", "import data", etc.
+  // Expanded patterns to catch variations like "create table on/from/with/for/based on this data", "import data", etc.
   if (
     /\|.*\|.*\|/.test(command) ||  // Markdown table
-    /\b(paste|write|create)\s+(this\s+)?(table|data)\b/i.test(command) ||  // "paste data", "create table"
-    /\bcreate\s+table\s+(on|from|with|for)\s+(this\s+)?data\b/i.test(command) ||  // "create table on/from/with/for this data"
+    /\b(paste|write|create)\s+(a\s+)?(this\s+)?(table|data)\b/i.test(command) ||  // "paste data", "create table", "create a table"
+    /\bcreate\s+(a\s+)?table\s+(on|from|with|for)\s+(this\s+)?data\b/i.test(command) ||  // "create table on/from/with/for this data"
+    /\bcreate\s+(a\s+)?table\s+based\s+on\s+(this\s+)?data\b/i.test(command) ||  // "create a table based on this data"
     /\b(import|add|put)\s+(this\s+)?(data|table)\b/i.test(command) ||  // "import data", "add this table"
-    /\b(help\s+)?(me\s+)?create\s+table\s+for\b/i.test(command) ||  // "help create table for", "help me create table for"
-    (/\b(data|table)\s*:/i.test(command) && /[\n,\t|]/.test(command))  // "data:" followed by values
+    /\b(help\s+)?(me\s+)?create\s+(a\s+)?table\b/i.test(command) ||  // "help create table", "help me create a table"
+    (/\b(data|table)\s*:\s*/i.test(command) && /,/.test(command))  // "data:" or "table:" followed by comma-separated values
   ) {
     detectedCategories.push('writeData');
   }
