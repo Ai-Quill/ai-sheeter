@@ -141,12 +141,13 @@ export function analyzeRequest(command: string, context?: DataContext): RequestA
   if (/\b(dropdown|checkbox|validation|restrict)\b/i.test(command)) detectedCategories.push('dataValidation');
   if (/\b(border|align|currency|percent)\b/i.test(command)) detectedCategories.push('format');
   // Write data / table pasting - high specificity when markdown table is detected
-  // Expanded patterns to catch variations like "create table on this data", "import data", etc.
+  // Expanded patterns to catch variations like "create table on/from/with/for this data", "import data", etc.
   if (
     /\|.*\|.*\|/.test(command) ||  // Markdown table
     /\b(paste|write|create)\s+(this\s+)?(table|data)\b/i.test(command) ||  // "paste data", "create table"
-    /\bcreate\s+table\s+(on|from|with)\s+(this\s+)?data\b/i.test(command) ||  // "create table on this data"
+    /\bcreate\s+table\s+(on|from|with|for)\s+(this\s+)?data\b/i.test(command) ||  // "create table on/from/with/for this data"
     /\b(import|add|put)\s+(this\s+)?(data|table)\b/i.test(command) ||  // "import data", "add this table"
+    /\b(help\s+)?(me\s+)?create\s+table\s+for\b/i.test(command) ||  // "help create table for", "help me create table for"
     (/\b(data|table)\s*:/i.test(command) && /[\n,\t|]/.test(command))  // "data:" followed by values
   ) {
     detectedCategories.push('writeData');
@@ -171,12 +172,23 @@ export function analyzeRequest(command: string, context?: DataContext): RequestA
   // HIGH SPECIFICITY: Pasted table data is unambiguous
   // If command contains markdown table pattern, it's 100% clear what user wants
   const hasMarkdownTable = /\|.*\|.*\|/.test(command);
-  if (hasMarkdownTable) {
+  
+  // Also detect CSV-like data (comma-separated values after keywords like "data:", "table:", etc.)
+  // Pattern: "data:" or "table:" or "for this data:" followed by comma-separated values
+  const hasInlineCSVData = /\b(data|table)\s*:\s*[\w\s]+,[\w\s]+/i.test(command) || 
+                           /\bfor\s+(this\s+)?data\s*:\s*[\w\s]+,[\w\s]+/i.test(command);
+  
+  // Check for newline-separated data (multi-line pasted content)
+  const hasNewlineSeparatedData = command.includes('\n') && /[\w]+,[\w\s]+[\n\r]/.test(command);
+  
+  const hasPastedData = hasMarkdownTable || hasInlineCSVData || hasNewlineSeparatedData;
+  
+  if (hasPastedData) {
     specificity = 0.95; // Very high - bypass vagueness checks
   }
   
-  // Penalize vagueness (but not if we have a markdown table)
-  if (!hasMarkdownTable) {
+  // Penalize vagueness (but not if we have pasted data)
+  if (!hasPastedData) {
     if (hasVagueAdjectives && !hasSpecificType) specificity *= 0.5;
     if (hasCompositeIndicator && impliedActionCount > 2) specificity *= 0.7;
   }
@@ -185,7 +197,7 @@ export function analyzeRequest(command: string, context?: DataContext): RequestA
   let type: RequestType;
   if (isQuestion) {
     type = 'question';
-  } else if (hasMarkdownTable) {
+  } else if (hasPastedData) {
     // Markdown table = unambiguously specific writeData request
     type = 'specific';
   } else if (hasVagueAdjectives && !hasSpecificType) {

@@ -462,13 +462,17 @@ For FILTER sheet action:
 
 For WRITE DATA sheet action (user pastes table data in command):
 
-⚠️ DETECT PASTED TABLE DATA: If the user's command contains inline table data, use writeData action!
+⚠️ CRITICAL: DETECT PASTED TABLE DATA: If the user's command contains inline table data, use writeData action!
+⚠️ DO NOT go to chat mode when user pastes data - they want to WRITE it to the sheet!
+⚠️ DO NOT confuse pasted data with existing sheet context - parse what the USER typed/pasted!
 
 Look for these patterns in the command:
 - Markdown tables: | Header1 | Header2 | ... | Value1 | Value2 |
 - Pipe-separated: Header1|Header2|Header3
-- CSV-like: value1, value2, value3
+- CSV-like: value1, value2, value3  
+- Comma-separated after colon: "create table for this data: Name,Age,City"
 - Tab or newline separated rows
+- Any structured data following words like "data:", "table:", "this data", "for this data"
 
 When detected, PARSE the table into a 2D array:
 
