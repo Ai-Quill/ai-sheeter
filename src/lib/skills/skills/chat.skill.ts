@@ -6,50 +6,21 @@
  * - Answer questions about data
  * - Provide insights
  * 
- * @version 1.0.0
+ * @version 1.1.0 - Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const CHAT_PATTERNS: RegExp[] = [
-  // Question patterns
-  /\b(what|which|who|how\s+many|how\s+much|where|when)\b.*\?/i,
-  /\b(summarize|summary|overview|analyze|analysis)\b/i,
-  /\b(tell\s+me|explain|describe)\b/i,
-  /\b(list|show\s+me|give\s+me)\s+(the\s+)?(top|bottom|highest|lowest)/i,
-  /\bwhat\s+(are|is|were|was)\b/i,
-  // NOTE: Vague request handling (professional, nice, etc.) is now done
-  // generically by the Request Analyzer in intent-detector.ts
-  // Chat skill gets boosted automatically for vague/composite requests
+/**
+ * Capabilities for unified intent classifier
+ */
+const CHAT_CAPABILITIES = [
+  'question', 'what', 'which', 'who', 'how-many', 'how-much', 'where', 'when',
+  'summarize', 'summary', 'overview', 'analyze', 'analysis',
+  'tell-me', 'explain', 'describe',
+  'top-n', 'bottom-n', 'highest', 'lowest',
+  'insights', 'compare', 'vague-request'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  // Question words with question mark
-  if (/\b(what|which|who|how\s+many|how\s+much)\b.*\?/i.test(cmdLower)) score += 0.6;
-  
-  // Summarize/analyze requests
-  if (/\b(summarize|summary|overview)\b/i.test(cmdLower)) score += 0.5;
-  if (/\b(analyze|analysis|insights?)\b/i.test(cmdLower)) score += 0.5;
-  
-  // Tell me / explain requests
-  if (/\b(tell\s+me|explain|describe)\b/i.test(cmdLower)) score += 0.4;
-  
-  // List top/bottom requests
-  if (/\b(list|show\s+me)\s+(the\s+)?(top|bottom)/i.test(cmdLower)) score += 0.4;
-  
-  // NOTE: Vague request handling (professional, nice, etc.) is now done
-  // generically by the Request Analyzer in intent-detector.ts
-  // Chat skill confidence gets boosted automatically for vague/composite requests
-  
-  // Penalize if it looks like a SPECIFIC action request (not vague)
-  if (/\b(currency|percent|border|bold|highlight|dropdown|checkbox)\b/i.test(cmdLower)) score -= 0.4;
-  if (/\b(chart|pie|bar|line|scatter)\b/i.test(cmdLower)) score -= 0.5;
-  
-  return Math.max(0, Math.min(score, 1.0));
-}
 
 const CHAT_INSTRUCTIONS = `
 ## CHAT Skill
@@ -96,11 +67,11 @@ const CHAT_EXAMPLES: SkillExample[] = [];
 export const chatSkill: GoogleSheetSkill = {
   id: 'chat',
   name: 'Data Q&A',
-  version: '1.0.0',
+  version: '1.1.0',
   description: 'Answer questions and provide insights about data',
   
-  triggerPatterns: CHAT_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: CHAT_CAPABILITIES,
   
   instructions: CHAT_INSTRUCTIONS,
   examples: CHAT_EXAMPLES,

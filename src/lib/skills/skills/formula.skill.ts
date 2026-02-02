@@ -7,42 +7,22 @@
  * - Case conversion (UPPER, LOWER, PROPER)
  * - Basic math operations
  * 
- * @version 1.0.0
+ * @version 1.1.0 - Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const FORMULA_PATTERNS: RegExp[] = [
-  /\b(translate|translation)\b/i,
-  /\b(extract|regex|pattern)\b/i,
-  /\b(uppercase|lowercase|proper\s*case|capitalize)\b/i,
-  /\b(sum|average|count|max|min)\s+(of|the|column)/i,
-  /\b(concatenate|concat|join|combine)\s+(text|columns?|cells?)/i,
-  /\btrim\b/i,
-  /\bsplit\b/i,
+/**
+ * Capabilities for unified intent classifier
+ */
+const FORMULA_CAPABILITIES = [
+  'translate', 'translation', 'googletranslate',
+  'extract', 'regex', 'pattern', 'regexextract',
+  'uppercase', 'lowercase', 'proper-case', 'capitalize',
+  'sum', 'average', 'count', 'max', 'min', 'aggregation',
+  'concatenate', 'concat', 'join', 'combine-text',
+  'trim', 'split', 'text-operation'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  // Translation (perfect formula use case)
-  if (/\btranslate\b/i.test(cmdLower)) score += 0.7;
-  
-  // Text extraction
-  if (/\b(extract|regex)\b/i.test(cmdLower)) score += 0.5;
-  
-  // Case conversion
-  if (/\b(uppercase|lowercase|proper\s*case|capitalize)\b/i.test(cmdLower)) score += 0.6;
-  
-  // Basic aggregations
-  if (/\b(sum|average|count|max|min)\s+(of|the)/i.test(cmdLower)) score += 0.4;
-  
-  // Text operations
-  if (/\b(trim|concat|split)\b/i.test(cmdLower)) score += 0.5;
-  
-  return Math.min(score, 1.0);
-}
 
 const FORMULA_INSTRUCTIONS = `
 ## FORMULA Skill
@@ -84,11 +64,11 @@ const FORMULA_EXAMPLES: SkillExample[] = [];
 export const formulaSkill: GoogleSheetSkill = {
   id: 'formula',
   name: 'Native Formulas',
-  version: '1.0.0',
+  version: '1.1.0',
   description: 'Apply native Google Sheets formulas for text/math operations',
   
-  triggerPatterns: FORMULA_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: FORMULA_CAPABILITIES,
   
   instructions: FORMULA_INSTRUCTIONS,
   examples: FORMULA_EXAMPLES,

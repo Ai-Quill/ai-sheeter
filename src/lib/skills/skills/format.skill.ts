@@ -5,36 +5,22 @@
  * available formatting capabilities - analyze the data context and
  * apply professional formatting based on your expertise.
  * 
- * @version 2.0.0 - Expert Mode
+ * @version 2.1.0 - Expert Mode with Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const FORMAT_PATTERNS: RegExp[] = [
-  /\b(format|formatting)\b/i,
-  /\b(currency|percent|percentage|decimal|number\s*format)\b/i,
-  /\b(bold|italic|underline|strikethrough|font)\b/i,
-  /\b(border|borders|alignment|align)\b/i,
-  /\b(background|bgcolor|color|colour)\b/i,
-  /\b(date\s*format|time\s*format)\b/i,
-  /\b(style|styling)\s+(the\s+)?(header|cell|row|column)/i,
-  /\b(merge|unmerge|rotate|wrap|banding|alternating)\b/i,
+/**
+ * Capabilities for unified intent classifier
+ * These describe what this skill can do semantically
+ */
+const FORMAT_CAPABILITIES = [
+  'currency', 'percent', 'number-format', 'date-format', 'datetime',
+  'bold', 'italic', 'underline', 'strikethrough', 'font-size', 'font-family',
+  'text-color', 'background-color', 'alignment', 'center', 'left', 'right',
+  'borders', 'border-style', 'wrap-text', 'text-rotation', 'merge-cells',
+  'banding', 'alternating-colors', 'row-banding', 'notes', 'comments'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  if (/\bformat\b/i.test(cmdLower)) score += 0.4;
-  if (/\b(currency|percent|decimal)\b/i.test(cmdLower)) score += 0.5;
-  if (/\b(bold|italic|underline|strikethrough)\b/i.test(cmdLower)) score += 0.4;
-  if (/\b(border|alignment|align)\b/i.test(cmdLower)) score += 0.4;
-  if (/\b(background|bgcolor|color)\b/i.test(cmdLower)) score += 0.3;
-  if (/\bheader/i.test(cmdLower) && /\b(style|format|bold)/i.test(cmdLower)) score += 0.3;
-  if (/\b(merge|rotate|wrap|banding)\b/i.test(cmdLower)) score += 0.4;
-  
-  return Math.min(score, 1.0);
-}
 
 const FORMAT_INSTRUCTIONS = `
 ## FORMAT Skill - EXPERT MODE
@@ -138,11 +124,11 @@ const FORMAT_EXAMPLES: SkillExample[] = [];
 export const formatSkill: GoogleSheetSkill = {
   id: 'format',
   name: 'Data Formatting',
-  version: '2.0.0',
+  version: '2.1.0',
   description: 'Expert formatting: numbers, dates, styles, borders, banding, merging, rotation',
   
-  triggerPatterns: FORMAT_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: FORMAT_CAPABILITIES,
   
   instructions: FORMAT_INSTRUCTIONS,
   examples: FORMAT_EXAMPLES,

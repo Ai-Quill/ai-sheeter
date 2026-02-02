@@ -5,40 +5,22 @@
  * ALL 30 condition types including gradient/color scales and date conditions.
  * Analyze the data and apply intelligent highlighting rules.
  * 
- * @version 2.0.0 - Expert Mode
+ * @version 2.1.0 - Expert Mode with Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const CONDITIONAL_FORMAT_PATTERNS: RegExp[] = [
-  /\b(highlight|color\s*code|colour\s*code)\b/i,
-  /\b(conditional|conditionally)\s*(format|formatting)?\b/i,
-  /\b(red|green|yellow)\s+(if|when|for)\b/i,
-  /\b(negative|positive)\s+(values?)?\s*(red|green)?\b/i,
-  /\b(above|below|greater|less)\s+than?\s*\d+/i,
-  /\bmark\s+(cells?|values?)\s+(that|where|if)/i,
-  /\bhighlight\s+['"]?[\w\s]+['"]?\s+(values?)?\s*(in|with)/i,
-  /\b(gradient|color\s*scale|heat\s*map)\b/i,
-  /\b(overdue|expired|past\s*due|today|yesterday|tomorrow)\b/i,
+/**
+ * Capabilities for unified intent classifier
+ */
+const CONDITIONAL_FORMAT_CAPABILITIES = [
+  'highlight', 'color-code', 'conditional-format', 'conditional-formatting',
+  'highlight-cells', 'highlight-values', 'mark-cells',
+  'greater-than', 'less-than', 'between', 'equals', 'contains',
+  'negative-values', 'positive-values', 'color-based-on',
+  'gradient', 'color-scale', 'heat-map',
+  'overdue', 'expired', 'date-conditions', 'today', 'yesterday'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  if (/\bhighlight\b/i.test(cmdLower)) score += 0.5;
-  if (/\bconditional/i.test(cmdLower)) score += 0.5;
-  if (/\b(red|green|yellow)\s+(if|when|for)/i.test(cmdLower)) score += 0.5;
-  if (/\b(negative|positive)\b/i.test(cmdLower)) score += 0.4;
-  if (/\b(above|below|greater|less)\s+than/i.test(cmdLower)) score += 0.4;
-  if (/\bcolor.*(based|depending)/i.test(cmdLower)) score += 0.4;
-  if (/\bhighlight\s+['"]?[\w]+['"]?\s+(values?|in|with)/i.test(cmdLower)) score += 0.6;
-  if (/\b(containing|equals?|where)\b/i.test(cmdLower)) score += 0.3;
-  if (/\b(gradient|color\s*scale|heat\s*map)\b/i.test(cmdLower)) score += 0.6;
-  if (/\b(overdue|expired|today|yesterday)\b/i.test(cmdLower)) score += 0.4;
-  
-  return Math.min(score, 1.0);
-}
 
 const CONDITIONAL_FORMAT_INSTRUCTIONS = `
 ## CONDITIONAL FORMAT Skill - EXPERT MODE
@@ -159,11 +141,11 @@ const CONDITIONAL_FORMAT_EXAMPLES: SkillExample[] = [];
 export const conditionalFormatSkill: GoogleSheetSkill = {
   id: 'conditionalFormat',
   name: 'Conditional Formatting',
-  version: '2.0.0',
+  version: '2.1.0',
   description: 'Expert highlighting: 30 conditions, gradient/color scale, date rules',
   
-  triggerPatterns: CONDITIONAL_FORMAT_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: CONDITIONAL_FORMAT_CAPABILITIES,
   
   instructions: CONDITIONAL_FORMAT_INSTRUCTIONS,
   examples: CONDITIONAL_FORMAT_EXAMPLES,

@@ -35,6 +35,10 @@ import { analyzeRequest } from '@/lib/skills';
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
 import { getModel } from '@/lib/ai/models';
 import { supabaseAdmin } from '@/lib/supabase';
+import { classifyIntent, learnFromOutcome, IntentClassification } from '@/lib/intent';
+
+// Feature flag for unified intent classification
+const USE_UNIFIED_INTENT = process.env.USE_UNIFIED_INTENT === 'true';
 
 // ============================================
 // COLUMN UTILITIES (NO HARDCODED VALUES)
@@ -430,9 +434,35 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Row info: startRow=' + dataContext.startRow + ', endRow=' + dataContext.endRow + ', rowCount=' + dataContext.rowCount);
     console.log('[parse-chain] Sample data columns:', Object.keys(dataContext.sampleData).join(', ') || 'none');
     
-    // 2.5. AI will decide if formula can be used (no hardcoded patterns)
-    // The prompt instructs AI to prefer native formulas when appropriate
-    console.log('[parse-chain] AI will decide: workflow or formula (single intelligent call)');
+    // ============================================
+    // 2.5. UNIFIED INTENT CLASSIFICATION (NEW)
+    // ============================================
+    // When enabled, use AI-driven intent classification instead of regex patterns
+    let intentClassification: IntentClassification | null = null;
+    
+    if (USE_UNIFIED_INTENT) {
+      console.log('[parse-chain] 🧠 Using unified intent classifier');
+      try {
+        intentClassification = await classifyIntent(command, dataContext);
+        console.log('[parse-chain] Intent classification:', {
+          outputMode: intentClassification.outputMode,
+          skillId: intentClassification.skillId,
+          confidence: intentClassification.confidence.toFixed(2),
+          source: intentClassification.source,
+          timeMs: intentClassification.classificationTimeMs
+        });
+        
+        // If classifier is confident and source is cache, we can optimize the path
+        if (intentClassification.source === 'cache' && intentClassification.confidence >= 0.9) {
+          console.log('[parse-chain] ⚡ High-confidence cache hit - using optimized path');
+        }
+      } catch (classifyError) {
+        console.warn('[parse-chain] Intent classification failed, falling back to legacy:', classifyError);
+        intentClassification = null;
+      }
+    } else {
+      console.log('[parse-chain] AI will decide: workflow or formula (single intelligent call)');
+    }
 
     // 3. Generate embedding for semantic search
     let embedding: number[] | null = null;
@@ -532,6 +562,19 @@ export async function POST(request: NextRequest) {
         },
         dataContext: dataContext as unknown as Record<string, unknown>,
       }).catch(err => console.error('[parse-chain] Background skill recording failed:', err));
+    }
+    
+    // ============================================
+    // UNIFIED INTENT LEARNING LOOP
+    // Record classification outcome for cache improvement
+    // ============================================
+    if (USE_UNIFIED_INTENT && intentClassification) {
+      // Record asynchronously (don't block the response)
+      learnFromOutcome({
+        command,
+        classification: intentClassification,
+        success: true, // Successful response generation
+      }).catch(err => console.error('[parse-chain] Background intent learning failed:', err));
     }
     
     const elapsed = Date.now() - startTime;

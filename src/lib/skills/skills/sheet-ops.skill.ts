@@ -1,45 +1,29 @@
 /**
- * Sheet Operations Skill - NEW
+ * Sheet Operations Skill
  * 
  * You are a Google Sheets operations expert. This skill provides 20+
  * sheet-level operations including freeze panes, hide/show, insert/delete,
  * sort, clear, resize, and more.
  * 
- * @version 1.0.0 - Expert Mode
+ * @version 1.1.0 - Expert Mode with Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const SHEET_OPS_PATTERNS: RegExp[] = [
-  /\b(freeze|unfreeze)\s*(row|column|pane|header)?\b/i,
-  /\b(hide|show|unhide)\s*(row|column|rows|columns)\b/i,
-  /\b(insert|add|delete|remove)\s*(row|column|rows|columns)\b/i,
-  /\b(sort|order)\s*(by|ascending|descending|a-z|z-a)\b/i,
-  /\b(clear|reset|remove)\s*(content|format|formatting|validation|all)\b/i,
-  /\b(resize|width|height|auto\s*fit|auto\s*resize)\b/i,
-  /\b(rename|name)\s*(sheet|tab)\b/i,
-  /\b(tab\s*color|sheet\s*color)\b/i,
-  /\b(group|ungroup)\s*(row|column|rows|columns)\b/i,
-  /\b(protect|unprotect|lock)\b/i,
+/**
+ * Capabilities for unified intent classifier
+ */
+const SHEET_OPS_CAPABILITIES = [
+  'freeze', 'unfreeze', 'freeze-rows', 'freeze-columns', 'freeze-header',
+  'hide-rows', 'hide-columns', 'show-rows', 'show-columns', 'unhide',
+  'insert-rows', 'insert-columns', 'delete-rows', 'delete-columns', 'add-rows',
+  'sort', 'sort-by', 'ascending', 'descending', 'a-z', 'z-a',
+  'clear', 'clear-content', 'clear-format', 'clear-validation',
+  'resize', 'auto-fit', 'column-width', 'row-height', 'auto-resize',
+  'rename-sheet', 'tab-color', 'sheet-color',
+  'group-rows', 'group-columns', 'ungroup',
+  'protect', 'unprotect', 'lock-range'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  if (/\bfreeze\b/i.test(cmdLower)) score += 0.6;
-  if (/\b(hide|show|unhide)\b/i.test(cmdLower)) score += 0.5;
-  if (/\b(insert|delete)\s*(row|column)/i.test(cmdLower)) score += 0.6;
-  if (/\bsort\b/i.test(cmdLower)) score += 0.5;
-  if (/\bclear\b/i.test(cmdLower)) score += 0.5;
-  if (/\b(resize|width|height|auto\s*fit)\b/i.test(cmdLower)) score += 0.5;
-  if (/\brename\s*(sheet|tab)\b/i.test(cmdLower)) score += 0.6;
-  if (/\btab\s*color\b/i.test(cmdLower)) score += 0.6;
-  if (/\b(group|ungroup)\b/i.test(cmdLower)) score += 0.5;
-  if (/\bprotect\b/i.test(cmdLower)) score += 0.5;
-  
-  return Math.min(score, 1.0);
-}
 
 const SHEET_OPS_INSTRUCTIONS = `
 ## SHEET OPERATIONS Skill - EXPERT MODE
@@ -174,11 +158,11 @@ const SHEET_OPS_EXAMPLES: SkillExample[] = [];
 export const sheetOpsSkill: GoogleSheetSkill = {
   id: 'sheetOps',
   name: 'Sheet Operations',
-  version: '1.0.0',
+  version: '1.1.0',
   description: 'Expert operations: freeze, hide/show, insert/delete, sort, clear, resize, group, protect',
   
-  triggerPatterns: SHEET_OPS_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: SHEET_OPS_CAPABILITIES,
   
   instructions: SHEET_OPS_INSTRUCTIONS,
   examples: SHEET_OPS_EXAMPLES,

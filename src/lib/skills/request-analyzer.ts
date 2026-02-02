@@ -98,7 +98,7 @@ const VAGUE_ADJECTIVES = [
 
 /** Composite action indicators (multiple actions implied) */
 const COMPOSITE_INDICATORS = [
-  /\b(and|also|plus|with)\b/i,              // "format and add borders"
+  /\b(and|also|plus)\b/i,                   // "format and add borders" (NOT "with" - too common)
   /\b(everything|all\s+of\s+it|the\s+whole)\b/i,
   /\b(complete|full|entire)\s+(format|style|look)/i,
 ];
@@ -140,6 +140,14 @@ export function analyzeRequest(command: string, context?: DataContext): RequestA
   if (/\b(filter|sort|show\s+only|hide)\b/i.test(command)) detectedCategories.push('filter');
   if (/\b(dropdown|checkbox|validation|restrict)\b/i.test(command)) detectedCategories.push('dataValidation');
   if (/\b(border|align|currency|percent)\b/i.test(command)) detectedCategories.push('format');
+  // Write data / table pasting - high specificity when markdown table is detected
+  if (/\|.*\|.*\|/.test(command) || /\b(paste|write|create)\s+(this\s+)?(table|data)\b/i.test(command)) {
+    detectedCategories.push('writeData');
+  }
+  // Sheet operations (freeze, hide, sort, etc.)
+  if (/\b(freeze|unfreeze|hide|unhide|insert|delete)\s*(row|column)/i.test(command)) {
+    detectedCategories.push('sheetOps');
+  }
   
   // Count implied actions
   let impliedActionCount = Math.max(1, detectedCategories.length);
@@ -153,14 +161,26 @@ export function analyzeRequest(command: string, context?: DataContext): RequestA
   if (hasSpecificType) specificity += 0.3;
   if (!hasVagueAdjectives) specificity += 0.2;
   
-  // Penalize vagueness
-  if (hasVagueAdjectives && !hasSpecificType) specificity *= 0.5;
-  if (hasCompositeIndicator && impliedActionCount > 2) specificity *= 0.7;
+  // HIGH SPECIFICITY: Pasted table data is unambiguous
+  // If command contains markdown table pattern, it's 100% clear what user wants
+  const hasMarkdownTable = /\|.*\|.*\|/.test(command);
+  if (hasMarkdownTable) {
+    specificity = 0.95; // Very high - bypass vagueness checks
+  }
+  
+  // Penalize vagueness (but not if we have a markdown table)
+  if (!hasMarkdownTable) {
+    if (hasVagueAdjectives && !hasSpecificType) specificity *= 0.5;
+    if (hasCompositeIndicator && impliedActionCount > 2) specificity *= 0.7;
+  }
   
   // Determine request type
   let type: RequestType;
   if (isQuestion) {
     type = 'question';
+  } else if (hasMarkdownTable) {
+    // Markdown table = unambiguously specific writeData request
+    type = 'specific';
   } else if (hasVagueAdjectives && !hasSpecificType) {
     type = 'vague';
   } else if (impliedActionCount > 1 || hasCompositeIndicator) {

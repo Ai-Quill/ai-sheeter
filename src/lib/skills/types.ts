@@ -122,18 +122,30 @@ export interface GoogleSheetSkill {
   /** Brief description of what this skill does */
   description: string;
   
-  // ========== Intent Detection ==========
+  // ========== Intent Detection (LEGACY - being phased out) ==========
   
-  /** Keywords/phrases that suggest this skill (regex patterns) */
-  triggerPatterns: RegExp[];
+  /** 
+   * Keywords/phrases that suggest this skill (regex patterns)
+   * @deprecated Use unified intent classifier instead
+   */
+  triggerPatterns?: RegExp[];
   
   /** 
    * Calculate confidence score that this skill should handle the command
+   * @deprecated Use unified intent classifier instead
    * @param command User's command
    * @param context Data context
    * @returns Confidence score 0-1
    */
-  intentScore: (command: string, context?: DataContext) => number;
+  intentScore?: (command: string, context?: DataContext) => number;
+  
+  // ========== Semantic Capabilities (NEW) ==========
+  
+  /**
+   * List of capabilities this skill provides (for AI classification)
+   * Used by the unified intent classifier to understand what this skill can do
+   */
+  capabilities?: string[];
   
   // ========== Prompt Content ==========
   

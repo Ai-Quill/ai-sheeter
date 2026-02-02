@@ -5,36 +5,22 @@
  * 20 validation types - analyze the data context and apply appropriate
  * validation rules to ensure data integrity.
  * 
- * @version 2.0.0 - Expert Mode
+ * @version 2.1.0 - Expert Mode with Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const DATA_VALIDATION_PATTERNS: RegExp[] = [
-  /\b(dropdown|drop-down|drop\s*down)\b/i,
-  /\b(checkbox|check\s*box)\b/i,
-  /\b(validation|validate|restrict)\b/i,
-  /\b(list\s+of\s+options?|select\s+from)\b/i,
-  /\b(only\s+allow|must\s+be|should\s+be)\b/i,
-  /\badd\s+(a\s+)?(dropdown|checkbox|validation)\b/i,
-  /\b(email|url|link)\s*(validation|only|format)?\b/i,
-  /\b(between|greater|less|equal)\s+than\b/i,
+/**
+ * Capabilities for unified intent classifier
+ */
+const DATA_VALIDATION_CAPABILITIES = [
+  'dropdown', 'drop-down', 'select-list', 'options-list',
+  'checkbox', 'checkboxes', 'check-box',
+  'validation', 'validate', 'restrict-input',
+  'number-range', 'date-range', 'text-validation',
+  'email-validation', 'url-validation', 'custom-formula',
+  'only-allow', 'must-be', 'between'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  if (/\bdropdown\b/i.test(cmdLower)) score += 0.6;
-  if (/\bcheckbox\b/i.test(cmdLower)) score += 0.6;
-  if (/\bvalidation\b/i.test(cmdLower)) score += 0.5;
-  if (/\b(list|options|select)\b/i.test(cmdLower)) score += 0.3;
-  if (/\b(restrict|only\s+allow)\b/i.test(cmdLower)) score += 0.4;
-  if (/\b(email|url)\b/i.test(cmdLower)) score += 0.4;
-  if (/\b(between|greater|less)\s+than\b/i.test(cmdLower)) score += 0.3;
-  
-  return Math.min(score, 1.0);
-}
 
 const DATA_VALIDATION_INSTRUCTIONS = `
 ## DATA VALIDATION Skill - EXPERT MODE
@@ -142,11 +128,11 @@ const DATA_VALIDATION_EXAMPLES: SkillExample[] = [];
 export const dataValidationSkill: GoogleSheetSkill = {
   id: 'dataValidation',
   name: 'Data Validation',
-  version: '2.0.0',
+  version: '2.1.0',
   description: 'Expert validation: 20 types including dropdown, checkbox, number, date, text, email, URL',
   
-  triggerPatterns: DATA_VALIDATION_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: DATA_VALIDATION_CAPABILITIES,
   
   instructions: DATA_VALIDATION_INSTRUCTIONS,
   examples: DATA_VALIDATION_EXAMPLES,

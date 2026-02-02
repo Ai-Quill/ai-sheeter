@@ -6,42 +6,19 @@
  * - Parse CSV/TSV data
  * - Write structured data to sheet
  * 
- * @version 1.0.0
+ * @version 1.1.0 - Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const WRITE_DATA_PATTERNS: RegExp[] = [
-  /\b(write|paste|insert|put|add)\s+(this\s+)?(data|table|into)\b/i,
-  /\bcreate\s+(a\s+)?table\s+(from|based|with)\b/i,
-  /\|.*\|.*\|/,  // Markdown table pattern
-  /\bhelp\s+(me\s+)?(paste|create|write|insert)\b/i,
-  /\bhere\s*(is|are)\s+(the\s+)?(data|table)\b/i,
-  /\b(insert|paste|write)\s+.*\s*(data|table|:)\s*\|/i,  // "insert this data: |..."
-  /\bput\s+(this|the)\s+(data|table|into)\b/i,
+/**
+ * Capabilities for unified intent classifier
+ */
+const WRITE_DATA_CAPABILITIES = [
+  'write-data', 'paste-data', 'insert-data', 'put-data',
+  'markdown-table', 'csv-data', 'tsv-data',
+  'create-table-from-data', 'help-paste', 'structured-data'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  // Check for markdown table pattern (pipes)
-  if (/\|.*\|.*\|/.test(command)) score += 0.7;
-  
-  // Check for write/paste keywords with data
-  if (/\b(write|paste|insert)\s+(this\s+)?(data|table)/i.test(cmdLower)) score += 0.6;
-  
-  // Create table from data
-  if (/\bcreate\s+(a\s+)?table\s+(from|based|with)/i.test(cmdLower)) score += 0.5;
-  
-  // Help me paste/create
-  if (/\bhelp\s+me\s+(paste|create|write)/i.test(cmdLower)) score += 0.4;
-  
-  // Contains structured data indicators
-  if (/\bhere\s*(is|are)\s+(the\s+)?(data|table)/i.test(cmdLower)) score += 0.3;
-  
-  return Math.min(score, 1.0);
-}
 
 const WRITE_DATA_INSTRUCTIONS = `
 ## WRITE DATA Skill
@@ -71,11 +48,11 @@ const WRITE_DATA_EXAMPLES: SkillExample[] = [];
 export const writeDataSkill: GoogleSheetSkill = {
   id: 'writeData',
   name: 'Write Table Data',
-  version: '1.0.0',
+  version: '1.1.0',
   description: 'Parse and write pasted table data to the sheet',
   
-  triggerPatterns: WRITE_DATA_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: WRITE_DATA_CAPABILITIES,
   
   instructions: WRITE_DATA_INSTRUCTIONS,
   examples: WRITE_DATA_EXAMPLES,

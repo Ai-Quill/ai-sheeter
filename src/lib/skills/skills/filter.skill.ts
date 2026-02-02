@@ -5,34 +5,21 @@
  * filter criteria types including date filters, array filters, and
  * custom formula filters.
  * 
- * @version 2.0.0 - Expert Mode
+ * @version 2.1.0 - Expert Mode with Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const FILTER_PATTERNS: RegExp[] = [
-  /\b(filter|filtering)\b/i,
-  /\bshow\s+(only|just)\b/i,
-  /\bhide\s+(rows?|data|values?)\b/i,
-  /\b(where|with)\s+\w+\s*(=|is|equals|contains)/i,
-  /\bonly\s+(show|display)\b/i,
-  /\b(before|after|between)\s+\d{4}/i,
-  /\b(exclude|include)\s+(only)?\b/i,
+/**
+ * Capabilities for unified intent classifier
+ */
+const FILTER_CAPABILITIES = [
+  'filter', 'filtering', 'show-only', 'hide-rows',
+  'filter-by', 'where', 'contains', 'equals',
+  'date-filter', 'number-filter', 'text-filter',
+  'exclude', 'include', 'before', 'after', 'between',
+  'multiple-criteria', 'custom-filter'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  if (/\bfilter\b/i.test(cmdLower)) score += 0.6;
-  if (/\bshow\s+(only|just)\b/i.test(cmdLower)) score += 0.5;
-  if (/\bhide\s+(rows?|data)\b/i.test(cmdLower)) score += 0.5;
-  if (/\bwhere\s+\w+\s*(=|is|equals)/i.test(cmdLower)) score += 0.4;
-  if (/\b(before|after)\s+\d{4}/i.test(cmdLower)) score += 0.4;
-  if (/\b(exclude|include)\b/i.test(cmdLower)) score += 0.3;
-  
-  return Math.min(score, 1.0);
-}
 
 const FILTER_INSTRUCTIONS = `
 ## FILTER Skill - EXPERT MODE
@@ -124,11 +111,11 @@ const FILTER_EXAMPLES: SkillExample[] = [];
 export const filterSkill: GoogleSheetSkill = {
   id: 'filter',
   name: 'Data Filtering',
-  version: '2.0.0',
+  version: '2.1.0',
   description: 'Expert filtering: 24 criteria types, date filters, array filters, formula filters',
   
-  triggerPatterns: FILTER_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: FILTER_CAPABILITIES,
   
   instructions: FILTER_INSTRUCTIONS,
   examples: FILTER_EXAMPLES,

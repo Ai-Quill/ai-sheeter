@@ -5,38 +5,21 @@
  * 70+ chart options including combo charts, dual Y-axis, logarithmic scales,
  * and comprehensive styling. Analyze the data and create stunning visuals.
  * 
- * @version 2.0.0 - Expert Mode
+ * @version 2.1.0 - Expert Mode with Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-const CHART_PATTERNS: RegExp[] = [
-  /\b(chart|graph|plot|visualize|visualization)\b/i,
-  /\b(pie|bar|line|column|area|scatter|histogram|combo)\s*(chart|graph)?\b/i,
-  /\b(donut|trend|series)\b/i,
-  /\bshow\s+(me\s+)?(a\s+)?(graph|chart|visual)\b/i,
-  /\bcreate\s+(a\s+)?(graph|chart|visual)\b/i,
-  /\b(revenue|sales|data)\s+over\s+time\b/i,
-  /\bcompare\s+.*\s+(visually|graphically)\b/i,
-  /\b(dual\s*axis|secondary\s*axis|two\s*axis)\b/i,
-  /\b(log\s*scale|logarithmic)\b/i,
+/**
+ * Capabilities for unified intent classifier
+ */
+const CHART_CAPABILITIES = [
+  'chart', 'graph', 'plot', 'visualize', 'visualization',
+  'pie-chart', 'bar-chart', 'line-chart', 'column-chart', 'area-chart',
+  'scatter-chart', 'histogram', 'combo-chart', 'donut',
+  'trendline', 'dual-axis', 'logarithmic-scale', 'series',
+  'data-over-time', 'compare-visually'
 ];
-
-function calculateIntentScore(command: string, context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  if (/\b(chart|graph|plot|visualize)\b/i.test(cmdLower)) score += 0.5;
-  if (/\b(pie|bar|line|column|area|scatter|histogram|combo|donut)\b/i.test(cmdLower)) score += 0.4;
-  if (/\b(show|create|make|build|generate)\s+(me\s+)?(a\s+)?(chart|graph|visual)/i.test(cmdLower)) score += 0.3;
-  if (/\b(over\s+time|trend|growth|monthly|yearly|quarterly)\b/i.test(cmdLower)) score += 0.2;
-  if (/\bcompare\b/i.test(cmdLower) && context && context.dataColumns.length > 2) score += 0.15;
-  if (context && context.dataColumns.length >= 2) score += 0.05;
-  if (/\b(dual|secondary)\s*axis\b/i.test(cmdLower)) score += 0.3;
-  if (/\blog/i.test(cmdLower)) score += 0.2;
-  
-  return Math.min(score, 1.0);
-}
 
 const CHART_INSTRUCTIONS = `
 ## CHART Skill - EXPERT MODE
@@ -158,11 +141,11 @@ const CHART_EXAMPLES: SkillExample[] = [];
 export const chartSkill: GoogleSheetSkill = {
   id: 'chart',
   name: 'Chart & Visualization',
-  version: '2.0.0',
+  version: '2.1.0',
   description: 'Expert charts: 70+ options, combo, dual-axis, log scale, trendlines',
   
-  triggerPatterns: CHART_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: CHART_CAPABILITIES,
   
   instructions: CHART_INSTRUCTIONS,
   examples: CHART_EXAMPLES,

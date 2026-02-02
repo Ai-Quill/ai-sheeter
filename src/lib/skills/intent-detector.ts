@@ -4,13 +4,12 @@
  * Lightweight keyword and pattern-based intent detection
  * to determine which skills should be loaded for a command.
  * 
- * This runs BEFORE the main AI call to reduce token usage
- * by loading only relevant skill instructions.
+ * NOTE: This module is being phased out in favor of the unified
+ * intent classifier (src/lib/intent/classifier.ts). The patterns
+ * here serve as fallback when the unified classifier is not enabled.
  * 
- * Uses the Request Analyzer for generic vagueness detection
- * instead of hardcoding specific patterns.
- * 
- * @version 1.1.0
+ * @version 1.2.0 - Graceful fallback for skills without patterns
+ * @deprecated Use unified intent classifier instead (USE_UNIFIED_INTENT=true)
  */
 
 import { 
@@ -82,13 +81,19 @@ export function detectIntent(
   
   for (const skill of ALL_SKILLS) {
     // Calculate base confidence using skill's own scoring function
-    let confidence = skill.intentScore(command, context);
+    // NOTE: intentScore is now optional - skills migrated to unified classifier
+    // will not have this function
+    let confidence = skill.intentScore?.(command, context) ?? 0;
     
     // Find which patterns matched (for debugging)
+    // NOTE: triggerPatterns is now optional - skills migrated to unified classifier
+    // will not have patterns
     const matchedPatterns: string[] = [];
-    for (const pattern of skill.triggerPatterns) {
-      if (pattern.test(command)) {
-        matchedPatterns.push(pattern.source);
+    if (skill.triggerPatterns) {
+      for (const pattern of skill.triggerPatterns) {
+        if (pattern.test(command)) {
+          matchedPatterns.push(pattern.source);
+        }
       }
     }
     
@@ -124,6 +129,9 @@ export function detectIntent(
 /**
  * Quick check if command likely needs a specific skill
  * Useful for fast pre-filtering before full detection
+ * 
+ * @deprecated Use unified intent classifier instead (USE_UNIFIED_INTENT=true)
+ * This function will be removed once unified classifier is fully deployed.
  */
 export function quickSkillCheck(command: string): string | null {
   const cmdLower = command.toLowerCase();

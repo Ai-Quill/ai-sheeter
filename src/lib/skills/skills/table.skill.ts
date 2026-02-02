@@ -1,40 +1,21 @@
 /**
  * Table Skill - Convert ranges to native Google Sheets Tables
  * Google Sheets Tables provide automatic formatting, filters, headers, and structured data management
+ * 
+ * @version 1.1.0 - Unified Intent
  */
 
-import { GoogleSheetSkill, SkillExample, DataContext } from '../types';
+import { GoogleSheetSkill, SkillExample } from '../types';
 
-// Intent detection patterns
-const TABLE_PATTERNS = [
-  /\b(create|make|convert)\s+(a\s+)?table/i,
-  /\b(table\s+format|format\s+as\s+table)/i,
-  /\b(professional|structured)\s+table/i,
-  /\bturn\s+(this\s+)?(into|to)\s+a?\s*table/i,
-  /\b(data\s+)?table\s+with\s+(headers?|filters?)/i,
+/**
+ * Capabilities for unified intent classifier
+ */
+const TABLE_CAPABILITIES = [
+  'create-table', 'make-table', 'convert-to-table',
+  'table-format', 'format-as-table',
+  'professional-table', 'structured-table', 'data-table',
+  'table-with-headers', 'table-with-filters', 'frozen-header'
 ];
-
-// Calculate confidence score for table skill
-function calculateIntentScore(command: string, _context?: DataContext): number {
-  const cmdLower = command.toLowerCase();
-  let score = 0;
-  
-  // Direct table mentions
-  if (/\b(create|make)\s+(a\s+)?table\b/i.test(cmdLower)) score += 0.8;
-  if (/\bconvert\s+to\s+table\b/i.test(cmdLower)) score += 0.85;
-  if (/\btable\s+format\b/i.test(cmdLower)) score += 0.75;
-  if (/\bformat\s+as\s+table\b/i.test(cmdLower)) score += 0.8;
-  
-  // Structural hints
-  if (/\bstructured\s+table\b/i.test(cmdLower)) score += 0.7;
-  if (/\bdata\s+table\b/i.test(cmdLower)) score += 0.6;
-  
-  // Google Sheets Table specific features
-  if (/\bwith\s+(headers?|filters?|dropdowns?)\b/i.test(cmdLower)) score += 0.3;
-  if (/\bfrozen?\s+(row|header)/i.test(cmdLower)) score += 0.2;
-  
-  return Math.max(0, Math.min(score, 1.0));
-}
 
 const TABLE_INSTRUCTIONS = `
 ## TABLE Skill
@@ -66,12 +47,11 @@ const TABLE_EXAMPLES: SkillExample[] = [];
 export const tableSkill: GoogleSheetSkill = {
   id: 'table',
   name: 'Table Creation',
-  version: '1.0.0',
+  version: '1.1.0',
   description: 'Convert data ranges to native Google Sheets Tables with automatic formatting and filters',
   
-  // Intent detection
-  triggerPatterns: TABLE_PATTERNS,
-  intentScore: calculateIntentScore,
+  // Semantic capabilities for unified intent classifier
+  capabilities: TABLE_CAPABILITIES,
   
   // Skill content
   instructions: TABLE_INSTRUCTIONS,

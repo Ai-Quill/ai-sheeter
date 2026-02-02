@@ -136,6 +136,7 @@ export async function selectSkills(
         'filter': 'filter',
         'dataValidation': 'dataValidation',
         'sheetOps': 'sheetOps',
+        'writeData': 'writeData',
       };
       const skillId = categoryToSkill[category];
       if (skillId) {
