@@ -36,6 +36,8 @@ import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from
 import { getModel } from '@/lib/ai/models';
 import { supabaseAdmin } from '@/lib/supabase';
 import { classifyIntent, learnFromOutcome, IntentClassification } from '@/lib/intent';
+import { normalizeSheetResponse } from '@/lib/response';
+import { getSkillById, GoogleSheetSkill } from '@/lib/skills';
 
 // Feature flag for unified intent classification
 const USE_UNIFIED_INTENT = process.env.USE_UNIFIED_INTENT === 'true';
@@ -139,7 +141,7 @@ interface TaskChain {
   }>;
   
   // Sheet action config (if outputMode='sheet')
-  sheetAction?: 'chart' | 'format' | 'conditionalFormat' | 'dataValidation' | 'filter' | 'createTable';
+  sheetAction?: 'chart' | 'format' | 'conditionalFormat' | 'dataValidation' | 'filter' | 'createTable' | 'writeData' | 'sheetOps';
   sheetConfig?: {
     // Chart config
     chartType?: 'bar' | 'column' | 'line' | 'pie' | 'area' | 'scatter';
@@ -505,7 +507,13 @@ export async function POST(request: NextRequest) {
     });
     
     // 4.5. Build smart prompt (uses adaptive skills or legacy based on config)
-    const prompt = await buildSmartPrompt(command, dataContext, similarWorkflows, baseExamples);
+    // Pass intent classification to force the correct skill
+    const promptOptions = intentClassification ? {
+      forceSkillId: intentClassification.skillId || undefined,
+      confidence: intentClassification.confidence,
+    } : {};
+    
+    const prompt = await buildSmartPrompt(command, dataContext, similarWorkflows, baseExamples, promptOptions);
     console.log('[parse-chain] Prompt length:', prompt.length, 'chars');
     console.log('[parse-chain] Prompt preview (first 500):', prompt.substring(0, 500));
     
@@ -521,8 +529,8 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] AI response length:', text.length);
     console.log('[parse-chain] AI raw response (first 500 chars):', text.substring(0, 500));
 
-    // 6. Parse and validate (lightly!)
-    const chain = parseAndValidate(text, dataContext, command, embedding, explicitOutputColumn);
+    // 6. Parse and validate (lightly!) - pass intent classification for skill-aware handling
+    const chain = parseAndValidate(text, dataContext, command, embedding, explicitOutputColumn, intentClassification);
     
     // Debug: Log what we're returning - including per-step column assignments
     console.log('[parse-chain] Returning steps:', chain.steps.map(s => ({ 
@@ -772,7 +780,8 @@ function parseAndValidate(
   dataContext: ExtendedDataContext,
   originalCommand: string,
   embedding: number[] | null,
-  explicitOutputColumn: string | null = null
+  explicitOutputColumn: string | null = null,
+  intentClassification: IntentClassification | null = null
 ): TaskChain {
   try {
     // Extract JSON from response
@@ -874,149 +883,54 @@ function parseAndValidate(
       console.log('[parse-chain] ✅ SHEET MODE: AI chose native sheet action (instant execution)');
       
       // ============================================
-      // FLEXIBLE PARSING: Accept AI's natural response format
-      // AI might return:
-      // 1. { sheetAction: "format", sheetConfig: {...} } - our defined schema
-      // 2. { steps: [{ action: "format", range: "...", formatting: {...} }] } - AI's natural format
+      // LEVERAGE SKILL ARCHITECTURE
+      // 1. If we have intent classification, use it to override AI mistakes
+      // 2. Normalize response using the normalizer
+      // 3. Validate against skill schema if available
       // ============================================
       
-      let sheetAction = parsed.sheetAction;
-      let sheetConfig = parsed.sheetConfig || {};
+      // Get the skill if intent classification is available
+      const classifiedSkillId = intentClassification?.skillId;
+      const classifiedAction = intentClassification?.sheetAction;
+      const skill: GoogleSheetSkill | undefined = classifiedSkillId ? getSkillById(classifiedSkillId) : undefined;
       
-      // If AI returned steps array with format actions, extract and combine them
-      if (!sheetAction && Array.isArray(parsed.steps) && parsed.steps.length > 0) {
-        console.log('[parse-chain] AI returned steps array, extracting sheet actions');
-        
-        // Determine action type from steps
-        const firstStep = parsed.steps[0];
-        if (firstStep.action === 'format' || firstStep.formatting || firstStep.borders) {
-          sheetAction = 'format';
-          
-          // Build sheetConfig from steps - combine multiple format operations
-          const formatOperations = parsed.steps.map((step: any) => ({
-            range: step.range,
-            formatting: step.formatting || {},
-            // Also check for direct properties
-            borders: step.borders,
-            alignment: step.alignment || step.formatting?.horizontalAlignment,
-            bold: step.bold,
-            backgroundColor: step.backgroundColor,
-            textColor: step.textColor,
-          }));
-          
-          sheetConfig = {
-            formatType: 'text',
-            operations: formatOperations,  // Multiple operations
-            // For backward compatibility, also set single operation fields
-            range: formatOperations[0]?.range || dataContext.dataRange,
-            options: formatOperations[0]?.formatting || {},
-          };
-          
-          console.log('[parse-chain] Extracted format config from steps:', JSON.stringify(sheetConfig).substring(0, 300));
-        } else if (firstStep.chartType || firstStep.action === 'chart') {
-          sheetAction = 'chart';
-          sheetConfig = firstStep;
+      // Normalize the response
+      const normalized = normalizeSheetResponse(
+        {
+          sheetAction: parsed.sheetAction,
+          sheetConfig: parsed.sheetConfig,
+          steps: parsed.steps,
+        },
+        {
+          command: originalCommand,
+          dataContext,
+        }
+      );
+      
+      // Use intent classification to override if AI returned wrong action
+      // Trust the classifier if it's confident and returned a sheet action
+      let sheetAction = normalized.sheetAction;
+      if (classifiedAction && classifiedAction !== sheetAction && intentClassification?.confidence && intentClassification.confidence >= 0.8) {
+        console.log(`[parse-chain] 🎯 Intent classifier override: ${sheetAction} → ${classifiedAction} (confidence: ${intentClassification.confidence.toFixed(2)})`);
+        sheetAction = classifiedAction;
+      }
+      
+      const sheetConfig = normalized.sheetConfig;
+      
+      // Log skill-aware processing
+      if (skill) {
+        console.log(`[parse-chain] 📦 Using skill: ${skill.id} v${skill.version}`);
+        // Validate required fields from skill schema
+        const missingFields = skill.schema.requiredFields.filter(
+          field => sheetConfig[field] === undefined && field !== 'range' // range is often derived
+        );
+        if (missingFields.length > 0) {
+          console.log(`[parse-chain] ⚠️ Missing required fields from skill schema: ${missingFields.join(', ')}`);
         }
       }
       
-      // ============================================
-      // FIX 1: Correct "validation" → "dataValidation" (common AI mistake)
-      // ============================================
-      if (sheetAction === 'validation') {
-        console.log('[parse-chain] ⚠️ AI returned "validation" - correcting to "dataValidation"');
-        sheetAction = 'dataValidation';
-      }
-      
-      // ============================================
-      // FIX 2: Detect if AI incorrectly returned "format" with validation config
-      // Common mistake: returning format action with nested validation
-      // Example: { sheetAction: "format", sheetConfig: { options: { validation: { type: "checkbox" } } } }
-      // Should be: { sheetAction: "dataValidation", sheetConfig: { validationType: "checkbox", range: "..." } }
-      // ============================================
-      if (sheetAction === 'format' && sheetConfig?.options?.validation) {
-        console.log('[parse-chain] ⚠️ AI returned format with nested validation - correcting to dataValidation');
-        const nestedValidation = sheetConfig.options.validation;
-        sheetAction = 'dataValidation';
-        sheetConfig = {
-          validationType: nestedValidation.type || 'checkbox',
-          range: sheetConfig.range || dataContext.dataRange,
-          values: nestedValidation.values,
-          // Preserve any additional validation options
-          ...nestedValidation
-        };
-        // Remove the now-extracted 'type' to avoid confusion
-        delete sheetConfig.type;
-        console.log('[parse-chain] Corrected sheetConfig:', JSON.stringify(sheetConfig));
-      }
-      
-      // ============================================
-      // FIX 3: Flatten nested criteria for number validation
-      // AI sometimes returns: { criteria: { minimum: 1000, maximum: 100000 } }
-      // Should be: { min: 1000, max: 100000 }
-      // ============================================
-      if (sheetAction === 'dataValidation' && sheetConfig?.criteria) {
-        console.log('[parse-chain] ⚠️ AI returned nested criteria - flattening to min/max');
-        const criteria = sheetConfig.criteria;
-        if (criteria.minimum !== undefined) sheetConfig.min = criteria.minimum;
-        if (criteria.maximum !== undefined) sheetConfig.max = criteria.maximum;
-        if (criteria.condition === 'between' && !sheetConfig.validationType) {
-          sheetConfig.validationType = 'number';
-        }
-        delete sheetConfig.criteria;
-        console.log('[parse-chain] Corrected sheetConfig:', JSON.stringify(sheetConfig));
-      }
-      
-      // ============================================
-      // FIX 4: Extract min/max from command if AI forgot to include them
-      // AI sometimes returns validationType: "number" but forgets min/max
-      // Try to extract from the original command text
-      // ============================================
-      if (sheetAction === 'dataValidation' && sheetConfig?.validationType === 'number') {
-        if (sheetConfig.min === undefined || sheetConfig.max === undefined) {
-          console.log('[parse-chain] ⚠️ Number validation missing min/max - extracting from command');
-          // Try to find number patterns in command like "between X and Y" or "from X to Y"
-          const betweenMatch = originalCommand.match(/between\s+([\d,]+)\s+and\s+([\d,]+)/i);
-          const fromToMatch = originalCommand.match(/from\s+([\d,]+)\s+to\s+([\d,]+)/i);
-          const rangeMatch = originalCommand.match(/([\d,]+)\s*[-–]\s*([\d,]+)/);
-          
-          const match = betweenMatch || fromToMatch || rangeMatch;
-          if (match) {
-            const num1 = parseInt(match[1].replace(/,/g, ''), 10);
-            const num2 = parseInt(match[2].replace(/,/g, ''), 10);
-            if (!isNaN(num1) && !isNaN(num2)) {
-              sheetConfig.min = Math.min(num1, num2);
-              sheetConfig.max = Math.max(num1, num2);
-              console.log('[parse-chain] Extracted min/max from command:', sheetConfig.min, sheetConfig.max);
-            }
-          }
-        }
-      }
-      
-      // ============================================
-      // FIX 5: Correct full-column ranges to use data rows only
-      // AI sometimes returns "G:G" instead of "G2:G7"
-      // Data validation should NOT include header row
-      // ============================================
-      if (sheetAction === 'dataValidation' && sheetConfig?.range) {
-        const fullColumnMatch = sheetConfig.range.match(/^([A-Z]+):([A-Z]+)$/i);
-        if (fullColumnMatch && dataContext.explicitRowInfo) {
-          const col = fullColumnMatch[1].toUpperCase();
-          const startRow = dataContext.explicitRowInfo.dataStartRow;
-          const endRow = dataContext.explicitRowInfo.dataEndRow;
-          const correctedRange = `${col}${startRow}:${col}${endRow}`;
-          console.log(`[parse-chain] ⚠️ Correcting full-column range ${sheetConfig.range} → ${correctedRange}`);
-          sheetConfig.range = correctedRange;
-        }
-      }
-      
-      // Infer action from config if still undefined
-      if (!sheetAction && sheetConfig) {
-        if (sheetConfig.chartType) sheetAction = 'chart';
-        else if (sheetConfig.tableName !== undefined || sheetConfig.freezeHeader !== undefined) sheetAction = 'createTable';
-        else if (sheetConfig.rules) sheetAction = 'conditionalFormat';
-        else if (sheetConfig.validationType) sheetAction = 'dataValidation';
-        else if (sheetConfig.criteria) sheetAction = 'filter';
-        else if (sheetConfig.formatType || sheetConfig.options || sheetConfig.operations) sheetAction = 'format';
+      if (normalized.wasNormalized) {
+        console.log('[parse-chain] Response normalized:', normalized.normalizations.join(', '));
       }
       
       console.log('[parse-chain] Sheet action:', sheetAction);

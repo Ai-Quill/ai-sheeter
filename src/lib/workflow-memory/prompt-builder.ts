@@ -814,16 +814,32 @@ function getFallbackExamples(command: string): WorkflowExample[] {
  * @param dataContext Information about the user's data
  * @returns Built prompt with metadata
  */
+export interface AdaptivePromptOptions {
+  /** Force specific skill from intent classification */
+  forceSkillId?: string;
+  /** Confidence of the classification (used to decide whether to force) */
+  confidence?: number;
+}
+
 export async function buildAdaptivePrompt(
   command: string,
-  dataContext: DataContext
+  dataContext: DataContext,
+  options: AdaptivePromptOptions = {}
 ): Promise<BuiltPrompt> {
   const startTime = Date.now();
   
   // 1. Select skills (includes request analysis internally)
-  // For vague/composite requests, selectSkills now ONLY returns chat skill
+  // If we have a high-confidence skill from intent classification, use it
   const selectionStartTime = Date.now();
-  const selection = await selectSkills(command, dataContext as SkillDataContext);
+  const forceSkills = (options.forceSkillId && (options.confidence || 0) >= 0.8) 
+    ? [options.forceSkillId] 
+    : [];
+  
+  if (forceSkills.length > 0) {
+    console.log(`[PromptBuilder:Adaptive] 🎯 Forcing skill from intent classification: ${forceSkills[0]}`);
+  }
+  
+  const selection = await selectSkills(command, dataContext as SkillDataContext, { forceSkills });
   const skillSelectionTime = Date.now() - selectionStartTime;
   
   // Log selection result with request analysis
@@ -906,16 +922,23 @@ export function shouldUseAdaptivePrompts(): boolean {
 
 /**
  * Smart prompt builder that chooses between adaptive and legacy
+ * 
+ * @param command User's command
+ * @param dataContext Data context
+ * @param similarWorkflows Similar workflows from semantic search
+ * @param baseExamples Fallback examples
+ * @param options Options including skill hints from intent classification
  */
 export async function buildSmartPrompt(
   command: string,
   dataContext: DataContext,
   similarWorkflows: StoredWorkflow[],
-  baseExamples: StoredWorkflow[] = []
+  baseExamples: StoredWorkflow[] = [],
+  options: AdaptivePromptOptions = {}
 ): Promise<string> {
   // Check if adaptive prompts are enabled
   if (shouldUseAdaptivePrompts()) {
-    const result = await buildAdaptivePrompt(command, dataContext);
+    const result = await buildAdaptivePrompt(command, dataContext, options);
     return result.prompt;
   }
   
