@@ -176,6 +176,65 @@ SELECT seed_intent_cache_placeholder(
 );
 
 -- ============================================
+-- COMPLEX FORMAT EXAMPLES
+-- These match actual user patterns with multiple operations
+-- ============================================
+
+-- Pattern: Professional formatting with multiple operations
+SELECT seed_intent_cache_placeholder(
+  'Format this professionally: bold blue header with white text, currency format for sales columns, add borders',
+  'sheet', 'format', 'format', 'format'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Make the header bold with dark blue background and white text',
+  'sheet', 'format', 'format', 'format'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Format columns C and D as currency and add borders to all cells',
+  'sheet', 'format', 'format', 'format'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Make it look professional with formatting',
+  'sheet', 'format', 'format', 'format'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Add alternating row colors and borders',
+  'sheet', 'format', 'format', 'format'
+);
+
+-- ============================================
+-- CONDITIONAL FORMAT EXAMPLES
+-- ============================================
+
+SELECT seed_intent_cache_placeholder(
+  'Highlight rows green where Q2 beat target, red where below target',
+  'sheet', 'conditionalFormat', 'conditionalFormat', 'conditionalFormat'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Color code cells based on value: green for high, red for low',
+  'sheet', 'conditionalFormat', 'conditionalFormat', 'conditionalFormat'
+);
+
+-- ============================================
+-- SHEET OPS EXAMPLES
+-- ============================================
+
+SELECT seed_intent_cache_placeholder(
+  'Freeze the header row and sort by Q2_Sales descending',
+  'sheet', 'sheetOps', 'sheetOps', 'sheetOps'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Sort the data by Sales column descending',
+  'sheet', 'sheetOps', 'sheetOps', 'sheetOps'
+);
+
+-- ============================================
 -- CLEANUP
 -- ============================================
 DROP FUNCTION IF EXISTS seed_intent_cache_placeholder;

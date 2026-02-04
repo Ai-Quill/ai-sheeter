@@ -258,6 +258,86 @@ export async function initializeSeedEmbeddings(): Promise<{
 }
 
 /**
+ * Initialize skill example embeddings in skill_usage table
+ * 
+ * This generates embeddings for seeded skill examples (is_good_example = true)
+ * that have placeholder embeddings.
+ */
+export async function initializeSkillExampleEmbeddings(): Promise<{
+  updated: number;
+  failed: number;
+}> {
+  console.log('[SkillExamples] Initializing skill example embeddings...');
+  
+  // Find all good examples with zero/null embeddings
+  const { data: examples, error } = await supabaseAdmin
+    .from('skill_usage')
+    .select('id, command')
+    .eq('is_good_example', true)
+    .is('command_embedding', null);
+  
+  // Also find examples with placeholder embeddings (all zeros)
+  // Note: This requires a custom check since pgvector doesn't have easy zero-check
+  const { data: placeholderExamples, error: error2 } = await supabaseAdmin
+    .from('skill_usage')
+    .select('id, command')
+    .eq('is_good_example', true)
+    .not('command_embedding', 'is', null);
+  
+  const allExamples = [...(examples || []), ...(placeholderExamples || [])];
+  
+  if (error) {
+    console.error('[SkillExamples] Error fetching examples:', error);
+    return { updated: 0, failed: 0 };
+  }
+  
+  if (!allExamples || allExamples.length === 0) {
+    console.log('[SkillExamples] No examples to initialize');
+    return { updated: 0, failed: 0 };
+  }
+  
+  console.log(`[SkillExamples] Found ${allExamples.length} examples to process`);
+  
+  // Generate embeddings in batches
+  const batchSize = 20;
+  let updated = 0;
+  let failed = 0;
+  
+  for (let i = 0; i < allExamples.length; i += batchSize) {
+    const batch = allExamples.slice(i, i + batchSize);
+    const commands = batch.map(e => e.command);
+    
+    try {
+      const embeddings = await generateEmbeddings(commands);
+      
+      for (let j = 0; j < batch.length; j++) {
+        const { error: updateError } = await supabaseAdmin
+          .from('skill_usage')
+          .update({ 
+            command_embedding: `[${embeddings[j].join(',')}]`
+          })
+          .eq('id', batch[j].id);
+        
+        if (updateError) {
+          console.error(`[SkillExamples] Failed to update:`, updateError);
+          failed++;
+        } else {
+          updated++;
+        }
+      }
+      
+      console.log(`[SkillExamples] Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(allExamples.length / batchSize)}`);
+    } catch (error) {
+      console.error(`[SkillExamples] Batch embedding failed:`, error);
+      failed += batch.length;
+    }
+  }
+  
+  console.log(`[SkillExamples] Initialization complete: ${updated} updated, ${failed} failed`);
+  return { updated, failed };
+}
+
+/**
  * Check if seed embeddings have been initialized
  */
 export async function areSeedEmbeddingsInitialized(): Promise<boolean> {

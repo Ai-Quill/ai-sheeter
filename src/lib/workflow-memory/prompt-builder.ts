@@ -390,6 +390,33 @@ For STYLING (borders, alignment, bold, etc.) - ALWAYS use "format" action with f
   "clarification": "Adding borders and right alignment to the data range."
 }
 
+For MULTIPLE FORMAT OPERATIONS in one command (e.g., "bold header AND currency AND borders"):
+{
+  "outputMode": "sheet",
+  "sheetAction": "format",
+  "sheetConfig": {
+    "operations": [
+      { 
+        "range": "A1:G1", 
+        "formatting": { "bold": true, "backgroundColor": "#1a73e8", "textColor": "#FFFFFF", "fontSize": 11 }
+      },
+      { 
+        "range": "C2:E31", 
+        "formatting": { "formatType": "currency" }
+      },
+      { 
+        "range": "A1:G31", 
+        "formatting": { "borders": true }
+      }
+    ]
+  },
+  "summary": "Apply professional formatting",
+  "clarification": "Applying bold blue header, currency format to columns C-E, and borders to all cells."
+}
+
+⚠️ CRITICAL: Each operation in the array MUST have both "range" AND "formatting" with actual values!
+Do NOT return empty formatting objects like { "formatting": {} }
+
 IMPORTANT - Format options you can combine:
 - borders: true (adds borders around all cells)
 - alignment: "left", "center", "right" (horizontal alignment)

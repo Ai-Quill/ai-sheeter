@@ -34,6 +34,7 @@ export {
   promoteToCache,
   recordOutcome,
   initializeSeedEmbeddings,
+  initializeSkillExampleEmbeddings,
   areSeedEmbeddingsInitialized,
   getMetrics,
   getCacheStats,
