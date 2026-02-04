@@ -15,8 +15,13 @@ import { GoogleSheetSkill, SkillExample } from '../types';
  * Capabilities for unified intent classifier
  */
 const WRITE_DATA_CAPABILITIES = [
+  // Write triggers
   'write-data', 'paste-data', 'insert-data', 'put-data',
-  'markdown-table', 'csv-data', 'tsv-data',
+  // Table creation (when data is provided in command)
+  'create-table', 'create-a-table', 'make-table', 'table-from',
+  'sales-data', 'this-data', 'following-data',
+  // Data formats
+  'markdown-table', 'csv-data', 'tsv-data', 'comma-separated',
   'create-table-from-data', 'help-paste', 'structured-data'
 ];
 

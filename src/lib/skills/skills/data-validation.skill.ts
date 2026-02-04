@@ -14,12 +14,18 @@ import { GoogleSheetSkill, SkillExample } from '../types';
  * Capabilities for unified intent classifier
  */
 const DATA_VALIDATION_CAPABILITIES = [
+  // Dropdown triggers
   'dropdown', 'drop-down', 'select-list', 'options-list',
+  'add-dropdown', 'create-dropdown', 'dropdown-to',
+  // Checkbox
   'checkbox', 'checkboxes', 'check-box',
-  'validation', 'validate', 'restrict-input',
+  // Validation triggers
+  'validation', 'validate', 'restrict-input', 'data-validation',
+  // Range validations
   'number-range', 'date-range', 'text-validation',
   'email-validation', 'url-validation', 'custom-formula',
-  'only-allow', 'must-be', 'between'
+  // Natural language triggers
+  'only-allow', 'must-be', 'between', 'restrict-to'
 ];
 
 const DATA_VALIDATION_INSTRUCTIONS = `

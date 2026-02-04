@@ -30,10 +30,11 @@ const FORMULA_CAPABILITIES = [
   'concatenate', 'concat', 'join', 'combine-text',
   'trim', 'split', 'text-operation',
   
-  // Calculated columns
-  'add-column', 'new-column', 'calculate', 'calculated-column',
+  // Calculated columns (high priority triggers)
+  'add-column', 'new-column', 'add-a-new', 'create-column',
+  'calculate', 'calculated-column', 'called',
   'bonus', 'commission', 'percentage', 'percent',
-  'if-then', 'conditional', 'based-on', 'when',
+  'if-then', 'conditional', 'based-on', 'when', 'otherwise',
   
   // Math operations
   'sum', 'average', 'count', 'max', 'min', 'aggregation',

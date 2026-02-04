@@ -81,19 +81,41 @@ export function detectIntent(
   
   for (const skill of ALL_SKILLS) {
     // Calculate base confidence using skill's own scoring function
-    // NOTE: intentScore is now optional - skills migrated to unified classifier
-    // will not have this function
+    // OR capability-based keyword matching (for migrated skills)
     let confidence = skill.intentScore?.(command, context) ?? 0;
     
     // Find which patterns matched (for debugging)
-    // NOTE: triggerPatterns is now optional - skills migrated to unified classifier
-    // will not have patterns
     const matchedPatterns: string[] = [];
     if (skill.triggerPatterns) {
       for (const pattern of skill.triggerPatterns) {
         if (pattern.test(command)) {
           matchedPatterns.push(pattern.source);
         }
+      }
+    }
+    
+    // CAPABILITY-BASED MATCHING (for skills without intentScore)
+    // This is a simple keyword match using the skill's capabilities array
+    if (confidence === 0 && skill.capabilities && skill.capabilities.length > 0) {
+      const cmdLower = command.toLowerCase();
+      let capabilityMatches = 0;
+      
+      for (const capability of skill.capabilities) {
+        // Handle multi-word capabilities like "freeze-rows" -> check "freeze" and "rows"
+        const words = capability.toLowerCase().split(/[-_\s]+/);
+        const allWordsMatch = words.every(word => cmdLower.includes(word));
+        
+        if (allWordsMatch) {
+          capabilityMatches++;
+          matchedPatterns.push(`cap:${capability}`);
+        }
+      }
+      
+      // Calculate confidence based on capability matches
+      if (capabilityMatches > 0) {
+        // Base confidence scales with number of matches
+        confidence = Math.min(0.5 + (capabilityMatches * 0.15), 0.95);
+        console.log(`[IntentDetector] Capability match for ${skill.id}: ${capabilityMatches} matches → confidence ${confidence.toFixed(2)}`);
       }
     }
     

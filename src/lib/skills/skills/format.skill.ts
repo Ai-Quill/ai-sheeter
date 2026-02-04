@@ -15,9 +15,17 @@ import { GoogleSheetSkill, SkillExample } from '../types';
  * These describe what this skill can do semantically
  */
 const FORMAT_CAPABILITIES = [
+  // Format triggers
+  'format', 'formatting', 'professionally', 'style', 'beautify',
+  // Number formats
   'currency', 'percent', 'number-format', 'date-format', 'datetime',
+  // Text styles
   'bold', 'italic', 'underline', 'strikethrough', 'font-size', 'font-family',
-  'text-color', 'background-color', 'alignment', 'center', 'left', 'right',
+  // Colors
+  'text-color', 'background-color', 'blue-header', 'white-text', 'header-color',
+  // Alignment
+  'alignment', 'center', 'left', 'right',
+  // Borders and effects
   'borders', 'border-style', 'wrap-text', 'text-rotation', 'merge-cells',
   'banding', 'alternating-colors', 'row-banding', 'notes', 'comments'
 ];

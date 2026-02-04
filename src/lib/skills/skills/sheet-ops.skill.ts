@@ -14,14 +14,25 @@ import { GoogleSheetSkill, SkillExample } from '../types';
  * Capabilities for unified intent classifier
  */
 const SHEET_OPS_CAPABILITIES = [
+  // Freeze operations
   'freeze', 'unfreeze', 'freeze-rows', 'freeze-columns', 'freeze-header',
+  'header-row', 'lock-header', 'freeze-top',
+  // Hide/show
   'hide-rows', 'hide-columns', 'show-rows', 'show-columns', 'unhide',
+  // Insert/delete
   'insert-rows', 'insert-columns', 'delete-rows', 'delete-columns', 'add-rows',
+  // Sort operations
   'sort', 'sort-by', 'ascending', 'descending', 'a-z', 'z-a',
+  'order-by', 'arrange', 'sort-data',
+  // Clear operations
   'clear', 'clear-content', 'clear-format', 'clear-validation',
+  // Resize
   'resize', 'auto-fit', 'column-width', 'row-height', 'auto-resize',
+  // Sheet properties
   'rename-sheet', 'tab-color', 'sheet-color',
+  // Grouping
   'group-rows', 'group-columns', 'ungroup',
+  // Protection
   'protect', 'unprotect', 'lock-range'
 ];
 
