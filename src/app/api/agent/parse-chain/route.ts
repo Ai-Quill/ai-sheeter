@@ -28,21 +28,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 
-import { generateEmbedding } from '@/lib/ai/embeddings';
-import { findSimilarWorkflowsByEmbedding, getBaseExamplesFromDB, StoredWorkflow } from '@/lib/workflow-memory';
+// SIMPLIFIED: No longer using embeddings or DB lookups
+// import { generateEmbedding } from '@/lib/ai/embeddings';
+// import { findSimilarWorkflowsByEmbedding, getBaseExamplesFromDB, StoredWorkflow } from '@/lib/workflow-memory';
+import { StoredWorkflow } from '@/lib/workflow-memory'; // Only type needed
 import { buildSmartPrompt, DataContext } from '@/lib/workflow-memory/prompt-builder';
 import { analyzeRequest } from '@/lib/skills';
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
 import { getModel } from '@/lib/ai/models';
 import { supabaseAdmin } from '@/lib/supabase';
-import { classifyIntent, learnFromOutcome, IntentClassification } from '@/lib/intent';
+// SIMPLIFIED: Intent classification disabled - AI handles from instructions
+// import { classifyIntent, IntentClassification } from '@/lib/intent';
+import type { IntentClassification } from '@/lib/intent'; // Only type needed
 import { normalizeSheetResponse } from '@/lib/response';
 import { getSkillById, GoogleSheetSkill } from '@/lib/skills';
 
-// Unified intent classification is ALWAYS enabled
-// The whole point is to avoid brittle regex patterns - use AI to understand intent
-// Only disable if explicitly set to 'false' (for debugging purposes only)
-const USE_UNIFIED_INTENT = process.env.USE_UNIFIED_INTENT !== 'false';
+// SIMPLIFIED: Intent classification disabled
+// Modern LLMs understand intent from skill instructions alone.
+// This removes embedding generation and cache lookups.
+const USE_UNIFIED_INTENT = false;
 
 // ============================================
 // COLUMN UTILITIES (NO HARDCODED VALUES)
@@ -208,53 +212,8 @@ const VALID_ACTIONS = [
 // SKILL USAGE RECORDING (for dynamic examples)
 // ============================================
 
-/**
- * Record a successful skill execution as a potential example
- * 
- * This feeds the dynamic examples system - successful executions
- * can be retrieved as few-shot examples for similar future requests.
- */
-async function recordSkillExecution(params: {
-  skillId: string;
-  command: string;
-  embedding: number[] | null;
-  aiResponse: Record<string, unknown>;
-  dataContext?: Record<string, unknown>;
-}): Promise<void> {
-  const { skillId, command, embedding, aiResponse, dataContext } = params;
-  
-  if (!embedding) {
-    console.log('[parse-chain] No embedding available - skipping skill recording');
-    return;
-  }
-  
-  try {
-    // Format embedding as Postgres array string for pgvector
-    const embeddingStr = `[${embedding.join(',')}]`;
-    
-    // Record the skill usage with is_good_example = true (successful execution)
-    const { error } = await supabaseAdmin.rpc('record_skill_usage', {
-      p_skill_id: skillId,
-      p_skill_version: '1.0.0',
-      p_command: command,
-      p_command_embedding: embeddingStr,
-      p_success: true,
-      p_ai_response: aiResponse,
-      p_data_context: dataContext || {},
-      p_is_good_example: true,
-      p_example_quality_score: 0.8  // Default quality for auto-recorded examples
-    });
-    
-    if (error) {
-      console.error('[parse-chain] Error recording skill usage:', error);
-    } else {
-      console.log(`[parse-chain] ✅ Recorded skill execution as potential example: ${skillId}`);
-    }
-  } catch (err) {
-    // Non-fatal - don't block the response
-    console.error('[parse-chain] Error recording skill execution:', err);
-  }
-}
+// REMOVED: recordSkillExecution function
+// Learning system disabled - trusting AI with instructions alone
 
 // ============================================
 // SMART CLARIFICATION GENERATOR
@@ -439,74 +398,19 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Sample data columns:', Object.keys(dataContext.sampleData).join(', ') || 'none');
     
     // ============================================
-    // 2.5. UNIFIED INTENT CLASSIFICATION
+    // SIMPLIFIED: No intent classification needed
+    // AI handles intent from skill instructions alone
     // ============================================
-    // AI-driven intent classification using:
-    // 1. Embedding cache lookup (learned patterns from successful executions)
-    // 2. AI classification for ambiguous cases
-    // 3. Heuristic fallback only if AI fails
-    //
-    // NO hardcoded pre-checks here - let the learning system handle it.
-    // If classification is wrong, the system learns from the failure.
-    let intentClassification: IntentClassification | null = null;
-    
-    if (USE_UNIFIED_INTENT) {
-      console.log('[parse-chain] 🧠 Using unified intent classifier');
-      try {
-        intentClassification = await classifyIntent(command, dataContext);
-        console.log('[parse-chain] Intent classification:', {
-          outputMode: intentClassification.outputMode,
-          skillId: intentClassification.skillId,
-          confidence: intentClassification.confidence.toFixed(2),
-          source: intentClassification.source,
-          timeMs: intentClassification.classificationTimeMs
-        });
-        
-        // If classifier is confident and source is cache, we can optimize the path
-        if (intentClassification.source === 'cache' && intentClassification.confidence >= 0.9) {
-          console.log('[parse-chain] ⚡ High-confidence cache hit - using optimized path');
-        }
-      } catch (classifyError) {
-        // Classifier has built-in fallback, but if it completely fails, continue without classification
-        // The prompt builder will handle this gracefully
-        console.warn('[parse-chain] Intent classification failed:', classifyError);
-        intentClassification = null;
-      }
-    } else {
-      // This branch only executes if USE_UNIFIED_INTENT is explicitly set to 'false'
-      // Used only for debugging - should never happen in production
-      console.log('[parse-chain] ⚠️ Unified intent DISABLED - AI will make all decisions');
-    }
+    console.log('[parse-chain] SIMPLIFIED - AI determines intent from instructions');
 
-    // 3. Generate embedding for semantic search
-    let embedding: number[] | null = null;
-    let similarWorkflows: StoredWorkflow[] = [];
-    
-    try {
-      embedding = await generateEmbedding(command);
-      console.log('[parse-chain] Generated embedding');
-      
-      // 3. Find similar successful workflows
-      similarWorkflows = await findSimilarWorkflowsByEmbedding(embedding, 3, 0.7);
-      console.log(`[parse-chain] Found ${similarWorkflows.length} similar workflows`);
-      
-      if (similarWorkflows.length > 0) {
-        console.log('[parse-chain] Best match similarity:', similarWorkflows[0].similarity?.toFixed(3));
-      }
-    } catch (embeddingError) {
-      // Embedding service unavailable - continue without semantic search
-      console.warn('[parse-chain] Embedding failed, will use base examples:', embeddingError);
-    }
-
-    // 3.5. Get base examples from database (used as fallback if no similar workflows)
-    let baseExamples: StoredWorkflow[] = [];
-    try {
-      baseExamples = await getBaseExamplesFromDB(6); // Get more than we need
-      console.log(`[parse-chain] Fetched ${baseExamples.length} base examples from database`);
-    } catch (baseError) {
-      console.warn('[parse-chain] Could not fetch base examples from database:', baseError);
-      // Will use minimal hardcoded fallback in prompt-builder
-    }
+    // ============================================
+    // SIMPLIFIED: No embedding or DB lookups needed
+    // AI handles intent from skill instructions alone
+    // ============================================
+    const embedding: number[] | null = null;
+    const similarWorkflows: StoredWorkflow[] = [];
+    const baseExamples: StoredWorkflow[] = [];
+    console.log('[parse-chain] SIMPLIFIED - no embeddings or DB lookups');
 
     // 4. Analyze request for vagueness/complexity
     const requestAnalysis = analyzeRequest(command, dataContext);
@@ -519,11 +423,8 @@ export async function POST(request: NextRequest) {
     });
     
     // 4.5. Build smart prompt (uses adaptive skills or legacy based on config)
-    // Pass intent classification to force the correct skill
-    const promptOptions = intentClassification ? {
-      forceSkillId: intentClassification.skillId || undefined,
-      confidence: intentClassification.confidence,
-    } : {};
+    // SIMPLIFIED: No forced skill - AI determines from instructions
+    const promptOptions = {};
     
     const prompt = await buildSmartPrompt(command, dataContext, similarWorkflows, baseExamples, promptOptions);
     console.log('[parse-chain] Prompt length:', prompt.length, 'chars');
@@ -542,7 +443,8 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] AI raw response (first 500 chars):', text.substring(0, 500));
 
     // 6. Parse and validate (lightly!) - pass intent classification for skill-aware handling
-    const chain = parseAndValidate(text, dataContext, command, embedding, explicitOutputColumn, intentClassification);
+    // SIMPLIFIED: No intent classification - pass null
+    const chain = parseAndValidate(text, dataContext, command, embedding, explicitOutputColumn, null);
     
     // Debug: Log what we're returning - including per-step column assignments
     console.log('[parse-chain] Returning steps:', chain.steps.map(s => ({ 
@@ -564,38 +466,14 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Response JSON (input config):', responseJson);
     
     // ============================================
-    // RECORD SUCCESSFUL SKILL EXECUTION
-    // This feeds the dynamic examples system - successful sheet actions
-    // can be used as few-shot examples for similar future requests.
+    // LEARNING DISABLED - Trusting AI with instructions
     // ============================================
-    if (chain.outputMode === 'sheet' && chain.sheetAction && embedding) {
-      // Record asynchronously (don't block the response)
-      recordSkillExecution({
-        skillId: chain.sheetAction,
-        command,
-        embedding,
-        aiResponse: {
-          outputMode: chain.outputMode,
-          sheetAction: chain.sheetAction,
-          sheetConfig: chain.sheetConfig || {},
-          summary: chain.summary,
-        },
-        dataContext: dataContext as unknown as Record<string, unknown>,
-      }).catch(err => console.error('[parse-chain] Background skill recording failed:', err));
-    }
-    
+    // Modern LLMs handle schemas well without example databases.
+    // This removes embedding generation and database overhead.
+    // 
+    // REMOVED: recordSkillExecution() - dynamic examples system
+    // REMOVED: learnFromOutcome() - intent cache learning
     // ============================================
-    // UNIFIED INTENT LEARNING LOOP
-    // Record classification outcome for cache improvement
-    // ============================================
-    if (USE_UNIFIED_INTENT && intentClassification) {
-      // Record asynchronously (don't block the response)
-      learnFromOutcome({
-        command,
-        classification: intentClassification,
-        success: true, // Successful response generation
-      }).catch(err => console.error('[parse-chain] Background intent learning failed:', err));
-    }
     
     const elapsed = Date.now() - startTime;
     console.log(`[parse-chain] Completed in ${elapsed}ms`);

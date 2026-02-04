@@ -37,16 +37,19 @@ export interface DynamicSkillExample extends SkillExample {
 /**
  * Load dynamic examples for a skill from the database
  * 
- * Uses vector similarity to find relevant examples that:
- * 1. Match the user's command semantically
- * 2. Were successful executions
- * 3. Are marked as good examples
+ * DISABLED: We trust the AI to understand from skill instructions alone.
+ * Modern LLMs (GPT-4, Claude, Gemini) handle schemas well without examples.
+ * 
+ * This removes:
+ * - Embedding generation overhead
+ * - Database vector similarity queries
+ * - Seed maintenance burden
  * 
  * @param skillId - The skill identifier (e.g., 'format', 'dataValidation')
  * @param command - The user's command to find similar examples for
  * @param maxExamples - Maximum number of examples to return
  * @param similarityThreshold - Minimum similarity score (0-1)
- * @returns Array of skill examples from the database
+ * @returns Empty array - AI uses skill instructions instead
  */
 export async function loadDynamicExamples(
   skillId: string,
@@ -54,6 +57,11 @@ export async function loadDynamicExamples(
   maxExamples: number = 2,
   similarityThreshold: number = 0.5
 ): Promise<DynamicSkillExample[]> {
+  // SIMPLIFIED: Return empty array - AI handles it from instructions
+  console.log(`[DynamicExamples] DISABLED - trusting AI for ${skillId}`);
+  return [];
+  
+  /* ORIGINAL CODE - kept for reference
   try {
     // Generate embedding for the command
     const embedding = await generateEmbedding(command);
@@ -98,6 +106,7 @@ export async function loadDynamicExamples(
     console.error(`[DynamicExamples] Error loading examples for ${skillId}:`, error);
     return [];
   }
+  END OF ORIGINAL CODE */
 }
 
 /**

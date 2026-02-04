@@ -321,25 +321,26 @@ SELECT seed_skill_response_example(
 -- SHEET OPS SKILL EXAMPLES
 -- ============================================
 
--- Example 1: Freeze and sort
+-- Example 1: Freeze and sort (USES operations ARRAY)
 SELECT seed_skill_response_example(
   'sheetOps',
-  'Freeze the header row and sort by Sales descending',
+  'Freeze the header row and sort by Q2_Sales descending',
   '{
     "outputMode": "sheet",
     "sheetAction": "sheetOps",
     "sheetConfig": {
       "operations": [
-        { "operation": "freeze", "rows": 1 },
-        { "operation": "sort", "column": "C", "ascending": false }
+        { "operation": "freezeRows", "rows": 1 },
+        { "operation": "sort", "range": "A1:G31", "sortBy": [{ "column": "D", "ascending": false }] }
       ]
     },
-    "summary": "Freeze header and sort",
-    "clarification": "Freezing top row and sorting by Sales column descending."
-  }'::jsonb
+    "summary": "Freeze header and sort by Q2_Sales",
+    "clarification": "Freezing top row and sorting by Q2_Sales column descending."
+  }'::jsonb,
+  0.95
 );
 
--- Example 2: Just freeze
+-- Example 2: Just freeze rows
 SELECT seed_skill_response_example(
   'sheetOps',
   'Freeze the first row',
@@ -348,11 +349,28 @@ SELECT seed_skill_response_example(
     "sheetAction": "sheetOps",
     "sheetConfig": {
       "operations": [
-        { "operation": "freeze", "rows": 1 }
+        { "operation": "freezeRows", "rows": 1 }
       ]
     },
     "summary": "Freeze header row",
     "clarification": "Freezing the first row so it stays visible when scrolling."
+  }'::jsonb
+);
+
+-- Example 3: Sort only
+SELECT seed_skill_response_example(
+  'sheetOps',
+  'Sort by Sales column descending',
+  '{
+    "outputMode": "sheet",
+    "sheetAction": "sheetOps",
+    "sheetConfig": {
+      "operations": [
+        { "operation": "sort", "sortBy": [{ "column": "C", "ascending": false }] }
+      ]
+    },
+    "summary": "Sort data by Sales",
+    "clarification": "Sorting data by Sales column in descending order."
   }'::jsonb
 );
 

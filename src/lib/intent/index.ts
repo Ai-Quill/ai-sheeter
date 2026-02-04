@@ -1,57 +1,21 @@
 /**
- * Unified Intent Classification Module
+ * Intent Classification Module
  * 
- * This module provides AI-driven intent classification that replaces
- * hardcoded regex patterns across the codebase.
+ * SIMPLIFIED: Learning system disabled.
+ * Modern LLMs handle intent from skill instructions alone.
  * 
- * Usage:
- * ```typescript
- * import { classifyIntent, learnFromOutcome } from '@/lib/intent';
+ * Only types are exported for backwards compatibility.
  * 
- * // Classify a command
- * const classification = await classifyIntent(command, context);
- * 
- * // After execution, record the outcome for learning
- * await learnFromOutcome({ command, classification, success: true });
- * ```
- * 
- * @version 1.0.0
+ * @version 2.0.0 - Simplified
  * @created 2026-02-02
+ * @updated 2026-02-04
  */
 
-// Main classifier
-export {
-  classifyIntent,
-  learnFromOutcome,
-  fallbackClassify,
-  CACHE_SIMILARITY_THRESHOLD,
-  MIN_AI_CONFIDENCE,
-} from './classifier';
-
-// Cache operations
-export {
-  findSimilarIntent,
-  promoteToCache,
-  recordOutcome,
-  initializeSeedEmbeddings,
-  initializeSkillExampleEmbeddings,
-  areSeedEmbeddingsInitialized,
-  getMetrics,
-  getCacheStats,
-} from './cache';
-
-// Types
+// Types only - functions disabled
 export type {
   IntentClassification,
   IntentOutputMode,
   SkillId,
-  CachedIntent,
-  CacheLookupResult,
-  AIClassificationParams,
-  AIClassificationResult,
-  ClassificationOutcome,
-  ClassificationMetrics,
-  SeedExample,
   DataContext,
 } from './types';
 
@@ -59,3 +23,9 @@ export {
   SKILL_METADATA,
   ALL_SKILL_IDS,
 } from './types';
+
+// DEPRECATED: These functions are no longer used
+// The learning system has been simplified - AI handles intent from instructions
+// 
+// export { classifyIntent, learnFromOutcome } from './classifier';
+// export { findSimilarIntent, promoteToCache, initializeSeedEmbeddings } from './cache';

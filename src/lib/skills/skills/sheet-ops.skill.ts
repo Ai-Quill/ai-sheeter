@@ -126,13 +126,27 @@ using ANY of the 20+ operations below.
 - protectSheet: Protect entire sheet
   → { operation: "protectSheet", description: "Master data" }
 
-### Schema
+### Schema (IMPORTANT: Use operations ARRAY for multiple operations!)
 {
   "outputMode": "sheet",
   "sheetAction": "sheetOps",
   "sheetConfig": {
-    "operation": "[operation type from above]",
-    // Operation-specific parameters
+    "operations": [
+      { "operation": "[type]", ...params },
+      { "operation": "[type]", ...params }
+    ]
+  }
+}
+
+### Example: Freeze header and sort
+{
+  "outputMode": "sheet",
+  "sheetAction": "sheetOps",
+  "sheetConfig": {
+    "operations": [
+      { "operation": "freezeRows", "rows": 1 },
+      { "operation": "sort", "range": "A1:G31", "sortBy": [{ "column": "D", "ascending": false }] }
+    ]
   }
 }
 
