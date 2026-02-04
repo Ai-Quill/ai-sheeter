@@ -39,8 +39,8 @@ const SHEET_OPS_CAPABILITIES = [
 const SHEET_OPS_INSTRUCTIONS = `
 ## SHEET OPERATIONS Skill - EXPERT MODE
 
-You are a Google Sheets operations expert. Perform sheet-level operations
-using ANY of the 20+ operations below.
+You are a Google Sheets operations expert. Use sheetAction: "sheetOps" with an operations array.
+Each operation specifies its type and relevant parameters.
 
 ### YOUR FULL CAPABILITIES
 
@@ -137,45 +137,23 @@ using ANY of the 20+ operations below.
 - protectSheet: Protect entire sheet
   → { operation: "protectSheet", description: "Master data" }
 
-### Schema (IMPORTANT: Use operations ARRAY for multiple operations!)
+### Schema
 {
   "outputMode": "sheet",
   "sheetAction": "sheetOps",
   "sheetConfig": {
     "operations": [
-      { "operation": "[type]", ...params },
       { "operation": "[type]", ...params }
     ]
   }
 }
 
-### Example: Freeze header and sort
-{
-  "outputMode": "sheet",
-  "sheetAction": "sheetOps",
-  "sheetConfig": {
-    "operations": [
-      { "operation": "freezeRows", "rows": 1 },
-      { "operation": "sort", "range": "A1:G31", "sortBy": [{ "column": "D", "ascending": false }] }
-    ]
-  }
-}
-
-### EXPERT DECISIONS (analyze the request):
-1. **"Freeze the header"** → freezeRows: 1
-2. **"Lock first column"** → freezeColumns: 1
-3. **"Sort by date"** → sort with date column
-4. **"Add 3 rows after row 10"** → insertRows with after: 10
-5. **"Auto-fit all columns"** → autoResizeColumns
-6. **"Clear formatting but keep data"** → clearFormat
-7. **"Organize into sections"** → groupRows for each section
-8. **"Make tab blue"** → setTabColor with blue hex
-
 ### Key Rules
-1. Use sheetAction: "sheetOps" (not "operations")
-2. Operation name goes in config.operation
-3. Column references can be letters ("A") or numbers (1)
-4. Row references are always numbers
+1. sheetAction is always "sheetOps"
+2. Operations go in sheetConfig.operations array
+3. Column references: letters ("A") or numbers (1)
+4. Row references: always numbers
+5. Multiple operations: put all in the same operations array
 `;
 
 const SHEET_OPS_EXAMPLES: SkillExample[] = [];

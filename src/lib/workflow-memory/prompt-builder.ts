@@ -148,6 +148,8 @@ CRITICAL RULES - FOLLOW STRICTLY:
       - "writeData" - User pastes table/CSV data in the command and wants it written to the sheet
         Use when command contains INLINE TABLE DATA (markdown tables, CSV, pipe-separated, etc.)
         Parse the data into a 2D array and write to the specified location
+      - "sheetOps" - Sheet-level operations: freeze, sort, hide/show, insert/delete, resize, etc.
+        Uses sheetConfig.operations array where each item has { operation: "[type]", ...params }
       
    B. FORMULA MODE (outputMode: "formula") - Task can be done with native formulas
       Use when the transformation is mechanical and doesn't require understanding:
@@ -530,6 +532,21 @@ Example commands that should trigger writeData:
 - "Create a table from this: | Name | Age | City |..."
 - "Help me paste this data: Task, Assignee, Status..."
 - "Write this to the sheet: | Product | Price | Qty |..."
+
+For SHEET OPERATIONS (freeze, sort, hide, insert, delete, resize, etc.):
+Use sheetAction: "sheetOps" with an operations array. Each operation has its own type and parameters.
+{
+  "outputMode": "sheet",
+  "sheetAction": "sheetOps",
+  "sheetConfig": {
+    "operations": [
+      { "operation": "[operation-type]", ...relevant-params }
+    ]
+  }
+}
+
+Available operation types: freezeRows, freezeColumns, sort, hideRows, hideColumns, showRows, showColumns,
+insertRows, insertColumns, deleteRows, deleteColumns, clear, autoResizeColumns, setColumnWidth, etc.
 
 For FORMULA mode (prefer this for text operations - it's FREE!):
 {
