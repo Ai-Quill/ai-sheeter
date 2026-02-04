@@ -404,6 +404,143 @@ Jane,25,LA',
 );
 
 -- ============================================
+-- FORMULA SKILL EXAMPLES (Calculated Columns - FORMULA FIRST)
+-- Uses outputMode: "formula" NOT sheetAction
+-- ============================================
+
+-- Example 1: Conditional bonus calculation
+SELECT seed_skill_response_example(
+  'formula',
+  'Add a new column called Bonus that calculates 5% of Q2_Sales if they beat their target, otherwise 0',
+  '{
+    "outputMode": "formula",
+    "isMultiStep": false,
+    "isCommand": true,
+    "steps": [{
+      "action": "formula",
+      "description": "Bonus",
+      "prompt": "=IF(D{{ROW}}>E{{ROW}}, D{{ROW}}*0.05, 0)",
+      "outputFormat": "formula"
+    }],
+    "summary": "Add conditional bonus column",
+    "clarification": "Adding Bonus column: 5% of Q2 if Q2 > Target, otherwise 0.\n\n✅ FREE ✅ Instant ✅ Auto-updates"
+  }'::jsonb,
+  0.95
+);
+
+-- Example 2: Commission calculation
+SELECT seed_skill_response_example(
+  'formula',
+  'Create a Commission column that is 10% of Sales',
+  '{
+    "outputMode": "formula",
+    "isMultiStep": false,
+    "isCommand": true,
+    "steps": [{
+      "action": "formula",
+      "description": "Commission",
+      "prompt": "=C{{ROW}}*0.1",
+      "outputFormat": "formula"
+    }],
+    "summary": "Add commission column",
+    "clarification": "Adding Commission column: 10% of Sales.\n\n✅ FREE ✅ Instant ✅ Auto-updates"
+  }'::jsonb
+);
+
+-- Example 3: Variance calculation
+SELECT seed_skill_response_example(
+  'formula',
+  'Add a Variance column showing the difference between Actual and Budget',
+  '{
+    "outputMode": "formula",
+    "isMultiStep": false,
+    "isCommand": true,
+    "steps": [{
+      "action": "formula",
+      "description": "Variance",
+      "prompt": "=C{{ROW}}-D{{ROW}}",
+      "outputFormat": "formula"
+    }],
+    "summary": "Add variance column",
+    "clarification": "Adding Variance column: Actual minus Budget.\n\n✅ FREE ✅ Instant ✅ Auto-updates"
+  }'::jsonb
+);
+
+-- Example 4: Status based on performance
+SELECT seed_skill_response_example(
+  'formula',
+  'Add a Performance column that says Good if Sales > 100000, otherwise Needs Improvement',
+  '{
+    "outputMode": "formula",
+    "isMultiStep": false,
+    "isCommand": true,
+    "steps": [{
+      "action": "formula",
+      "description": "Performance",
+      "prompt": "=IF(C{{ROW}}>100000, \"Good\", \"Needs Improvement\")",
+      "outputFormat": "formula"
+    }],
+    "summary": "Add performance status column",
+    "clarification": "Adding Performance column based on sales threshold.\n\n✅ FREE ✅ Instant ✅ Auto-updates"
+  }'::jsonb
+);
+
+-- Example 5: Growth percentage calculation
+SELECT seed_skill_response_example(
+  'formula',
+  'Calculate the growth percentage between Q1 and Q2',
+  '{
+    "outputMode": "formula",
+    "isMultiStep": false,
+    "isCommand": true,
+    "steps": [{
+      "action": "formula",
+      "description": "Growth %",
+      "prompt": "=(D{{ROW}}-C{{ROW}})/C{{ROW}}",
+      "outputFormat": "formula"
+    }],
+    "summary": "Calculate growth percentage",
+    "clarification": "Adding Growth % column: (Q2 - Q1) / Q1.\n\n✅ FREE ✅ Instant ✅ Auto-updates"
+  }'::jsonb
+);
+
+-- ============================================
+-- FILTER SKILL EXAMPLES
+-- ============================================
+
+SELECT seed_skill_response_example(
+  'filter',
+  'Show only rows where Status is Active',
+  '{
+    "outputMode": "sheet",
+    "sheetAction": "filter",
+    "sheetConfig": {
+      "column": "F",
+      "condition": "equals",
+      "value": "Active"
+    },
+    "summary": "Filter by Active status",
+    "clarification": "Filtering to show only rows where Status equals Active."
+  }'::jsonb
+);
+
+SELECT seed_skill_response_example(
+  'filter',
+  'Filter to show sales greater than 150000',
+  '{
+    "outputMode": "sheet",
+    "sheetAction": "filter",
+    "sheetConfig": {
+      "column": "C",
+      "condition": "greaterThan",
+      "value": 150000
+    },
+    "summary": "Filter by sales amount",
+    "clarification": "Filtering to show rows where Sales is greater than 150000."
+  }'::jsonb
+);
+
+-- ============================================
 -- CLEANUP
 -- ============================================
 DROP FUNCTION IF EXISTS seed_skill_response_example;

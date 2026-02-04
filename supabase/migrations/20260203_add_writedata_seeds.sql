@@ -235,6 +235,68 @@ SELECT seed_intent_cache_placeholder(
 );
 
 -- ============================================
+-- FORMULA / AI-GENERATED COLUMN EXAMPLES
+-- ============================================
+
+SELECT seed_intent_cache_placeholder(
+  'Add a new column called Bonus that calculates 5% of Sales if they beat target',
+  'sheet', 'formula', 'formula', 'formula'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Create a Commission column that is 10% of Sales',
+  'sheet', 'formula', 'formula', 'formula'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Add a calculated column for profit margin',
+  'sheet', 'formula', 'formula', 'formula'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Generate a new column that shows the difference between Budget and Actual',
+  'sheet', 'formula', 'formula', 'formula'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Add a Performance column based on whether Sales exceed 100000',
+  'sheet', 'formula', 'formula', 'formula'
+);
+
+-- ============================================
+-- DATA VALIDATION EXAMPLES
+-- ============================================
+
+SELECT seed_intent_cache_placeholder(
+  'Add a dropdown to the Status column with Active, At Risk, Top Performer',
+  'sheet', 'dataValidation', 'dataValidation', 'dataValidation'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Create a dropdown list in column F with High, Medium, Low options',
+  'sheet', 'dataValidation', 'dataValidation', 'dataValidation'
+);
+
+-- ============================================
+-- FILTER EXAMPLES
+-- ============================================
+
+SELECT seed_intent_cache_placeholder(
+  'Show only rows where Status is Active',
+  'sheet', 'filter', 'filter', 'filter'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Filter to show sales greater than 150000',
+  'sheet', 'filter', 'filter', 'filter'
+);
+
+SELECT seed_intent_cache_placeholder(
+  'Hide rows where Region is South',
+  'sheet', 'filter', 'filter', 'filter'
+);
+
+-- ============================================
 -- CLEANUP
 -- ============================================
 DROP FUNCTION IF EXISTS seed_intent_cache_placeholder;
