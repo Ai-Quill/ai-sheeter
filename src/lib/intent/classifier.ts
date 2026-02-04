@@ -1,15 +1,23 @@
 /**
  * Unified Intent Classifier
  * 
- * Replaces scattered hardcoded regex patterns with an AI-driven
- * classification system that uses:
+ * ARCHITECTURE:
+ * 1. Try embedding cache lookup (learned patterns from successful executions)
+ * 2. Fall back to AI classification (ambiguous cases)
+ * 3. Heuristic fallback only if AI fails completely
  * 
- * 1. Embedding similarity for fast path (cached intents)
- * 2. AI classification for ambiguous cases
- * 3. Learning loop to improve over time
+ * LEARNING: The cache learns from successful executions. When users
+ * run commands that work, they get promoted to the cache. Over time,
+ * the cache handles more and more cases without AI.
  * 
- * @version 1.0.0
+ * DON'T add hardcoded regex patterns here. Instead:
+ * - Seed the cache with good examples (migrations)
+ * - Improve the AI classification prompt
+ * - Trust the learning system
+ * 
+ * @version 2.1.0
  * @created 2026-02-02
+ * @updated 2026-02-03 - Removed hardcoded patterns, trust learning system
  */
 
 import { generateText } from 'ai';
@@ -45,9 +53,14 @@ const CLASSIFIER_MODEL = process.env.INTENT_CLASSIFIER_MODEL || 'gpt-5-mini';
 // ============================================
 
 /**
- * Classify user intent using hybrid approach:
- * 1. Try embedding cache lookup first (fast path)
- * 2. Fall back to AI classification if no cache hit
+ * Classify user intent using the learning system:
+ * 
+ * 1. Try embedding cache lookup (learned patterns) - ~50ms
+ * 2. Fall back to AI classification (new patterns) - ~500ms
+ * 3. Heuristic fallback only if AI fails completely
+ * 
+ * The cache learns from successful executions. Over time, more
+ * patterns are handled by cache (fast) instead of AI (slow).
  * 
  * @param command - User's command
  * @param context - Data context from spreadsheet
@@ -60,14 +73,19 @@ export async function classifyIntent(
   const startTime = Date.now();
   
   try {
-    // Step 1: Generate embedding for the command
+    // ============================================
+    // STEP 1: Generate embedding for cache lookup
+    // ============================================
     const embedding = await generateEmbedding(command);
     
-    // Step 2: Try cache lookup (fast path)
+    // ============================================
+    // STEP 2: Try embedding cache lookup (learned patterns)
+    // ============================================
     const cacheResult = await findSimilarIntent(embedding, CACHE_SIMILARITY_THRESHOLD);
     
     if (cacheResult.hit && cacheResult.cachedIntent) {
-      console.log(`[Classifier] Cache hit! Similarity: ${cacheResult.similarity?.toFixed(3)}, Command: "${cacheResult.cachedIntent.canonicalCommand}"`);
+      console.log(`[Classifier] 📦 Cache hit! Similarity: ${cacheResult.similarity?.toFixed(3)}`);
+      console.log(`[Classifier] Matched: "${cacheResult.cachedIntent.canonicalCommand.substring(0, 50)}..."`);
       
       return {
         ...cacheResult.cachedIntent.intent,
@@ -77,9 +95,12 @@ export async function classifyIntent(
       };
     }
     
-    console.log('[Classifier] Cache miss, falling back to AI classification');
+    console.log('[Classifier] Cache miss, using AI classification');
     
-    // Step 3: AI classification (slow path)
+    // ============================================
+    // STEP 3: AI classification (slow path)
+    // This will be learned and cached if successful
+    // ============================================
     const aiResult = await classifyWithAI({ command, context });
     
     return {
@@ -91,7 +112,7 @@ export async function classifyIntent(
   } catch (error) {
     console.error('[Classifier] Error during classification:', error);
     
-    // Fallback: Use heuristic classification
+    // Heuristic fallback only if everything else fails
     return {
       ...classifyWithHeuristics(command),
       source: 'fallback',
@@ -145,6 +166,9 @@ async function classifyWithAI(params: AIClassificationParams): Promise<IntentCla
 
 /**
  * Build the classification prompt
+ * 
+ * Keep this simple - the AI is smart enough to understand intent.
+ * Don't over-engineer with complex rules.
  */
 function buildClassificationPrompt(command: string, context: DataContext): string {
   // Build context summary
@@ -155,34 +179,31 @@ function buildClassificationPrompt(command: string, context: DataContext): strin
     .map(id => `${id}: ${SKILL_METADATA[id].description}`)
     .join('\n');
   
-  return `Classify this Google Sheets command into the correct category.
+  return `Classify this Google Sheets command.
 
 COMMAND: "${command}"
 
-DATA CONTEXT:
+CONTEXT:
 ${contextSummary}
 
-AVAILABLE SKILLS:
+SKILLS:
 ${skillList}
 
-INSTRUCTIONS:
-1. Determine the outputMode:
-   - "sheet": Direct action on spreadsheet (format, chart, filter, validation, etc.)
-   - "chat": Question or request for information
-   - "formula": Simple text operation (translate, uppercase, extract)
-   - "workflow": Complex multi-step operation
+RULES:
+1. If command contains TABLE DATA (CSV rows, markdown table, comma-separated values with newlines) → writeData
+2. If asking a QUESTION (what, which, how many, summarize) → chat
+3. If requesting a CHART/GRAPH → chart
+4. If requesting FORMATTING/STYLING → format
+5. If requesting FILTER → filter
+6. If requesting DROPDOWN/CHECKBOX → dataValidation
+7. If requesting TRANSLATE/UPPERCASE → formula
+8. Complex multi-step analysis → workflow
 
-2. Determine the skillId (for sheet/formula modes):
-   - Match to one of: ${ALL_SKILL_IDS.join(', ')}
-   - Use "chat" for questions
-
-3. For sheet actions, determine sheetAction type.
-
-RESPOND WITH ONLY JSON (no markdown):
+RESPOND WITH JSON ONLY:
 {
   "outputMode": "sheet|chat|formula|workflow",
-  "skillId": "format|chart|...|null",
-  "sheetAction": "format|chart|...|null",
+  "skillId": "${ALL_SKILL_IDS.join('|')}|null",
+  "sheetAction": "writeData|format|chart|conditionalFormat|dataValidation|filter|sheetOps|null",
   "confidence": 0.0-1.0,
   "reasoning": "brief explanation"
 }`;
@@ -294,36 +315,32 @@ function validateSheetAction(action: string | null): SheetActionType | undefined
 // ============================================
 
 /**
- * Simple heuristic classification when AI is unavailable
- * This is the minimal fallback to ensure the system always works
+ * Minimal heuristic classification when AI is unavailable
+ * 
+ * This should RARELY be used - only when:
+ * 1. Cache lookup fails (no similar patterns learned)
+ * 2. AI classification fails (API error, timeout)
+ * 
+ * Keep this minimal. If we're relying on heuristics too much,
+ * we need to add more seed examples to the cache.
  */
 function classifyWithHeuristics(command: string): IntentClassification {
   const cmdLower = command.toLowerCase();
   
-  // Check for pasted table data (markdown pattern)
-  if (/\|.*\|.*\|/.test(command)) {
+  // Check for inline table data (CSV or markdown)
+  // This is a strong signal that rarely needs AI
+  const hasMarkdownTable = /\|.*\|.*\|/.test(command);
+  const hasCSVData = command.includes(',') && command.includes('\n') && 
+    (command.match(/\n[^\n]*,[^\n]*/g) || []).length >= 2;
+  
+  if (hasMarkdownTable || hasCSVData) {
     return {
       outputMode: 'sheet',
       skillId: 'writeData',
       sheetAction: 'writeData',
       confidence: 0.9,
       source: 'fallback',
-      reasoning: 'Detected markdown table pattern'
-    };
-  }
-  
-  // Check for "create table" with data patterns
-  // Covers: "create table for/from/based on this data", "help me create a table", etc.
-  if (/\bcreate\s+(a\s+)?table\b/i.test(cmdLower) || 
-      /\btable\s+(for|from|based on|with)\s+(this\s+)?data\b/i.test(cmdLower) ||
-      (/\bdata\s*:/i.test(cmdLower) && /,/.test(command))) {
-    return {
-      outputMode: 'sheet',
-      skillId: 'writeData',
-      sheetAction: 'writeData',
-      confidence: 0.85,
-      source: 'fallback',
-      reasoning: 'Detected create table / data import pattern'
+      reasoning: 'Detected inline table data'
     };
   }
   

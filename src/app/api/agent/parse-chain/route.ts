@@ -441,8 +441,13 @@ export async function POST(request: NextRequest) {
     // ============================================
     // 2.5. UNIFIED INTENT CLASSIFICATION
     // ============================================
-    // Always use AI-driven intent classification - no more brittle regex patterns
-    // The classifier uses embeddings + AI to understand intent semantically
+    // AI-driven intent classification using:
+    // 1. Embedding cache lookup (learned patterns from successful executions)
+    // 2. AI classification for ambiguous cases
+    // 3. Heuristic fallback only if AI fails
+    //
+    // NO hardcoded pre-checks here - let the learning system handle it.
+    // If classification is wrong, the system learns from the failure.
     let intentClassification: IntentClassification | null = null;
     
     if (USE_UNIFIED_INTENT) {
