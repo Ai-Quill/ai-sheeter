@@ -7,8 +7,9 @@
  * 2. Skill usage seeds (for few-shot response examples)
  * 
  * POST /api/admin/intent/init
+ * Headers: x-admin-key: <ADMIN_SECRET>
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @created 2026-02-02
  * @updated 2026-02-04
  */
@@ -21,7 +22,26 @@ import {
   getMetrics 
 } from '@/lib/intent';
 
+// Admin secret - should match what you use when calling the endpoint
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'aisheet-admin-2026-secure';
+
+/**
+ * Verify admin authentication
+ */
+function verifyAdminAuth(request: NextRequest): boolean {
+  const adminKey = request.headers.get('x-admin-key');
+  return adminKey === ADMIN_SECRET;
+}
+
 export async function POST(request: NextRequest) {
+  // Verify admin authentication
+  if (!verifyAdminAuth(request)) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized - invalid admin key' },
+      { status: 401 }
+    );
+  }
+
   try {
     console.log('[Intent Init] Starting seed embeddings initialization...');
     
@@ -64,6 +84,14 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // Verify admin authentication
+  if (!verifyAdminAuth(request)) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized - invalid admin key' },
+      { status: 401 }
+    );
+  }
+
   try {
     const [stats, metrics] = await Promise.all([
       getCacheStats(),
