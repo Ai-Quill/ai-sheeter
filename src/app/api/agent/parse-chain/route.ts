@@ -49,6 +49,15 @@ import { getSkillById, GoogleSheetSkill } from '@/lib/skills';
 const USE_UNIFIED_INTENT = false;
 
 // ============================================
+// SDK AGENT FEATURE FLAG
+// ============================================
+// Enable the new AI SDK ToolLoopAgent with self-correction
+// Set USE_SDK_AGENT=true in environment to enable
+const USE_SDK_AGENT = process.env.USE_SDK_AGENT === 'true';
+
+import { createSheetsAgent, convertAgentResultToLegacyFormat, type DataContext as AgentDataContext } from '@/lib/agents';
+
+// ============================================
 // COLUMN UTILITIES (NO HARDCODED VALUES)
 // ============================================
 
@@ -343,6 +352,72 @@ function generateSmartClarification(
 }
 
 // ============================================
+// SDK AGENT CONTEXT BUILDER
+// ============================================
+
+/**
+ * Convert frontend context to SDK Agent DataContext format
+ */
+function buildAgentDataContext(context: any, command: string): AgentDataContext {
+  const selectionInfo = context?.selectionInfo || {};
+  const explicitRowInfo = context?.explicitRowInfo || {};
+  
+  // Build headers map from context
+  const headers: Record<string, string> = {};
+  if (context?.headers && Array.isArray(context.headers)) {
+    context.headers.forEach((name: string, idx: number) => {
+      const col = String.fromCharCode(65 + idx); // A, B, C, ...
+      if (name) headers[col] = name;
+    });
+  } else if (context?.headerRow && Array.isArray(context.headerRow)) {
+    context.headerRow.forEach((name: string, idx: number) => {
+      const col = String.fromCharCode(65 + idx);
+      if (name) headers[col] = name;
+    });
+  } else if (explicitRowInfo.headerNames) {
+    explicitRowInfo.headerNames.forEach((h: { column: string; name: string }) => {
+      headers[h.column] = h.name;
+    });
+  }
+  
+  // Get columns with data
+  const columnsWithData = selectionInfo.columnsWithData || Object.keys(headers);
+  const emptyColumns = selectionInfo.emptyColumns || [];
+  
+  // Get row info
+  const headerRow = explicitRowInfo.headerRowNumber || 1;
+  const dataStartRow = explicitRowInfo.dataStartRow || selectionInfo.dataStartRow || 2;
+  const dataEndRow = explicitRowInfo.dataEndRow || selectionInfo.dataEndRow || 100;
+  const rowCount = dataEndRow - dataStartRow + 1;
+  
+  // Get data range
+  const dataRange = explicitRowInfo.dataRange || 
+    selectionInfo.dataRange || 
+    `${columnsWithData[0] || 'A'}${dataStartRow}:${columnsWithData[columnsWithData.length - 1] || 'A'}${dataEndRow}`;
+  
+  // Get sample data
+  const sampleData: Record<string, string[]> = {};
+  if (context?.sampleData) {
+    Object.entries(context.sampleData).forEach(([col, values]) => {
+      sampleData[col] = (values as any[]).slice(0, 3).map(v => String(v));
+    });
+  }
+  
+  return {
+    headers,
+    dataRange,
+    rowCount,
+    sampleData,
+    emptyColumns,
+    columnsWithData,
+    headerRow,
+    dataStartRow,
+    dataEndRow,
+    userGoal: command,
+  };
+}
+
+// ============================================
 // MAIN HANDLER
 // ============================================
 
@@ -368,7 +443,53 @@ export async function POST(request: NextRequest) {
     
     const { provider, apiKey, modelId, model } = auth;
 
-    console.log('[parse-chain] Starting workflow generation');
+    // ============================================
+    // SDK AGENT PATH (Feature Flag)
+    // ============================================
+    if (USE_SDK_AGENT) {
+      console.log('[parse-chain] 🚀 Using SDK Agent with self-correction');
+      
+      try {
+        // Build agent-compatible data context
+        const agentContext: AgentDataContext = buildAgentDataContext(context, command);
+        
+        // Get evaluator model for self-correction
+        // Uses the user's chosen model (from frontend) for evaluation
+        // No hardcoding, no separate config - just uses what the user already selected!
+        const enableSelfCorrection = process.env.AGENT_SELF_CORRECTION !== 'false';
+        let evaluatorModel = null;
+        
+        if (enableSelfCorrection) {
+          // Use the same model the user selected for evaluation
+          // If they want faster/cheaper evaluation, they can select a cheaper model in frontend
+          // or disable self-correction entirely
+          evaluatorModel = model;
+          console.log(`[parse-chain] Self-correction enabled using ${provider}/${modelId}`);
+        } else {
+          console.log('[parse-chain] Self-correction disabled');
+        }
+        
+        // Create and run the agent
+        const agent = createSheetsAgent(model, evaluatorModel, agentContext);
+        const result = await agent.generate({ prompt: command });
+        
+        // Convert to legacy format for frontend compatibility
+        const legacyResponse = convertAgentResultToLegacyFormat(result, agentContext, command);
+        
+        const elapsed = Date.now() - startTime;
+        console.log(`[parse-chain] SDK Agent completed in ${elapsed}ms`);
+        console.log('[parse-chain] Tool calls:', legacyResponse._toolCalls);
+        console.log('[parse-chain] Self-correction steps:', result._stepResults?.length || 0);
+        
+        return NextResponse.json(legacyResponse);
+        
+      } catch (agentError) {
+        console.error('[parse-chain] SDK Agent error, falling back to legacy:', agentError);
+        // Fall through to legacy path
+      }
+    }
+
+    console.log('[parse-chain] Starting workflow generation (legacy path)');
     console.log('[parse-chain] Command:', command.substring(0, 80) + '...');
 
     // Log received context for debugging
