@@ -411,7 +411,7 @@ export function convertAgentResultToLegacyFormat(
     stepCount: steps.length,
     needsClarification,
     sheetConfigKeys: Object.keys(sheetConfig),
-    steps: steps.map(s => ({
+    steps: steps.map((s: any) => ({
       action: s.action,
       hasFormula: !!s.formula,
       hasRange: !!s.range,
