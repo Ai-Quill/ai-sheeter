@@ -27,6 +27,7 @@ Capabilities:
 - Banding: alternating row colors`,
 
   inputSchema: z.object({
+    description: z.string().optional().describe('Brief description of this step for UI, e.g., "Bold blue headers", "Add borders"'),
     range: z.string().describe('Cell range in A1 notation, e.g., "A1:B10" or "A:A"'),
     formatType: z.enum(['currency', 'percent', 'number', 'date', 'datetime', 'text', 'custom']).optional(),
     options: z.object({
@@ -94,6 +95,7 @@ Expert decisions:
 - Correlation → scatter with trendline`,
 
   inputSchema: z.object({
+    description: z.string().optional().describe('Brief description for UI, e.g., "Sales by region chart"'),
     chartType: z.enum(['line', 'bar', 'column', 'pie', 'area', 'scatter', 'combo', 'histogram']),
     domainColumn: z.string().describe('Category/X-axis column letter'),
     dataColumns: z.array(z.string()).describe('Numeric columns to chart'),
@@ -124,6 +126,7 @@ Rule types:
 - Color scales (gradient)`,
 
   inputSchema: z.object({
+    description: z.string().optional().describe('Brief description for UI, e.g., "Highlight low values red"'),
     range: z.string().describe('Range to apply rules to'),
     rules: z.array(z.object({
       type: z.enum(['greaterThan', 'lessThan', 'between', 'equalTo', 'textContains', 'customFormula', 'colorScale']),
@@ -164,6 +167,7 @@ export const filterTool = tool({
   description: `Filter data to show/hide rows based on criteria.`,
 
   inputSchema: z.object({
+    description: z.string().optional().describe('Brief description for UI, e.g., "Add filter dropdowns", "Filter by status"'),
     range: z.string().describe('Data range including headers'),
     criteria: z.array(z.object({
       column: z.string().describe('Column letter'),
@@ -183,6 +187,7 @@ export const sheetOpsTool = tool({
   description: `Sheet operations: freeze rows/columns, sort, hide/show, resize, protect.`,
 
   inputSchema: z.object({
+    description: z.string().optional().describe('Brief description for UI, e.g., "Freeze header row", "Sort by date"'),
     operations: z.array(z.object({
       operation: z.enum([
         'freezeRows', 'freezeColumns', 'unfreezeRows', 'unfreezeColumns',

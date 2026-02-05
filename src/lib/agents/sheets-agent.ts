@@ -104,7 +104,13 @@ You have 10 tools for spreadsheet operations:
 - For formulas: include the exact formula string, output column, and description
 - For formatting: include the exact range and all style options
 - For charts: include data range, chart type, title, and position
-- Never leave parameters empty or use placeholders`;
+- Never leave parameters empty or use placeholders
+
+## Step Descriptions (CRITICAL for UI)
+When calling tools, always include a brief, user-friendly "description" parameter (10-50 chars) that explains what this specific step does:
+- GOOD: "Format header with bold blue", "Apply currency to sales", "Add filter dropdowns"
+- BAD: "format", "step 1", "formatting data"
+If a tool has a description parameter, provide a meaningful one - this is shown to users in the UI.`;
 }
 
 // ============================================
