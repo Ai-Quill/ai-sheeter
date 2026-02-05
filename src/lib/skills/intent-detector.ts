@@ -119,16 +119,17 @@ export function detectIntent(
       }
     }
     
-    // GENERIC VAGUENESS HANDLING:
-    // If request is vague/composite and needs suggestions, boost chat skill
-    // and reduce confidence of action skills
-    if (needsSuggestions && requestAnalysis.type !== 'question') {
+    // VAGUENESS HANDLING:
+    // High-confidence matches (>= 0.8) are trusted - don't reduce them
+    // Only apply vagueness penalty to medium-confidence matches
+    const isHighConfidence = confidence >= SKILL_THRESHOLDS.HIGH_CONFIDENCE;
+    
+    if (!isHighConfidence && needsSuggestions && requestAnalysis.type !== 'question') {
       if (skill.id === 'chat') {
-        // Boost chat skill for vague requests
+        // Boost chat skill for vague requests with no strong skill match
         confidence = Math.max(confidence, 0.75);
       } else if (skill.outputMode === 'sheet') {
-        // Reduce action skill confidence for vague requests
-        // They shouldn't execute directly without clarification
+        // Only reduce low-confidence action skills for vague requests
         confidence *= (requestAnalysis.specificity * 0.8);
       }
     }
