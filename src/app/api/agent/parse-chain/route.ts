@@ -452,17 +452,18 @@ export async function POST(request: NextRequest) {
       try {
         // Build agent-compatible data context
         const agentContext: AgentDataContext = buildAgentDataContext(context, command);
+        console.log('[parse-chain] Agent context:', {
+          headers: Object.keys(agentContext.headers),
+          dataRange: agentContext.dataRange,
+          rowCount: agentContext.rowCount,
+          emptyColumns: agentContext.emptyColumns.slice(0, 3),
+        });
         
         // Get evaluator model for self-correction
-        // Uses the user's chosen model (from frontend) for evaluation
-        // No hardcoding, no separate config - just uses what the user already selected!
         const enableSelfCorrection = process.env.AGENT_SELF_CORRECTION !== 'false';
         let evaluatorModel = null;
         
         if (enableSelfCorrection) {
-          // Use the same model the user selected for evaluation
-          // If they want faster/cheaper evaluation, they can select a cheaper model in frontend
-          // or disable self-correction entirely
           evaluatorModel = model;
           console.log(`[parse-chain] Self-correction enabled using ${provider}/${modelId}`);
         } else {
@@ -473,18 +474,32 @@ export async function POST(request: NextRequest) {
         const agent = createSheetsAgent(model, evaluatorModel, agentContext);
         const result = await agent.generate({ prompt: command });
         
+        console.log('[parse-chain] Agent result:', {
+          text: result.text?.substring(0, 100),
+          toolCalls: result.toolCalls.length,
+          toolCallNames: result.toolCalls.map(tc => tc.toolName),
+        });
+        
         // Convert to legacy format for frontend compatibility
         const legacyResponse = convertAgentResultToLegacyFormat(result, agentContext, command);
         
+        console.log('[parse-chain] Legacy response:', {
+          isMultiStep: legacyResponse.isMultiStep,
+          isCommand: legacyResponse.isCommand,
+          steps: legacyResponse.steps?.length,
+          outputMode: legacyResponse.outputMode,
+          sheetAction: legacyResponse.sheetAction,
+          inputRange: legacyResponse.inputRange,
+        });
+        
         const elapsed = Date.now() - startTime;
-        console.log(`[parse-chain] SDK Agent completed in ${elapsed}ms`);
-        console.log('[parse-chain] Tool calls:', legacyResponse._toolCalls);
-        console.log('[parse-chain] Self-correction steps:', result._stepResults?.length || 0);
+        console.log(`[parse-chain] ✅ SDK Agent completed in ${elapsed}ms`);
         
         return NextResponse.json(legacyResponse);
         
       } catch (agentError) {
-        console.error('[parse-chain] SDK Agent error, falling back to legacy:', agentError);
+        console.error('[parse-chain] ❌ SDK Agent error, falling back to legacy:', agentError);
+        console.error('[parse-chain] Error stack:', (agentError as Error).stack);
         // Fall through to legacy path
       }
     }
