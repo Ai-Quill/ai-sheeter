@@ -413,9 +413,22 @@ The DATA CONTEXT provides exact row/column information. ALWAYS use it:
 - explicitRowInfo.headerRange → exact header row (e.g., "A1:G1")
 - explicitRowInfo.dataStartRow / dataEndRow → data rows (e.g., 2 to 7)
 - explicitRowInfo.dataRange → exact data range (e.g., "A2:G7")
+- headers → maps column letters to names (e.g., {"A": "Region", "G": "Growth"})
+
+When user refers to a column BY NAME (e.g., "Growth column", "the Status column"):
+- Look up the column letter from the headers object
+- Example: headers shows {"G": "Growth"} → "Growth column" means column G
 
 When user says "column G", derive the range from context:
 - If dataStartRow=2, dataEndRow=7 → use "G2:G7" (NOT "G:G" or "G1:G100")
+
+⭐ GOLDEN RULE 1.5 - REPLACING vs ADDING:
+When user wants to REPLACE/CONVERT an existing column (e.g., "turn Growth into formula"):
+- outputColumn should be the EXISTING column letter (e.g., "G" for Growth)
+- This replaces static values with the formula
+
+When user wants to ADD a NEW column (e.g., "add a Bonus column"):
+- outputColumn should be a new/empty column letter
 
 ⭐ GOLDEN RULE 2 - RESPECT USER VALUES:
 Include EVERY value the user explicitly mentions:

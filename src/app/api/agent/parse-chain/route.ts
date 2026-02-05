@@ -733,8 +733,12 @@ function parseAndValidate(
       const formula = formulaStep.prompt || '';
       console.log('[parse-chain] Formula:', formula.substring(0, 100));
       
-      // Determine output column
-      const outputCol = explicitOutputColumn || dataContext.emptyColumns[0] || 'D';
+      // Determine output column - PRIORITY:
+      // 1. User explicitly specified column
+      // 2. AI returned outputColumn (e.g., for replacing existing column like "G")
+      // 3. First empty column (for new columns)
+      const outputCol = explicitOutputColumn || formulaStep.outputColumn || dataContext.emptyColumns[0] || 'D';
+      console.log('[parse-chain] Formula outputColumn:', outputCol, '(explicit:', explicitOutputColumn, ', ai:', formulaStep.outputColumn, ', empty:', dataContext.emptyColumns[0], ')');
       
       return {
         isMultiStep: false,

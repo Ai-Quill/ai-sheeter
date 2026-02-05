@@ -71,16 +71,9 @@ ALWAYS prefer native Google Sheets formulas over AI processing because they are:
 
 ### Key Rules
 - Use {{ROW}} placeholder for row number (will be replaced: 2, 3, 4...)
-- The "description" becomes the column header (for new columns)
-- For replacing existing columns, use outputColumn matching the existing column
-- Derive column letters from data context
+- The "description" becomes the column header
+- Derive column letters from headers object in data context
 - Escape quotes in JSON: use \\" not "
-
-### For REPLACING existing column values with formula:
-If user says "replace column X with formula" or "turn X into formula":
-- Set outputColumn to the EXISTING column letter (e.g., "G" for Growth)
-- description can match the existing header name
-- The formula will replace the static values
 
 ### Common Formula Patterns
 
@@ -102,19 +95,12 @@ If user says "replace column X with formula" or "turn X into formula":
 - =AVERAGE(C2:C100) - average of range
 - =COUNTIF(F:F, "Active") - count matching values
 
-### Example: Add Bonus Column
-User: "Add a column called Bonus that calculates 5% of Q2 if they beat target"
-{
-  "outputMode": "formula",
-  "steps": [{
-    "action": "formula",
-    "description": "Bonus",
-    "prompt": "=IF(D{{ROW}}>E{{ROW}}, D{{ROW}}*0.05, 0)",
-    "outputFormat": "formula"
-  }],
-  "summary": "Add conditional bonus calculation",
-  "clarification": "Adding Bonus column: 5% of Q2 if Q2 > Target, otherwise 0.\\n\\n✅ FREE ✅ Instant ✅ Auto-updates"
-}
+### Key Principle - REPLACING vs ADDING:
+- "Turn X into formula" or "Replace X with formula" → outputColumn = EXISTING column letter (from headers)
+- "Add a column called Y" → outputColumn = new/empty column letter
+
+The AI should derive column letters from the headers object in data context.
+No hardcoded examples needed - use context intelligently.
 `;
 
 // Minimal seed examples - database will provide better examples over time
