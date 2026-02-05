@@ -360,6 +360,16 @@ export function convertAgentResultToLegacyFormat(
     if (toolName === 'formula') {
       step.outputFormat = 'formula';
       step.outputColumn = toolInput.outputColumn || context.emptyColumns[0] || 'H';
+      // CRITICAL: Explicitly ensure formula is set (for GAS to detect)
+      step.formula = toolInput.formula;
+      step.startRow = toolInput.startRow || context.dataStartRow || 2;
+      step.endRow = toolInput.endRow || context.dataEndRow || (context.dataStartRow + context.rowCount - 1);
+      console.log('[convertAgentResultToLegacyFormat] Formula step:', {
+        formula: step.formula,
+        outputColumn: step.outputColumn,
+        startRow: step.startRow,
+        endRow: step.endRow,
+      });
     } else if (toolName === 'analyze') {
       step.outputFormat = 'chat';
     } else if (toolName === 'chart') {
