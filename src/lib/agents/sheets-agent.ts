@@ -283,8 +283,8 @@ export function convertAgentResultToLegacyFormat(
   if (toolCalls.length > 0) {
     const lastTool = toolCalls[toolCalls.length - 1];
     const toolName = lastTool.toolName;
-    // AI SDK uses 'input' not 'args'
-    const toolInput = (lastTool as any).input || lastTool;
+    // Agent stores params as 'args' (mapped from SDK's 'input')
+    const toolInput = (lastTool as any).args || lastTool;
     
     // Map tool to output mode and preserve ALL config
     if (toolName === 'formula') {
@@ -331,8 +331,8 @@ export function convertAgentResultToLegacyFormat(
   // Build steps from tool calls
   // CRITICAL: Preserve ALL tool parameters for frontend execution
   const steps = toolCalls.map((tc: any, idx: number) => {
-    // AI SDK uses 'input' not 'args'
-    const toolInput = tc.input || tc;
+    // Agent stores params as 'args' (mapped from SDK's 'input')
+    const toolInput = tc.args || tc;
     const toolName = tc.toolName;
     
     // Base step structure
