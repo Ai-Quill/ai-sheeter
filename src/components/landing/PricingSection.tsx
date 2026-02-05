@@ -64,9 +64,9 @@ export const PricingSection: React.FC = () => {
                         {[
                             "Unlimited Queries",
                             "1,000 Bulk rows / job",
-                            "Unlimited Jobs per day",
+                            "Persistent conversation memory",
                             "Priority Support",
-                            "Early Access Features"
+                            "Proactive smart suggestions"
                         ].map((item, i) => (
                             <li key={i} className="flex items-center gap-3 text-sm text-white/90">
                                 <div className="p-1 rounded-full bg-[#219EBB] text-white"><Check size={12} /></div>

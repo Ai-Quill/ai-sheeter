@@ -6,12 +6,12 @@ import { Zap, MessageSquare, Shield, Workflow, Sliders, BrainCircuit, Sparkles, 
 
 const features = [
   {
-    title: "Instant AI Charts",
-    description: "\"Create a combo chart with trendlines\" - 10 chart types, AI picks the perfect one for your data.",
-    icon: <BarChart3 size={24} className="text-[#FFB701]" />,
+    title: "10 Specialized Skills",
+    description: "Format, chart, formula, filter, validation, conditional formatting, sheet ops & more - each skill optimized for its task.",
+    icon: <BrainCircuit size={24} className="text-[#FFB701]" />,
     color: "bg-[#FFB701]",
     colSpan: "md:col-span-1",
-    tag: "New"
+    tag: "Core"
   },
   {
     title: "Multi-Step Task Chains",
@@ -22,7 +22,7 @@ const features = [
     tag: "Unique"
   },
   {
-    title: "Conversation Persistence",
+    title: "Conversation Memory",
     description: "Unlike Gemini, we remember context. Build on previous commands without repeating yourself.",
     icon: <History size={24} className="text-[#FC8500]" />,
     color: "bg-[#FC8500]",
@@ -30,32 +30,32 @@ const features = [
     tag: "Unique"
   },
   {
-    title: "Output Format Control",
-    description: "Configure exactly how results appear: JSON, lists, scores with reasons, or custom formats.",
-    icon: <Sliders size={24} className="text-[#8ECAE6]" />,
-    color: "bg-[#8ECAE6]",
+    title: "Formula First (FREE)",
+    description: "AI uses native Google Sheets formulas when possible - instant results with zero AI cost.",
+    icon: <Zap size={24} className="text-emerald-500" />,
+    color: "bg-emerald-500",
     colSpan: "md:col-span-1",
     tag: "New"
   },
   {
-    title: "Formula-First Intelligence",
-    description: "AI that knows when NOT to use AI. Uses native formulas when they're faster and cheaper.",
-    icon: <BrainCircuit size={24} className="text-purple-500" />,
-    color: "bg-purple-500",
+    title: "Deep Context Awareness",
+    description: "AI understands your headers, data types, ranges, and structure - derives exact cell references automatically.",
+    icon: <Sliders size={24} className="text-[#8ECAE6]" />,
+    color: "bg-[#8ECAE6]",
     colSpan: "md:col-span-1"
   },
   {
-    title: "Proactive Suggestions",
-    description: "AI that thinks ahead. After completing a task, suggests what you might want to do next.",
-    icon: <Sparkles size={24} className="text-emerald-500" />,
-    color: "bg-emerald-500",
+    title: "Smart Suggestions",
+    description: "Vague commands get specific, actionable suggestions. \"Format professionally\" → 4 concrete actions to choose from.",
+    icon: <Sparkles size={24} className="text-purple-500" />,
+    color: "bg-purple-500",
     colSpan: "md:col-span-1",
     tag: "Unique"
   },
   {
     title: "5+ AI Models (BYOK)",
-    description: "Use GPT-5, Claude, Gemini, Groq, or bring your own API key. Switch models per task.",
-    icon: <Zap size={24} className="text-amber-500" />,
+    description: "Use GPT-4, Claude, Gemini, Groq, or bring your own API key. Switch models per task.",
+    icon: <BarChart3 size={24} className="text-amber-500" />,
     color: "bg-amber-500",
     colSpan: "md:col-span-1"
   },

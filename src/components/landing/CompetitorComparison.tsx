@@ -15,6 +15,22 @@ interface FeatureRow {
 
 const features: FeatureRow[] = [
   {
+    feature: "Conversation Memory",
+    description: "Remember context across queries - pick up where you left off",
+    aisheeter: 'yes',
+    gemini: 'no',
+    gptForWork: 'no',
+    chatgpt: 'partial'
+  },
+  {
+    feature: "Deep Context Awareness",
+    description: "Understands headers, data types, and structure automatically",
+    aisheeter: 'yes',
+    gemini: 'partial',
+    gptForWork: 'partial',
+    chatgpt: 'no'
+  },
+  {
     feature: "Multi-Step Task Chains",
     description: "Execute complex workflows with one command",
     aisheeter: 'yes',
@@ -23,35 +39,27 @@ const features: FeatureRow[] = [
     chatgpt: 'no'
   },
   {
-    feature: "Conversation Persistence",
-    description: "Remember context across queries",
-    aisheeter: 'yes',
-    gemini: 'no',
-    gptForWork: 'no',
-    chatgpt: 'partial'
-  },
-  {
-    feature: "Output Format Control",
-    description: "Configure result structure (JSON, List, Score+Reason)",
-    aisheeter: 'yes',
-    gemini: 'no',
-    gptForWork: 'no',
-    chatgpt: 'partial'
-  },
-  {
-    feature: "Formula-First Intelligence",
-    description: "AI knows when NOT to use AI",
-    aisheeter: 'yes',
-    gemini: 'partial',
-    gptForWork: 'no',
-    chatgpt: 'no'
-  },
-  {
-    feature: "Proactive Suggestions",
+    feature: "Smart Suggestions",
     description: "AI that thinks ahead and recommends next steps",
     aisheeter: 'yes',
     gemini: 'no',
     gptForWork: 'no',
+    chatgpt: 'no'
+  },
+  {
+    feature: "Formula First (FREE)",
+    description: "Uses native formulas when faster & cheaper - no AI cost",
+    aisheeter: 'yes',
+    gemini: 'no',
+    gptForWork: 'no',
+    chatgpt: 'no'
+  },
+  {
+    feature: "10 Specialized Skills",
+    description: "Format, chart, formula, filter, validation & more",
+    aisheeter: 'yes',
+    gemini: 'partial',
+    gptForWork: 'partial',
     chatgpt: 'no'
   },
   {
@@ -63,11 +71,11 @@ const features: FeatureRow[] = [
     chatgpt: 'no'
   },
   {
-    feature: "Background Processing",
-    description: "Run jobs without keeping browser open",
+    feature: "Instant Sheet Actions",
+    description: "Format, chart, sort, filter - executes in milliseconds",
     aisheeter: 'yes',
-    gemini: 'no',
-    gptForWork: 'yes',
+    gemini: 'partial',
+    gptForWork: 'partial',
     chatgpt: 'no'
   },
   {
@@ -76,14 +84,6 @@ const features: FeatureRow[] = [
     aisheeter: 'yes',
     gemini: 'yes',
     gptForWork: 'yes',
-    chatgpt: 'no'
-  },
-  {
-    feature: "Smart Column Detection",
-    description: "Understands your data context automatically",
-    aisheeter: 'yes',
-    gemini: 'partial',
-    gptForWork: 'no',
     chatgpt: 'no'
   },
   {
