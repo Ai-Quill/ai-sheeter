@@ -118,20 +118,38 @@ export function createSheetsAgent(
   model: LanguageModel, 
   evaluatorModel: LanguageModel | null, 
   context: DataContext,
-  options?: { maxAttempts?: number }
+  options?: { maxAttempts?: number; timeoutMs?: number }
 ) {
   return {
     async generate({ prompt }: { prompt: string }): Promise<AgentResult> {
+      const startTime = Date.now();
       const systemPrompt = buildAgentSystemPrompt(context);
       const maxAttempts = options?.maxAttempts || 2;
+      const timeoutMs = options?.timeoutMs || 45000; // 45s default (leave buffer for Vercel's 60s)
       let attempt = 0;
       let result: any;
       let toolCalls: any[] = [];
       let stepResults: Array<{ tool: string; params: any; evaluation?: any }> = [];
       let allIssuesResolved = false;
       
+      // Helper to check timeout
+      const checkTimeout = () => {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > timeoutMs) {
+          console.warn(`[SheetsAgent] Timeout after ${elapsed}ms - returning current result`);
+          return true;
+        }
+        return false;
+      };
+      
       // Self-correction loop
       while (attempt < maxAttempts && !allIssuesResolved) {
+        // Check timeout before starting new attempt
+        if (attempt > 0 && checkTimeout()) {
+          console.log('[SheetsAgent] Skipping retry due to timeout');
+          break;
+        }
+        
         attempt++;
         console.log(`[SheetsAgent] Attempt ${attempt}/${maxAttempts}...`);
         
@@ -162,67 +180,113 @@ ${stepResults.filter(sr => sr.evaluation && !sr.evaluation.meetsGoal)
         }));
         
         // Evaluate if we have an evaluator model
+        // IMPORTANT: Evaluate ALL tools TOGETHER as a workflow, not individually!
+        // Multi-tool workflows are expected - each tool handles part of the goal
         stepResults = [];
-        if (evaluatorModel && toolCalls.length > 0) {
-          console.log('[SheetsAgent] Evaluating tool call parameters...');
-          
+        
+        // Skip evaluation in these cases:
+        // 1. No evaluator model
+        // 2. No tool calls
+        // 3. Timeout approaching
+        // 4. Simple single-tool "formula" calls (usually correct)
+        const shouldSkipEvaluation = 
+          !evaluatorModel || 
+          toolCalls.length === 0 ||
+          checkTimeout() ||
+          (toolCalls.length === 1 && toolCalls[0].toolName === 'formula');
+        
+        if (shouldSkipEvaluation) {
+          if (toolCalls.length === 1 && toolCalls[0].toolName === 'formula') {
+            console.log('[SheetsAgent] Skipping evaluation for simple formula tool');
+          } else if (checkTimeout()) {
+            console.log('[SheetsAgent] Skipping evaluation due to timeout');
+          }
+          allIssuesResolved = true;
           for (const tc of toolCalls) {
-            try {
-              const { object: evaluation } = await generateObject({
-                model: evaluatorModel,
-                schema: EvaluationSchema,
-                prompt: `Evaluate these Google Sheets tool parameters:
-
-Tool: ${tc.toolName}
-Parameters: ${JSON.stringify(tc.args, null, 2)}
+            stepResults.push({
+              tool: tc.toolName,
+              params: tc.args,
+              evaluation: { meetsGoal: true, confidence: 0.8, issues: [] },
+            });
+          }
+        } else if (evaluatorModel && toolCalls.length > 0) {
+          console.log(`[SheetsAgent] Evaluating ${toolCalls.length} tool calls as a workflow...`);
+          
+          try {
+            // Build a summary of all tool calls for evaluation
+            const workflowSummary = toolCalls.map((tc, i) => 
+              `${i + 1}. ${tc.toolName}: ${JSON.stringify(tc.args)}`
+            ).join('\n');
+            
+            const { object: evaluation } = await generateObject({
+              model: evaluatorModel,
+              schema: EvaluationSchema,
+              prompt: `Evaluate this COMPLETE WORKFLOW of Google Sheets tool calls:
 
 User's Goal: "${prompt}"
-Context: ${JSON.stringify({ headers: context.headers, dataRange: context.dataRange })}
+
+Spreadsheet Context:
+- Headers: ${JSON.stringify(context.headers)}
+- Data Range: ${context.dataRange}
+
+WORKFLOW (${toolCalls.length} tool calls):
+${workflowSummary}
+
+IMPORTANT EVALUATION RULES:
+- This is a MULTI-TOOL workflow where each tool handles PART of the goal
+- Do NOT reject a tool just because it doesn't do everything
+- Evaluate if the COMBINATION of all tools achieves the user's goal
+- Only report issues if parameters are WRONG (wrong column, wrong range, wrong values)
+- Accept if tools correctly split the work (e.g., one tool for headers, another for data)
 
 Questions:
-1. Are the parameters correct for achieving the user's goal?
-2. Is the column letter correct (check against headers)?
-3. Is the range correct?
-4. Any issues?`,
-              });
-              
+1. Does the COMBINATION of these tools achieve the user's goal?
+2. Are the column letters correct (check against headers)?
+3. Are the ranges appropriate?
+4. Are there any actual parameter errors (not just "incomplete" - that's expected for multi-tool)?`,
+            });
+            
+            // Apply the workflow evaluation to all tools
+            for (const tc of toolCalls) {
               stepResults.push({
                 tool: tc.toolName,
                 params: tc.args,
-                evaluation,
-              });
-              
-              console.log('[SheetsAgent] Parameter evaluation:', {
-                tool: tc.toolName,
-                meetsGoal: evaluation.meetsGoal,
-                issues: evaluation.issues,
-              });
-              
-            } catch (evalError) {
-              console.error('[SheetsAgent] Evaluation error:', evalError);
-              // If evaluator fails, assume it's ok and continue
-              stepResults.push({
-                tool: tc.toolName,
-                params: tc.args,
-                evaluation: { meetsGoal: true, confidence: 0.5, issues: [] },
+                evaluation,  // Same evaluation for all (workflow-level)
               });
             }
+            
+            console.log('[SheetsAgent] Workflow evaluation:', {
+              toolCount: toolCalls.length,
+              tools: toolCalls.map(tc => tc.toolName),
+              meetsGoal: evaluation.meetsGoal,
+              confidence: evaluation.confidence,
+              issues: evaluation.issues,
+            });
+            
+            allIssuesResolved = evaluation.meetsGoal;
+            
+          } catch (evalError) {
+            console.error('[SheetsAgent] Evaluation error:', evalError);
+            // If evaluator fails, assume it's ok and continue
+            for (const tc of toolCalls) {
+              stepResults.push({
+                tool: tc.toolName,
+                params: tc.args,
+                evaluation: { meetsGoal: true, confidence: 0.5, issues: ['Evaluation skipped'] },
+              });
+            }
+            allIssuesResolved = true;
           }
           
-          // Check if all evaluations passed
-          allIssuesResolved = stepResults.every(sr => !sr.evaluation || sr.evaluation.meetsGoal);
-          
           if (allIssuesResolved) {
-            console.log('[SheetsAgent] ✅ All tool calls passed evaluation');
+            console.log('[SheetsAgent] ✅ Workflow passed evaluation');
           } else if (attempt < maxAttempts) {
             console.log('[SheetsAgent] ⚠️ Issues found, retrying...');
           } else {
             console.log('[SheetsAgent] ⚠️ Max attempts reached, proceeding with current result');
           }
-        } else {
-          // No evaluator, accept result
-          allIssuesResolved = true;
         }
+        // Note: shouldSkipEvaluation already handles !evaluatorModel and toolCalls.length === 0
       }
       
       return {
