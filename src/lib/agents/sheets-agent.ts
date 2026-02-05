@@ -350,8 +350,15 @@ export function convertAgentResultToLegacyFormat(
     // Agent stores params as 'args' (mapped from SDK's 'input')
     const toolInput = (lastTool as any).args || lastTool;
     
-    // Map tool to output mode and preserve ALL config
-    if (toolName === 'formula') {
+    // IMPORTANT: For MULTIPLE tool calls, use 'columns' mode to execute step-by-step
+    // Only use 'sheet' shortcut for SINGLE tool calls (instant execution)
+    const useStepByStep = toolCalls.length > 1;
+    
+    if (useStepByStep) {
+      // Multi-tool workflow - frontend will execute each step
+      outputMode = 'columns';  // This triggers step-by-step execution
+      console.log('[convertAgentResultToLegacyFormat] Multi-tool workflow detected, using step-by-step execution');
+    } else if (toolName === 'formula') {
       outputMode = 'formula';
       sheetConfig = {
         formula: toolInput.formula,
@@ -385,6 +392,7 @@ export function convertAgentResultToLegacyFormat(
         ...toolInput,
       };
     } else {
+      // Single tool - use sheet shortcut for instant execution
       outputMode = 'sheet';
       sheetAction = toolName;
       // Preserve ALL tool parameters in sheetConfig
@@ -410,6 +418,9 @@ export function convertAgentResultToLegacyFormat(
       // CRITICAL: Spread ALL tool parameters directly into step
       // This ensures frontend has full access to every parameter
       ...toolInput,
+      
+      // GAS expects step.config for sheet actions - store full config
+      config: toolInput,
       
       // Also store as toolCall for structured access
       toolCall: toolInput,
