@@ -75,7 +75,9 @@ You have 10 tools for spreadsheet operations:
 
 ## Current Spreadsheet Context
 - Headers: ${JSON.stringify(context.headers)}
+- Columns with Data: ${context.columnsWithData?.join(', ') || Object.keys(context.headers).join(', ')}
 - Data Range: ${context.dataRange}
+- Header Row Range: ${Object.keys(context.headers).length > 0 ? `${Object.keys(context.headers)[0]}1:${Object.keys(context.headers).slice(-1)[0]}1` : 'A1:G1'}
 - Row Count: ${context.rowCount}
 - Data Rows: ${context.dataStartRow} to ${context.dataEndRow}
 - Empty Columns (for output): ${context.emptyColumns.slice(0, 5).join(', ')}
@@ -89,6 +91,9 @@ You have 10 tools for spreadsheet operations:
    - "Turn X into formula" → use the EXISTING column letter
    - "Add a new column" → use an EMPTY column letter
 4. **Respect User Values**: Use exact numbers, text, and options the user specifies.
+5. **Format ALL Columns**: When formatting "headers" or "the data", include ALL columns from the context.
+   - Use the FULL data range: ${context.dataRange}
+   - For header formatting, use row 1 across all columns: ${Object.keys(context.headers).length > 0 ? `${Object.keys(context.headers)[0]}1:${Object.keys(context.headers).slice(-1)[0]}1` : 'A1:G1'}
 
 ## Response Guidelines
 1. **When task is clear**: Call the appropriate tool(s) with COMPLETE parameters
