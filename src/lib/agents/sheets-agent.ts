@@ -103,45 +103,64 @@ You have 10 tools for spreadsheet operations:
 /**
  * Create a SheetsAgent - simplified for declarative tools
  */
-export function createSheetsAgent(model: LanguageModel, evaluatorModel: LanguageModel | null, context: DataContext) {
+export function createSheetsAgent(
+  model: LanguageModel, 
+  evaluatorModel: LanguageModel | null, 
+  context: DataContext,
+  options?: { maxAttempts?: number }
+) {
   return {
     async generate({ prompt }: { prompt: string }): Promise<AgentResult> {
       const systemPrompt = buildAgentSystemPrompt(context);
+      const maxAttempts = options?.maxAttempts || 2;
+      let attempt = 0;
+      let result: any;
+      let toolCalls: any[] = [];
+      let stepResults: Array<{ tool: string; params: any; evaluation?: any }> = [];
+      let allIssuesResolved = false;
       
-      console.log('[SheetsAgent] Generating with SDK tools...');
-      
-      // Generate with tools (single call - tools are declarative)
-      const result = await generateText({
-        model,
-        system: systemPrompt,
-        prompt,
-        tools: allTools,
-      });
-      
-      console.log('[SheetsAgent] Generation complete:', {
-        hasText: !!result.text,
-        toolCalls: result.toolCalls?.length || 0,
-        finishReason: result.finishReason,
-      });
-      
-      // Extract tool calls
-      const toolCalls = (result.toolCalls || []).map((tc: any) => ({
-        toolName: tc.toolName,
-        args: tc.input || {},  // AI SDK uses 'input' property
-      }));
-      
-      // Optional: Self-correction via evaluation of tool call parameters
-      const stepResults: Array<{ tool: string; params: any; evaluation?: any }> = [];
-      
-      if (evaluatorModel && toolCalls.length > 0) {
-        console.log('[SheetsAgent] Evaluating tool call parameters...');
+      // Self-correction loop
+      while (attempt < maxAttempts && !allIssuesResolved) {
+        attempt++;
+        console.log(`[SheetsAgent] Attempt ${attempt}/${maxAttempts}...`);
         
-        for (const tc of toolCalls) {
-          try {
-            const { object: evaluation } = await generateObject({
-              model: evaluatorModel,
-              schema: EvaluationSchema,
-              prompt: `Evaluate these Google Sheets tool parameters:
+        // Generate with tools
+        result = await generateText({
+          model,
+          system: systemPrompt,
+          prompt: attempt === 1 ? prompt : `${prompt}
+
+IMPORTANT: Previous attempt had issues. Please fix:
+${stepResults.filter(sr => sr.evaluation && !sr.evaluation.meetsGoal)
+  .map(sr => `- ${sr.tool}: ${sr.evaluation?.issues?.join(', ')}`)
+  .join('\n')}`,
+          tools: allTools,
+        });
+        
+        console.log('[SheetsAgent] Generation complete:', {
+          attempt,
+          hasText: !!result.text,
+          toolCalls: result.toolCalls?.length || 0,
+          finishReason: result.finishReason,
+        });
+        
+        // Extract tool calls
+        toolCalls = (result.toolCalls || []).map((tc: any) => ({
+          toolName: tc.toolName,
+          args: tc.input || {},  // AI SDK uses 'input' property
+        }));
+        
+        // Evaluate if we have an evaluator model
+        stepResults = [];
+        if (evaluatorModel && toolCalls.length > 0) {
+          console.log('[SheetsAgent] Evaluating tool call parameters...');
+          
+          for (const tc of toolCalls) {
+            try {
+              const { object: evaluation } = await generateObject({
+                model: evaluatorModel,
+                schema: EvaluationSchema,
+                prompt: `Evaluate these Google Sheets tool parameters:
 
 Tool: ${tc.toolName}
 Parameters: ${JSON.stringify(tc.args, null, 2)}
@@ -154,23 +173,44 @@ Questions:
 2. Is the column letter correct (check against headers)?
 3. Is the range correct?
 4. Any issues?`,
-            });
-            
-            stepResults.push({
-              tool: tc.toolName,
-              params: tc.args,
-              evaluation,
-            });
-            
-            console.log('[SheetsAgent] Parameter evaluation:', {
-              tool: tc.toolName,
-              meetsGoal: evaluation.meetsGoal,
-              issues: evaluation.issues,
-            });
-            
-          } catch (evalError) {
-            console.error('[SheetsAgent] Evaluation error:', evalError);
+              });
+              
+              stepResults.push({
+                tool: tc.toolName,
+                params: tc.args,
+                evaluation,
+              });
+              
+              console.log('[SheetsAgent] Parameter evaluation:', {
+                tool: tc.toolName,
+                meetsGoal: evaluation.meetsGoal,
+                issues: evaluation.issues,
+              });
+              
+            } catch (evalError) {
+              console.error('[SheetsAgent] Evaluation error:', evalError);
+              // If evaluator fails, assume it's ok and continue
+              stepResults.push({
+                tool: tc.toolName,
+                params: tc.args,
+                evaluation: { meetsGoal: true, confidence: 0.5, issues: [] },
+              });
+            }
           }
+          
+          // Check if all evaluations passed
+          allIssuesResolved = stepResults.every(sr => !sr.evaluation || sr.evaluation.meetsGoal);
+          
+          if (allIssuesResolved) {
+            console.log('[SheetsAgent] ✅ All tool calls passed evaluation');
+          } else if (attempt < maxAttempts) {
+            console.log('[SheetsAgent] ⚠️ Issues found, retrying...');
+          } else {
+            console.log('[SheetsAgent] ⚠️ Max attempts reached, proceeding with current result');
+          }
+        } else {
+          // No evaluator, accept result
+          allIssuesResolved = true;
         }
       }
       
@@ -237,12 +277,28 @@ export function convertAgentResultToLegacyFormat(
   const steps = toolCalls.map((tc: any, idx: number) => {
     // AI SDK uses 'input' not 'args'
     const toolInput = tc.input || tc;
+    
+    // Create a natural language prompt from the tool call instead of raw JSON
+    let naturalPrompt = command;  // Default to original command
+    if (tc.toolName === 'formula') {
+      naturalPrompt = `Create formula: ${toolInput.formula || 'calculate result'}`;
+    } else if (tc.toolName === 'writeData') {
+      naturalPrompt = `Write data to ${toolInput.startCell || 'sheet'}`;
+    } else if (tc.toolName === 'format') {
+      naturalPrompt = `Format ${toolInput.range || 'cells'}`;
+    } else if (tc.toolName === 'chart') {
+      naturalPrompt = `Create ${toolInput.chartType || 'chart'} chart`;
+    } else {
+      naturalPrompt = toolInput.description || `Execute ${tc.toolName}`;
+    }
+    
     return {
       id: `step_${idx + 1}`,
       order: idx + 1,
       action: tc.toolName,
       description: toolInput.description || tc.toolName,
-      prompt: JSON.stringify(toolInput),
+      prompt: naturalPrompt,  // Use natural language, not JSON
+      toolCall: toolInput,    // Store the actual tool call separately
       outputFormat: tc.toolName === 'formula' ? 'formula' : 'json',
       inputColumns: context.columnsWithData,
       outputColumn: toolInput.outputColumn || context.emptyColumns[0] || 'D',

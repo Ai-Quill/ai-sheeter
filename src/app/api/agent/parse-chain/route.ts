@@ -470,8 +470,12 @@ export async function POST(request: NextRequest) {
           console.log('[parse-chain] Self-correction disabled');
         }
         
+        // Get max attempts from config (default: 2)
+        const maxAttempts = parseInt(process.env.AGENT_MAX_ATTEMPTS || '2', 10);
+        console.log(`[parse-chain] Max attempts: ${maxAttempts}`);
+        
         // Create and run the agent
-        const agent = createSheetsAgent(model, evaluatorModel, agentContext);
+        const agent = createSheetsAgent(model, evaluatorModel, agentContext, { maxAttempts });
         const result = await agent.generate({ prompt: command });
         
         console.log('[parse-chain] Agent result:', {
