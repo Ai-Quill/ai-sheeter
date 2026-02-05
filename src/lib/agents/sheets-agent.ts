@@ -91,9 +91,20 @@ You have 10 tools for spreadsheet operations:
 4. **Respect User Values**: Use exact numbers, text, and options the user specifies.
 
 ## Response Guidelines
-- Use tools to complete the task
-- If you need clarification, explain what information you need
-- Summarize what you did after completing`;
+1. **When task is clear**: Call the appropriate tool(s) with COMPLETE parameters
+2. **When clarification needed**: DO NOT call any tools. Instead, respond with:
+   - What you understood from the request
+   - What specific information you need
+   - Suggested options if applicable (e.g., "Do you want A) sum, B) average, or C) count?")
+   - Reference the available columns: ${Object.entries(context.headers).map(([col, name]) => `${col}=${name}`).join(', ')}
+3. **After completing**: Briefly summarize what was done
+
+## Important
+- ALWAYS include ALL required parameters when calling tools
+- For formulas: include the exact formula string, output column, and description
+- For formatting: include the exact range and all style options
+- For charts: include data range, chart type, title, and position
+- Never leave parameters empty or use placeholders`;
 }
 
 // ============================================
@@ -246,6 +257,28 @@ export function convertAgentResultToLegacyFormat(
   let outputMode: 'chat' | 'columns' | 'formula' | 'sheet' = 'chat';
   let sheetAction: string | undefined;
   let sheetConfig: any = {};
+  let needsClarification = false;
+  let clarificationContext: any = null;
+  
+  // If no tools called, agent is asking for clarification or providing analysis
+  if (toolCalls.length === 0) {
+    needsClarification = true;
+    clarificationContext = {
+      originalCommand: command,
+      agentResponse: text,
+      availableData: {
+        headers: context.headers,
+        dataRange: context.dataRange,
+        rowCount: context.rowCount,
+        emptyColumns: context.emptyColumns,
+      },
+      reason: 'Agent needs more information to proceed',
+    };
+    console.log('[convertAgentResultToLegacyFormat] No tools called - clarification needed:', {
+      textLength: text.length,
+      textPreview: text.substring(0, 200),
+    });
+  }
   
   if (toolCalls.length > 0) {
     const lastTool = toolCalls[toolCalls.length - 1];
@@ -253,75 +286,177 @@ export function convertAgentResultToLegacyFormat(
     // AI SDK uses 'input' not 'args'
     const toolInput = (lastTool as any).input || lastTool;
     
-    // Map tool to output mode
+    // Map tool to output mode and preserve ALL config
     if (toolName === 'formula') {
       outputMode = 'formula';
       sheetConfig = {
         formula: toolInput.formula,
         description: toolInput.description,
         outputColumn: toolInput.outputColumn,
+        startRow: toolInput.startRow,
+        endRow: toolInput.endRow,
+        // Include all parameters
+        ...toolInput,
       };
     } else if (toolName === 'analyze') {
       outputMode = 'chat';
+    } else if (toolName === 'chart') {
+      outputMode = 'sheet';
+      sheetAction = 'chart';
+      sheetConfig = {
+        chartType: toolInput.chartType,
+        dataRange: toolInput.dataRange,
+        title: toolInput.title,
+        position: toolInput.position,
+        ...toolInput,
+      };
+    } else if (toolName === 'format') {
+      outputMode = 'sheet';
+      sheetAction = 'format';
+      sheetConfig = {
+        range: toolInput.range,
+        formatType: toolInput.formatType,
+        options: toolInput.options,
+        operations: toolInput.operations,
+        ...toolInput,
+      };
     } else {
       outputMode = 'sheet';
-      sheetAction = toolName === 'conditionalFormat' ? 'conditionalFormat' 
-                  : toolName === 'dataValidation' ? 'dataValidation'
-                  : toolName === 'sheetOps' ? 'sheetOps'
-                  : toolName;
-      sheetConfig = toolInput;
+      sheetAction = toolName;
+      // Preserve ALL tool parameters in sheetConfig
+      sheetConfig = { ...toolInput };
     }
   }
   
   // Build steps from tool calls
+  // CRITICAL: Preserve ALL tool parameters for frontend execution
   const steps = toolCalls.map((tc: any, idx: number) => {
     // AI SDK uses 'input' not 'args'
     const toolInput = tc.input || tc;
+    const toolName = tc.toolName;
     
-    // Create a natural language prompt from the tool call instead of raw JSON
-    let naturalPrompt = command;  // Default to original command
-    if (tc.toolName === 'formula') {
-      naturalPrompt = `Create formula: ${toolInput.formula || 'calculate result'}`;
-    } else if (tc.toolName === 'writeData') {
-      naturalPrompt = `Write data to ${toolInput.startCell || 'sheet'}`;
-    } else if (tc.toolName === 'format') {
-      naturalPrompt = `Format ${toolInput.range || 'cells'}`;
-    } else if (tc.toolName === 'chart') {
-      naturalPrompt = `Create ${toolInput.chartType || 'chart'} chart`;
-    } else {
-      naturalPrompt = toolInput.description || `Execute ${tc.toolName}`;
-    }
-    
-    return {
+    // Base step structure
+    const step: any = {
       id: `step_${idx + 1}`,
       order: idx + 1,
-      action: tc.toolName,
-      description: toolInput.description || tc.toolName,
-      prompt: naturalPrompt,  // Use natural language, not JSON
-      toolCall: toolInput,    // Store the actual tool call separately
-      outputFormat: tc.toolName === 'formula' ? 'formula' : 'json',
+      action: toolName,
+      description: toolInput.description || toolName,
+      prompt: command,  // Original user command (context for AI if needed)
+      
+      // CRITICAL: Spread ALL tool parameters directly into step
+      // This ensures frontend has full access to every parameter
+      ...toolInput,
+      
+      // Also store as toolCall for structured access
+      toolCall: toolInput,
+      
+      // Standard step fields
       inputColumns: context.columnsWithData,
-      outputColumn: toolInput.outputColumn || context.emptyColumns[0] || 'D',
       dependsOn: idx > 0 ? `step_${idx}` : null,
       usesResultOf: null,
     };
+    
+    // Set output format based on tool type
+    if (toolName === 'formula') {
+      step.outputFormat = 'formula';
+      step.outputColumn = toolInput.outputColumn || context.emptyColumns[0] || 'H';
+    } else if (toolName === 'analyze') {
+      step.outputFormat = 'chat';
+    } else if (toolName === 'chart') {
+      step.outputFormat = 'chart';
+      // Chart-specific: ensure position is set
+      step.chartType = toolInput.chartType;
+      step.dataRange = toolInput.dataRange;
+      step.title = toolInput.title;
+    } else if (toolName === 'format') {
+      step.outputFormat = 'format';
+      // Format-specific: ensure range and options are accessible
+      step.range = toolInput.range;
+      step.formatType = toolInput.formatType;
+      step.formatOptions = toolInput.options;
+    } else if (toolName === 'conditionalFormat') {
+      step.outputFormat = 'conditionalFormat';
+      step.range = toolInput.range;
+      step.rules = toolInput.rules;
+    } else if (toolName === 'dataValidation') {
+      step.outputFormat = 'dataValidation';
+      step.range = toolInput.range;
+      step.validationType = toolInput.validationType;
+    } else if (toolName === 'filter') {
+      step.outputFormat = 'filter';
+      step.range = toolInput.range;
+      step.criteria = toolInput.criteria;
+    } else if (toolName === 'sheetOps') {
+      step.outputFormat = 'sheetOps';
+      step.operation = toolInput.operation;
+    } else if (toolName === 'writeData') {
+      step.outputFormat = 'writeData';
+      step.startCell = toolInput.startCell;
+      step.data = toolInput.data;
+    } else if (toolName === 'table') {
+      step.outputFormat = 'table';
+      step.range = toolInput.range;
+    } else {
+      step.outputFormat = 'json';
+      step.outputColumn = toolInput.outputColumn || context.emptyColumns[0] || 'H';
+    }
+    
+    return step;
   });
+  
+  // Log conversion for debugging
+  console.log('[convertAgentResultToLegacyFormat] Converted:', {
+    outputMode,
+    sheetAction,
+    stepCount: steps.length,
+    needsClarification,
+    sheetConfigKeys: Object.keys(sheetConfig),
+    steps: steps.map(s => ({
+      action: s.action,
+      hasFormula: !!s.formula,
+      hasRange: !!s.range,
+      outputFormat: s.outputFormat,
+    })),
+  });
+  
+  // Build appropriate clarification message
+  let clarificationMessage = '';
+  if (outputMode === 'formula') {
+    clarificationMessage = 'Using native formula.\n✅ FREE ✅ Instant ✅ Auto-updates';
+  } else if (needsClarification) {
+    clarificationMessage = 'I need more information to complete this task.';
+  }
   
   return {
     // Core response
     isMultiStep: steps.length > 1,
-    isCommand: outputMode !== 'chat',
+    isCommand: outputMode !== 'chat' && !needsClarification,
     steps,
     summary: text || `Executed ${toolCalls.length} operations`,
-    clarification: outputMode === 'formula' 
-      ? 'Using native formula.\n✅ FREE ✅ Instant ✅ Auto-updates'
-      : '',
+    clarification: clarificationMessage,
     
     // Output mode
     outputMode,
-    chatResponse: outputMode === 'chat' ? text : undefined,
     
-    // Sheet action config
+    // Chat/clarification response - include full text and context
+    chatResponse: outputMode === 'chat' ? text : undefined,
+    needsClarification,
+    clarificationContext: needsClarification ? clarificationContext : undefined,
+    
+    // If clarification needed, provide helpful context for UI
+    ...(needsClarification && {
+      // Include what the agent understood/is asking
+      agentMessage: text,
+      // Include data context so user knows what's available
+      dataContext: {
+        headers: context.headers,
+        columns: context.columnsWithData,
+        rowCount: context.rowCount,
+        emptyColumns: context.emptyColumns.slice(0, 3),
+      },
+    }),
+    
+    // Sheet action config (only if tools were called)
     sheetAction,
     sheetConfig,
     
