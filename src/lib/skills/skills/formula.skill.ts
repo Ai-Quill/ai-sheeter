@@ -23,6 +23,10 @@ import { GoogleSheetSkill, SkillExample } from '../types';
  * Capabilities for unified intent classifier
  */
 const FORMULA_CAPABILITIES = [
+  // Formula triggers
+  'formula', 'formulas', 'replace-with-formula', 'fill-down',
+  'convert-to-formula', 'turn-into-formula',
+  
   // Text transformations
   'translate', 'translation', 'googletranslate',
   'extract', 'regex', 'pattern', 'regexextract',
@@ -67,9 +71,16 @@ ALWAYS prefer native Google Sheets formulas over AI processing because they are:
 
 ### Key Rules
 - Use {{ROW}} placeholder for row number (will be replaced: 2, 3, 4...)
-- The "description" becomes the column header
+- The "description" becomes the column header (for new columns)
+- For replacing existing columns, use outputColumn matching the existing column
 - Derive column letters from data context
 - Escape quotes in JSON: use \\" not "
+
+### For REPLACING existing column values with formula:
+If user says "replace column X with formula" or "turn X into formula":
+- Set outputColumn to the EXISTING column letter (e.g., "G" for Growth)
+- description can match the existing header name
+- The formula will replace the static values
 
 ### Common Formula Patterns
 

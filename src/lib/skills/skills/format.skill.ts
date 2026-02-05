@@ -15,8 +15,8 @@ import { GoogleSheetSkill, SkillExample } from '../types';
  * These describe what this skill can do semantically
  */
 const FORMAT_CAPABILITIES = [
-  // Format triggers
-  'format', 'formatting', 'professionally', 'style', 'beautify',
+  // Format triggers (specific to cell/number formatting, NOT formula)
+  'format-cells', 'formatting', 'professionally', 'style', 'beautify',
   // Number formats
   'currency', 'percent', 'number-format', 'date-format', 'datetime',
   // Text styles
