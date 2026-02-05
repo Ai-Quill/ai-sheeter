@@ -47,7 +47,7 @@ export interface AgentResult {
 // Schema for self-correction evaluation
 const EvaluationSchema = z.object({
   meetsGoal: z.boolean().describe('Does the result achieve what the user wanted?'),
-  confidence: z.number().min(0).max(1).describe('How confident are we in this assessment?'),
+  confidence: z.number().describe('Confidence score between 0 and 1'),
   issues: z.array(z.string()).describe('List of issues found, if any'),
   shouldRetry: z.boolean().describe('Should the agent try a different approach?'),
   suggestedFix: z.string().optional().describe('How to fix the issue'),
