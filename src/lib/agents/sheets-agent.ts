@@ -40,7 +40,7 @@ export interface AgentResult {
   }>;
   toolResults: any[];
   steps: number;
-  _stepResults?: Array<{ tool: string; result: any; evaluation?: any }>;
+  _stepResults?: Array<{ tool: string; params?: any; result?: any; evaluation?: any }>;
   _agentVersion: string;
 }
 
