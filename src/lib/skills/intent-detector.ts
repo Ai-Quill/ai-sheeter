@@ -195,13 +195,22 @@ export function quickSkillCheck(command: string): string | null {
     return 'writeData';
   }
   
-  // Formula keywords
+  // Formula keywords - MUST be checked before format (higher priority)
+  // "with formula", "into formula", "formula =" are strong formula signals
+  if (/\b(with\s+formula|into\s+formula|formula\s*=|replace.*formula)\b/i.test(cmdLower)) {
+    return 'formula';
+  }
   if (/\b(translate|uppercase|lowercase|extract|trim)\b/i.test(cmdLower)) {
     return 'formula';
   }
   
-  // Format keywords (check after more specific skills)
-  if (/\b(format|currency|percent|bold|border)\b/i.test(cmdLower)) {
+  // Format keywords (check after formula to avoid "formula" → "format" confusion)
+  // Note: "format" without "formula" context should go to format skill
+  if (/\b(currency|percent|bold|border|formatting|beautify)\b/i.test(cmdLower)) {
+    return 'format';
+  }
+  // Only match standalone "format" if NOT near "formula"
+  if (/\bformat\b/i.test(cmdLower) && !/formula/i.test(cmdLower)) {
     return 'format';
   }
   

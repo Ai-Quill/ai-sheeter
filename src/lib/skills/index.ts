@@ -1,13 +1,19 @@
 /**
  * Google Sheet Skills Module
  * 
- * Modular, adaptive prompt system that:
+ * SIMPLIFIED: Trusts AI with skill instructions alone.
+ * 
+ * Core features:
  * - Loads skills dynamically based on detected intent
  * - Composes minimal prompts for token efficiency
- * - Learns from success/failure patterns
  * - Uses generic request analysis to handle vague/composite requests
  * 
- * @version 1.1.0
+ * REMOVED (trusting AI instead):
+ * - Dynamic examples from database
+ * - Skill learning/outcome tracking
+ * - Embedding-based similarity search
+ * 
+ * @version 2.0.0 - Simplified
  */
 
 // Types
@@ -40,33 +46,10 @@ export {
   selectSkills,
   loadSkillInstructions,
   loadSkillExamples,
-  loadSkillExamplesSync,  // Backward-compatible sync version
   formatExamplesForPrompt,
   getAllSkills,
   getSkillStats,
 } from './registry';
-
-// Skill Learning
-export {
-  recordSkillOutcome,
-  recordUserEdit,
-  getSkillPerformance,
-  refreshSkillStats,
-  findSimilarFailures,
-  getSkillsNeedingReview,
-  markReviewed,
-  createOutcome,
-} from './skill-learner';
-
-// Dynamic Examples (for loading from DB)
-export {
-  loadDynamicExamples,
-  markAsGoodExample,
-  getExampleCounts,
-  convertHardcodedExamples,
-  scoreHardcodedExample,
-  type DynamicSkillExample,
-} from './dynamic-examples';
 
 // Individual Skills (for direct access if needed)
 export { chartSkill } from './skills/chart.skill';
@@ -79,3 +62,10 @@ export { chatSkill } from './skills/chat.skill';
 export { formulaSkill } from './skills/formula.skill';
 export { tableSkill } from './skills/table.skill';
 export { sheetOpsSkill } from './skills/sheet-ops.skill';
+
+// ============================================
+// DEPRECATED - Kept for reference only
+// ============================================
+// These modules are disabled but kept for potential future use:
+// - ./skill-learner.ts: Tracks skill usage patterns
+// - ./dynamic-examples.ts: Loads examples from database

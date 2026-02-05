@@ -1,14 +1,18 @@
 /**
  * Intent Cache Operations
  * 
- * Handles all database operations for the intent cache:
+ * DEPRECATED: This module is disabled.
+ * Modern LLMs handle intent from skill instructions alone.
+ * 
+ * Original functionality (kept for potential future use):
  * - Finding similar intents by embedding
  * - Recording cache hits
  * - Promoting successful classifications to cache
  * - Seeding initial embeddings
  * 
- * @version 1.0.0
+ * @version 2.0.0 - Disabled
  * @created 2026-02-02
+ * @deprecated 2026-02-05
  */
 
 import { supabaseAdmin } from '../supabase';

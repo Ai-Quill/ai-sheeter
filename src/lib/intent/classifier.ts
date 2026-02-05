@@ -1,23 +1,17 @@
 /**
  * Unified Intent Classifier
  * 
- * ARCHITECTURE:
+ * DEPRECATED: This module is disabled.
+ * Modern LLMs handle intent from skill instructions alone.
+ * 
+ * Original architecture (kept for potential future use):
  * 1. Try embedding cache lookup (learned patterns from successful executions)
  * 2. Fall back to AI classification (ambiguous cases)
  * 3. Heuristic fallback only if AI fails completely
  * 
- * LEARNING: The cache learns from successful executions. When users
- * run commands that work, they get promoted to the cache. Over time,
- * the cache handles more and more cases without AI.
- * 
- * DON'T add hardcoded regex patterns here. Instead:
- * - Seed the cache with good examples (migrations)
- * - Improve the AI classification prompt
- * - Trust the learning system
- * 
- * @version 2.1.0
+ * @version 2.2.0 - Disabled
  * @created 2026-02-02
- * @updated 2026-02-03 - Removed hardcoded patterns, trust learning system
+ * @deprecated 2026-02-05
  */
 
 import { generateText } from 'ai';
