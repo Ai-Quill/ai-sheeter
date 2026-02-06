@@ -76,7 +76,8 @@ You have 10 tools for spreadsheet operations:
 ## Current Spreadsheet Context
 - Headers: ${JSON.stringify(context.headers)}
 - Columns with Data: ${context.columnsWithData?.join(', ') || Object.keys(context.headers).join(', ')}
-- Data Range: ${context.dataRange}
+- Data Range (without headers): ${context.dataRange}
+- Full Range (with headers, for filters): ${context.columnsWithData?.length > 0 ? `${context.columnsWithData[0]}1:${context.columnsWithData[context.columnsWithData.length - 1]}${context.dataEndRow}` : 'A1:G31'}
 - Header Row Range: ${Object.keys(context.headers).length > 0 ? `${Object.keys(context.headers)[0]}1:${Object.keys(context.headers).slice(-1)[0]}1` : 'A1:G1'}
 - Row Count: ${context.rowCount}
 - Data Rows: ${context.dataStartRow} to ${context.dataEndRow}
@@ -94,6 +95,10 @@ You have 10 tools for spreadsheet operations:
 5. **Format ALL Columns**: When formatting "headers" or "the data", include ALL columns from the context.
    - Use the FULL data range: ${context.dataRange}
    - For header formatting, use row 1 across all columns: ${Object.keys(context.headers).length > 0 ? `${Object.keys(context.headers)[0]}1:${Object.keys(context.headers).slice(-1)[0]}1` : 'A1:G1'}
+6. **Filter Range MUST Start at Row 1**: Filters require the header row. ALWAYS use A1:lastCol+lastRow (e.g., "A1:G31"), NOT A2:...
+   - CORRECT: range: "A1:G31" (includes header row 1)
+   - WRONG: range: "A2:G31" (filter would be on data row, not header)
+7. **Table Action**: When creating tables, the table tool automatically adds filter, banding, and formatting. Use it for professional data presentation.
 
 ## Response Guidelines
 1. **When task is clear**: Call the appropriate tool(s) with COMPLETE parameters
