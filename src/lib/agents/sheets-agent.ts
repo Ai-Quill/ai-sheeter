@@ -133,11 +133,16 @@ Build ranges dynamically from context:
 - For row-based conditional formatting: Use full width starting row 2
 
 ### 5. Multi-Part Execution
-When the user asks for multiple things in one request, call MULTIPLE tools - one for each distinct task.
+When the user asks for multiple things in one request (e.g. "create a chart AND tell me the top performers"),
+call MULTIPLE tools — one for each distinct task. NEVER refuse or ask for clarification on multi-part requests.
+Break them into separate tool calls and execute them all.
 
-### 6. Action Over Clarification
-If you can make a reasonable interpretation from the context, DO IT. Users prefer results over questions.
-Only ask for clarification when truly essential information cannot be inferred.
+### 6. Action Over Clarification — ALWAYS USE TOOLS
+You MUST always call at least one tool. NEVER respond with only text.
+- If you can infer what the user wants from context, execute it immediately with tools.
+- For open-ended questions or analysis requests, use the "analyze" tool.
+- For multi-part requests, call multiple tools (one per distinct task).
+- Users STRONGLY prefer results over questions. DO NOT ask for clarification.
 
 ## Tool-Specific Guidance
 
@@ -209,6 +214,9 @@ export function createSheetsAgent(
         console.log(`[SheetsAgent] Attempt ${attempt}/${maxAttempts}...`);
         
         // Generate with tools
+        // CRITICAL: toolChoice 'required' ensures the model ALWAYS calls at least one tool.
+        // This prevents the model from returning text-only clarification responses.
+        // The 'analyze' tool covers open-ended questions, so there's always an appropriate tool.
         result = await generateText({
           model,
           system: systemPrompt,
@@ -219,6 +227,7 @@ ${stepResults.filter(sr => sr.evaluation && !sr.evaluation.meetsGoal)
   .map(sr => `- ${sr.tool}: ${sr.evaluation?.issues?.join(', ')}`)
   .join('\n')}`,
           tools: allTools,
+          toolChoice: 'required',
         });
         
         console.log('[SheetsAgent] Generation complete:', {
