@@ -59,11 +59,14 @@ const EvaluationSchema = z.object({
 
 function buildAgentSystemPrompt(context: DataContext): string {
   // Pre-compute useful context info
+  // Use columnsWithData for column span (more reliable than header keys alone)
   const headerKeys = Object.keys(context.headers);
-  const firstCol = headerKeys[0] || 'A';
-  const lastCol = headerKeys[headerKeys.length - 1] || 'G';
-  const fullRangeWithHeaders = `${firstCol}1:${lastCol}${context.dataEndRow}`;
-  const headerRowRange = `${firstCol}1:${lastCol}1`;
+  const dataColumns = context.columnsWithData?.length > 0 ? context.columnsWithData : headerKeys;
+  const firstCol = dataColumns[0] || headerKeys[0] || 'A';
+  const lastCol = dataColumns[dataColumns.length - 1] || headerKeys[headerKeys.length - 1] || 'G';
+  const hRow = context.headerRow || 1;
+  const fullRangeWithHeaders = `${firstCol}${hRow}:${lastCol}${context.dataEndRow}`;
+  const headerRowRange = `${firstCol}${hRow}:${lastCol}${hRow}`;
   
   // Infer column types from sample data for the AI
   const columnTypes: Record<string, string> = {};

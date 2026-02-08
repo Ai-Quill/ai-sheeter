@@ -409,9 +409,13 @@ function buildAgentDataContext(context: any, command: string): AgentDataContext 
     selectionInfo.columnsWithData || 
     Object.keys(headers);
   
-  const emptyColumns = context?.emptyColumns || 
+  // Normalize emptyColumns to string[] (frontend may send objects like {column, header})
+  const rawEmptyColumns = context?.emptyColumns || 
     selectionInfo.emptyColumns || 
     [];
+  const emptyColumns: string[] = rawEmptyColumns.map((c: any) => 
+    typeof c === 'object' ? c.column : String(c)
+  ).filter(Boolean);
   
   // Get row info - check enhanced context first (from buildEnhancedContext)
   const headerRow = context?.headerRowNumber || 
@@ -744,7 +748,11 @@ function extractDataContext(context: any): ExtendedDataContext {
   }
   
   // Get empty columns from frontend, but ensure we have at least 10 for multi-aspect workflows
-  const frontendEmptyColumns = selInfo?.emptyColumns?.map((e: any) => e.column) || [];
+  // Handle both formats: objects {column, header} and plain strings
+  const rawFrontendEmpty = context?.emptyColumns || selInfo?.emptyColumns || [];
+  const frontendEmptyColumns = rawFrontendEmpty.map((e: any) => 
+    typeof e === 'object' ? e.column : String(e)
+  ).filter(Boolean);
   const emptyColumns = frontendEmptyColumns.length >= 10 
     ? frontendEmptyColumns 
     : getEmptyColumnsAfter(dataColumns, 10);
