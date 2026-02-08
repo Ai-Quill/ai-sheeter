@@ -357,6 +357,12 @@ function generateSmartClarification(
 
 /**
  * Convert frontend context to SDK Agent DataContext format
+ * 
+ * Priority for context fields (from buildEnhancedContext):
+ * 1. context.* (enhanced fields from frontend buildEnhancedContext)
+ * 2. explicitRowInfo.* 
+ * 3. selectionInfo.*
+ * 4. Fallback construction
  */
 function buildAgentDataContext(context: any, command: string): AgentDataContext {
   const selectionInfo = context?.selectionInfo || {};
@@ -364,36 +370,82 @@ function buildAgentDataContext(context: any, command: string): AgentDataContext 
   
   // Build headers map from context
   const headers: Record<string, string> = {};
-  if (context?.headers && Array.isArray(context.headers)) {
+  
+  // Priority 1: headerRow as object { A: "Name", B: "Sales" }
+  if (context?.headerRow && typeof context.headerRow === 'object' && !Array.isArray(context.headerRow)) {
+    Object.entries(context.headerRow).forEach(([col, name]) => {
+      if (name) headers[col] = String(name);
+    });
+  }
+  // Priority 2: headers array [{column, name}] from selectionInfo
+  else if (selectionInfo?.headers && Array.isArray(selectionInfo.headers)) {
+    selectionInfo.headers.forEach((h: { column: string; name: string }) => {
+      if (h.column && h.name) headers[h.column] = h.name;
+    });
+  }
+  // Priority 3: headers array (old format)
+  else if (context?.headers && Array.isArray(context.headers)) {
     context.headers.forEach((name: string, idx: number) => {
       const col = String.fromCharCode(65 + idx); // A, B, C, ...
       if (name) headers[col] = name;
     });
-  } else if (context?.headerRow && Array.isArray(context.headerRow)) {
+  }
+  // Priority 4: headerRow as array (old format)
+  else if (context?.headerRow && Array.isArray(context.headerRow)) {
     context.headerRow.forEach((name: string, idx: number) => {
       const col = String.fromCharCode(65 + idx);
       if (name) headers[col] = name;
     });
-  } else if (explicitRowInfo.headerNames) {
+  }
+  // Priority 5: explicitRowInfo.headerNames
+  else if (explicitRowInfo.headerNames) {
     explicitRowInfo.headerNames.forEach((h: { column: string; name: string }) => {
       headers[h.column] = h.name;
     });
   }
   
-  // Get columns with data
-  const columnsWithData = selectionInfo.columnsWithData || Object.keys(headers);
-  const emptyColumns = selectionInfo.emptyColumns || [];
+  // Get columns with data - check enhanced context first, then selectionInfo
+  const columnsWithData = context?.columnsWithData || 
+    selectionInfo.columnsWithData || 
+    Object.keys(headers);
   
-  // Get row info
-  const headerRow = explicitRowInfo.headerRowNumber || 1;
-  const dataStartRow = explicitRowInfo.dataStartRow || selectionInfo.dataStartRow || 2;
-  const dataEndRow = explicitRowInfo.dataEndRow || selectionInfo.dataEndRow || 100;
+  const emptyColumns = context?.emptyColumns || 
+    selectionInfo.emptyColumns || 
+    [];
+  
+  // Get row info - check enhanced context first (from buildEnhancedContext)
+  const headerRow = context?.headerRowNumber || 
+    explicitRowInfo.headerRowNumber || 
+    selectionInfo.headerRow || 
+    1;
+  
+  const dataStartRow = context?.dataStartRow || 
+    explicitRowInfo.dataStartRow || 
+    selectionInfo.dataStartRow || 
+    2;
+  
+  const dataEndRow = context?.dataEndRow || 
+    explicitRowInfo.dataEndRow || 
+    selectionInfo.dataEndRow || 
+    100;
+  
   const rowCount = dataEndRow - dataStartRow + 1;
   
-  // Get data range
-  const dataRange = explicitRowInfo.dataRange || 
+  // Get data range - check enhanced context first (this is the properly built full range)
+  const dataRange = context?.dataRange || 
+    explicitRowInfo.dataRange || 
     selectionInfo.dataRange || 
     `${columnsWithData[0] || 'A'}${dataStartRow}:${columnsWithData[columnsWithData.length - 1] || 'A'}${dataEndRow}`;
+  
+  // Log what we resolved
+  console.log('[buildAgentDataContext] Resolved context:', {
+    dataRange,
+    columnsWithData: columnsWithData.length,
+    headerRow,
+    dataStartRow,
+    dataEndRow,
+    headersCount: Object.keys(headers).length
+  });
   
   // Get sample data
   const sampleData: Record<string, string[]> = {};
@@ -660,8 +712,13 @@ function extractDataContext(context: any): ExtendedDataContext {
   // Try multiple sources in order of preference
   let dataColumns: string[] = [];
   
+  // Priority 0: Enhanced context.columnsWithData (from buildEnhancedContext)
+  if (context?.columnsWithData && Array.isArray(context.columnsWithData) && context.columnsWithData.length > 0) {
+    dataColumns = context.columnsWithData;
+    console.log('[parse-chain] Using context.columnsWithData (enhanced):', dataColumns.join(','));
+  }
   // Priority 1: selectionInfo.columnsWithData (from auto-detection or explicit selection)
-  if (selInfo?.columnsWithData && Array.isArray(selInfo.columnsWithData) && selInfo.columnsWithData.length > 0) {
+  else if (selInfo?.columnsWithData && Array.isArray(selInfo.columnsWithData) && selInfo.columnsWithData.length > 0) {
     dataColumns = selInfo.columnsWithData;
     console.log('[parse-chain] Using selInfo.columnsWithData:', dataColumns.join(','));
   }
@@ -745,10 +802,11 @@ function extractDataContext(context: any): ExtendedDataContext {
   // Log sample data for debugging
   console.log('[parse-chain] Sample data available for columns:', Object.keys(sampleData).join(', ') || 'none');
   
-  // Extract row information - IMPROVED: Use columnDataRanges as fallback
-  let startRow = selInfo?.dataStartRow;
-  let endRow = selInfo?.dataEndRow;
-  let rowCount = selInfo?.dataRowCount;
+  // Extract row information - check enhanced context first
+  // Priority: context.* (enhanced) > selInfo.* > columnDataRanges fallback
+  let startRow = context?.dataStartRow || selInfo?.dataStartRow;
+  let endRow = context?.dataEndRow || selInfo?.dataEndRow;
+  let rowCount = context?.totalRowCount || selInfo?.dataRowCount;
   
   // If selectionInfo doesn't have row info, try to get from columnDataRanges
   if (!startRow && dataColumns.length > 0) {
@@ -770,22 +828,41 @@ function extractDataContext(context: any): ExtendedDataContext {
   // Build full data range in A1 notation
   // IMPORTANT: Always build the range to include ALL data columns, not just the auto-detected first column
   let dataRange = '';
-  if (dataColumns.length > 0) {
+  
+  // Priority 0: Use enhanced context.dataRange if it spans multiple columns correctly
+  if (context?.dataRange && dataColumns.length > 0) {
+    // Check if context.dataRange already includes all columns
+    const rangeMatch = context.dataRange.match(/([A-Z]+)\d+:([A-Z]+)\d+/);
+    if (rangeMatch) {
+      const rangeStartCol = rangeMatch[1];
+      const rangeEndCol = rangeMatch[2];
+      // If the range spans the same columns as dataColumns, use it
+      if (rangeStartCol === dataColumns[0] && rangeEndCol === dataColumns[dataColumns.length - 1]) {
+        dataRange = context.dataRange;
+        console.log('[parse-chain] Using context.dataRange (enhanced):', dataRange);
+      }
+    }
+  }
+  
+  // Priority 1: Build from dataColumns if not already set
+  if (!dataRange && dataColumns.length > 0) {
     const firstCol = dataColumns[0];
     const lastCol = dataColumns[dataColumns.length - 1];
     dataRange = `${firstCol}${startRow}:${lastCol}${endRow}`;
+    console.log('[parse-chain] Built dataRange from columns:', dataRange);
     
-    // Override any single-column dataRange from selInfo with multi-column range
+    // Note if we're overriding a single-column range
     if (selInfo?.dataRange && dataColumns.length > 1) {
-      console.log('[parse-chain] Overriding selInfo.dataRange', selInfo.dataRange, 'with full range', dataRange);
+      console.log('[parse-chain] (Overriding selInfo.dataRange', selInfo.dataRange, 'with full range)');
     }
-  } else if (selInfo?.dataRange) {
-    // Fallback to selInfo.dataRange only if no dataColumns detected
+  }
+  // Priority 2: Fallback to selInfo.dataRange
+  else if (!dataRange && selInfo?.dataRange) {
     dataRange = selInfo.dataRange;
     console.log('[parse-chain] Using selInfo.dataRange as fallback:', dataRange);
   }
   // Final safety: If still no range, construct a minimal one
-  else {
+  else if (!dataRange) {
     dataRange = `A${startRow}:D${endRow}`;
     console.warn('[parse-chain] WARNING: No dataRange detected, using fallback A1 notation:', dataRange);
   }
