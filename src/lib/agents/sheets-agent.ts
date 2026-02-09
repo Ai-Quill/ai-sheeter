@@ -126,11 +126,11 @@ For any task involving calculations, rankings, aggregations, or lookups - USE NA
 - Never mix them incorrectly (e.g., don't chart text as data values)
 
 ### 4. Range Construction
-Build ranges dynamically from context:
-- For filters: Start at row 1 to include headers → ${fullRangeWithHeaders}
-- For data formatting: Use DATA_RANGE → ${context.dataRange}
-- For header formatting: Use HEADER_ROW → ${headerRowRange}
-- For row-based conditional formatting: Use full width starting row 2
+Build ALL ranges dynamically from the context above — never hardcode column letters or row numbers.
+- Filters: Must include headers → FULL_RANGE: ${fullRangeWithHeaders}
+- Data formatting/conditional formatting: → DATA_RANGE: ${context.dataRange}
+- Header formatting only: → HEADER_ROW: ${headerRowRange}
+- Single column range: Combine column letter + start row + ":" + column letter + end row (e.g., if col is "C" and data rows are ${context.dataStartRow}-${context.dataEndRow} → C${context.dataStartRow}:C${context.dataEndRow})
 
 ### 5. Multi-Part Execution
 When the user asks for multiple things in one request (e.g. "create a chart AND tell me the top performers"),
@@ -146,25 +146,69 @@ You MUST always call at least one tool. NEVER respond with only text.
 
 ## Tool-Specific Guidance
 
-**Formulas**: Specify the formula template, output column, start/end rows, and description.
+**formula** — Native Sheets formulas:
+- Use \`{{ROW}}\` as a placeholder for the row number. The system replaces it per-row automatically.
+- Set outputColumn to the first EMPTY_COLUMN, startRow/endRow from DATA_RANGE.
+- Provide a "description" that becomes the column header (e.g., "Total Sales", "Growth %").
+- For referencing other columns: use the column letter + \`{{ROW}}\` (e.g., \`C{{ROW}}\`, \`D{{ROW}}\`).
 
-**Formatting**: Include complete range and all style properties. When formatting "all data" or "headers", use the full column span from context.
+**format** — Cell styling:
+- Include the complete range and all desired style properties.
+- When formatting "all data" or "everything", use DATA_RANGE.
+- When formatting headers, use HEADER_ROW.
+- For number formats: use \`numberFormat\` (e.g., "$#,##0.00" for currency, "0.0%" for percent).
 
-**Charts**: 
-- domainColumn = the text/label column (look for 'text' in COLUMN_TYPES)
-- dataColumns = numeric columns only (look for 'numeric' in COLUMN_TYPES)
+**chart** — Visualizations:
+- domainColumn = the label/category column (look for 'text' type in COLUMN_TYPES)
+- dataColumns = the numeric columns to plot (look for 'numeric' type in COLUMN_TYPES)
+- Choose chart type based on data relationship:
+  - Comparisons across categories → column or bar
+  - Trends over time/sequence → line or area
+  - Part-to-whole → pie (single series only)
+  - Correlation between two variables → scatter
 - seriesNames = readable labels derived from header names
 
-**Conditional Formatting for Rows**: When highlighting entire rows based on conditions:
-- Use customFormula with absolute column reference ($) and relative row
-- Range must span all columns for full row highlighting
+**conditionalFormat** — Highlight cells/rows based on conditions:
+- Available rule types: greaterThan, lessThan, between, equalTo, textContains, customFormula, colorScale
+- **Simple threshold** (one column vs a fixed value): Use greaterThan/lessThan/between with \`value\` field
+- **Cross-column comparison** (one column vs another column): Use \`customFormula\` — this is the ONLY way to compare two columns dynamically
+- **customFormula syntax**: \`=\$[COL_LETTER]${context.dataStartRow}[operator]\$[COL_LETTER]${context.dataStartRow}\` — use \$ before column letters (absolute column) but plain row number (relative row). The row number must match the first row in the range.
+- **Row highlighting**: Set range to full data width (DATA_RANGE) so the entire row is colored
+- **Column highlighting**: Set range to only that column's data range
+- **Text match**: Use textContains for simple matching, or customFormula \`=\$[COL]${context.dataStartRow}="exact value"\`
+- ALWAYS provide \`backgroundColor\` on every rule (hex color strings)
+- ALWAYS provide the \`formula\` field when using customFormula type
 
-**Filters**: Range MUST include the header row (start at row 1).
+**filter** — Show/hide rows:
+- Range MUST include the header row (use FULL_RANGE: \`${fullRangeWithHeaders}\`)
+
+**dataValidation** — Dropdowns, checkboxes, input constraints:
+- Set range to the target column's data range
+- For dropdowns: set validationType to "list" with values array
+- For checkboxes: set validationType to "checkbox"
+
+**sheetOps** — Sheet-level operations:
+- Supports: freezeRows, freezeColumns, sort, hideColumns, hideRows, autoResize, protectRange
+- For sort: specify the column letter and ascending/descending
+
+**writeData** — Insert raw data into cells:
+- Set startCell to where data begins
+- Provide data as a 2D array (rows × columns)
+- If data includes headers, start at row 1; if data-only, start at the next empty row
+
+**table** — Create formatted data table:
+- Set range to include headers and data
+- Use applyBanding for alternating row colors
+
+**analyze** — AI-powered analysis (chat response, NOT written to cells):
+- Use ONLY for subjective/interpretive questions the user asks (insights, patterns, comparisons, recommendations)
+- The response appears in the chat, not in the spreadsheet
+- Provide a specific "question" field describing exactly what to analyze
 
 ## Output Quality
-- Always provide a brief "description" parameter when available - this displays in the user's UI
-- Make descriptions specific and actionable (what this step does), not generic
-- After completion, summarize what was accomplished`;
+- Always provide a brief "description" parameter — it shows in the user's task progress UI
+- Make descriptions specific (what this step does), not generic labels
+- Derive column letters, row numbers, and ranges from the live context above — NEVER guess or hardcode`;
 }
 
 // ============================================
@@ -527,6 +571,12 @@ export function convertAgentResultToLegacyFormat(
       step.outputFormat = 'conditionalFormat';
       step.range = toolInput.range;
       step.rules = toolInput.rules;
+      // Also set config for GAS compatibility (GAS checks config.rules first)
+      step.config = {
+        range: toolInput.range,
+        rules: toolInput.rules,
+      };
+      console.log('[convertAgentResultToLegacyFormat] ConditionalFormat rules:', JSON.stringify(toolInput.rules).substring(0, 300));
     } else if (toolName === 'dataValidation') {
       step.outputFormat = 'dataValidation';
       step.range = toolInput.range;
