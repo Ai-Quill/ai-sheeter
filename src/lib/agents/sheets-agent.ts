@@ -151,6 +151,7 @@ You MUST always call at least one tool. NEVER respond with only text.
 - Set outputColumn to the first EMPTY_COLUMN, startRow/endRow from DATA_RANGE.
 - Provide a "description" that becomes the column header (e.g., "Total Sales", "Growth %").
 - For referencing other columns: use the column letter + \`{{ROW}}\` (e.g., \`C{{ROW}}\`, \`D{{ROW}}\`).
+- **IMPORTANT**: When the formula produces monetary values (prices, sales, bonuses, costs, revenue), ALSO call the **format** tool with \`formatType: "currency"\` on the output column. When it produces percentages, format with \`formatType: "percent"\`. Raw formula output has no formatting — always pair with a format call for user-facing numeric results.
 
 **format** — Cell styling:
 - Include the complete range and all desired style properties.
@@ -178,6 +179,7 @@ You MUST always call at least one tool. NEVER respond with only text.
 - **Text match**: Use textContains for simple matching, or customFormula \`=\$[COL]${context.dataStartRow}="exact value"\`
 - ALWAYS provide \`backgroundColor\` on every rule (hex color strings)
 - ALWAYS provide the \`formula\` field when using customFormula type
+- **Readability**: When using dark or saturated background colors, also set \`textColor\` to a contrasting color (e.g., white "#FFFFFF" text on dark red/green backgrounds). This ensures highlighted rows remain readable.
 
 **filter** — Show/hide rows:
 - Range MUST include the header row (use FULL_RANGE: \`${fullRangeWithHeaders}\`)
