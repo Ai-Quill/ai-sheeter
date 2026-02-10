@@ -45,12 +45,14 @@ export interface AgentResult {
 }
 
 // Schema for self-correction evaluation
+// NOTE: OpenAI strict JSON schema requires ALL properties in 'required'.
+// Use .nullable() instead of .optional() for fields that may not always be present.
 const EvaluationSchema = z.object({
   meetsGoal: z.boolean().describe('Does the result achieve what the user wanted?'),
   confidence: z.number().describe('Confidence score between 0 and 1'),
   issues: z.array(z.string()).describe('List of issues found, if any'),
   shouldRetry: z.boolean().describe('Should the agent try a different approach?'),
-  suggestedFix: z.string().optional().describe('How to fix the issue'),
+  suggestedFix: z.string().nullable().describe('How to fix the issue, or null if no fix needed'),
 });
 
 // ============================================

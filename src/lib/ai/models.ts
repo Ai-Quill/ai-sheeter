@@ -75,7 +75,7 @@ export const DEFAULT_MODELS: Record<AIProvider, string> = {
   CLAUDE: 'claude-haiku-4-5',      // $1.00/$5.00 per MTok
   GROQ: 'llama-3.3-70b-versatile', // $0.59/$0.79 per MTok
   GEMINI: 'gemini-2.5-flash',      // $0.075/$0.30 per MTok
-  STRATICO: 'gpt-3.5-turbo',       // Fallback
+  STRATICO: 'gpt-5-mini',           // Fallback
 };
 
 /**
