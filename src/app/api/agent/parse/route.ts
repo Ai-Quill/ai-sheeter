@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { AIProvider } from '@/lib/ai/models';
 import { taskOptimizer, DetectedTask } from '@/lib/ai/task-optimizer';
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
+import { calculateQueryCost, debitManagedCredits } from '@/lib/managed-ai';
 
 // ============================================
 // STRUCTURED OUTPUT SCHEMA
@@ -262,7 +263,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Authenticate request using centralized auth service
-    const auth = authenticateRequest(body);
+    // Supports both BYOK (encryptedApiKey) and Managed (managedMode=true) modes
+    const auth = await authenticateRequest(body);
     if (!auth.success) {
       return NextResponse.json(
         createAuthErrorResponse(auth),
@@ -270,7 +272,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { provider: aiProvider, apiKey, modelId, model } = auth;
+    const { provider: aiProvider, apiKey, modelId, model, isManaged, managedUserId } = auth;
 
     // ============================================
     // TASK DETECTION
@@ -546,7 +548,7 @@ export async function POST(request: NextRequest) {
     
     // Use structured output for reliable parsing
     // See: https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model,
       system: SYSTEM_PROMPT,
       prompt: userMessage,
@@ -555,6 +557,13 @@ export async function POST(request: NextRequest) {
         schema: ParsedPlanSchema,
       }),
     });
+
+    // Debit managed credits if using platform AI keys
+    if (isManaged && managedUserId && usage) {
+      const cost = calculateQueryCost(modelId, usage.inputTokens || 0, usage.outputTokens || 0);
+      await debitManagedCredits(managedUserId, cost);
+      console.log(`[parse] Managed credit debit: $${cost.toFixed(6)}`);
+    }
     
     console.log('[Parse] AI raw output:', JSON.stringify(output, null, 2));
 

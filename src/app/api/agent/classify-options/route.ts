@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
+import { calculateQueryCost, debitManagedCredits } from '@/lib/managed-ai';
 
 // ============================================
 // STRUCTURED OUTPUT SCHEMA
@@ -136,7 +137,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Authenticate request using centralized auth service
-    const auth = authenticateRequest(body);
+    // Supports both BYOK (encryptedApiKey) and Managed (managedMode=true) modes
+    const auth = await authenticateRequest(body);
     if (!auth.success) {
       return NextResponse.json(
         createAuthErrorResponse(auth),
@@ -144,7 +146,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { provider: aiProvider, modelId, model } = auth;
+    const { provider: aiProvider, modelId, model, isManaged, managedUserId } = auth;
 
     // Build prompt with column information
     const columnList = columns.map((col: any) => 
@@ -158,7 +160,7 @@ export async function POST(request: NextRequest) {
     
     // Model already obtained from authenticateRequest()
     // Use structured output for reliable parsing
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model,
       system: SYSTEM_PROMPT,
       prompt: userMessage,
@@ -167,6 +169,13 @@ export async function POST(request: NextRequest) {
         schema: ClassificationAnalysisSchema,
       }),
     });
+
+    // Debit managed credits if using platform AI keys
+    if (isManaged && managedUserId && usage) {
+      const cost = calculateQueryCost(modelId, usage.inputTokens || 0, usage.outputTokens || 0);
+      await debitManagedCredits(managedUserId, cost);
+      console.log(`[classify-options] Managed credit debit: $${cost.toFixed(6)}`);
+    }
     
     console.log('[classify-options] AI analysis:', JSON.stringify(output, null, 2));
 

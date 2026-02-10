@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 
 export const PricingSection: React.FC = () => {
   return (
@@ -8,7 +8,7 @@ export const PricingSection: React.FC = () => {
         <div className="max-w-7xl mx-auto">
             <div className="text-center mb-12 md:mb-16 px-4">
                 <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#023047] mb-3 md:mb-4">Simple, transparent pricing</h2>
-                <p className="text-gray-500 text-sm sm:text-base">Bring your own keys, pay only for the interface.</p>
+                <p className="text-gray-500 text-sm sm:text-base">Start with free AI credits — no API keys needed. Upgrade for unlimited power.</p>
             </div>
 
             <div className="flex flex-col lg:flex-row gap-6 md:gap-8 justify-center items-stretch max-w-5xl mx-auto">
@@ -20,19 +20,24 @@ export const PricingSection: React.FC = () => {
                     <div className="mb-8">
                         <span className="text-[#219EBB] font-bold text-sm tracking-widest uppercase">Starter</span>
                         <h3 className="font-serif text-4xl text-[#023047] mt-4 mb-2">$0</h3>
-                        <p className="text-gray-400 text-sm">Forever free.</p>
+                        <p className="text-gray-400 text-sm">Forever free. No credit card needed.</p>
                     </div>
                     <ul className="space-y-4 mb-8 flex-1">
                         {[
-                            "300 Queries / month",
-                            "50 Bulk rows / job",
-                            "All AI Models (GPT, Claude, Gemini)",
-                            "Bring Your Own Keys",
-                            "Agent Mode"
+                            { text: "50 Free AI queries/month", highlight: true },
+                            { text: "No API key setup needed" },
+                            { text: "GPT-5 Mini, Gemini 2.5 Flash, Claude Haiku" },
+                            { text: "300 BYOK queries / month" },
+                            { text: "50 Bulk rows / job" },
+                            { text: "Agent Mode + All 10 Skills" },
                         ].map((item, i) => (
                             <li key={i} className="flex items-center gap-3 text-sm text-gray-600">
-                                <div className="p-1 rounded-full bg-gray-100 text-gray-600"><Check size={12} /></div>
-                                {item}
+                                <div className={`p-1 rounded-full ${item.highlight ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
+                                    {item.highlight ? <Sparkles size={12} /> : <Check size={12} />}
+                                </div>
+                                <span className={item.highlight ? 'font-medium text-green-700' : ''}>
+                                    {item.text}
+                                </span>
                             </li>
                         ))}
                     </ul>
@@ -42,7 +47,7 @@ export const PricingSection: React.FC = () => {
                         rel="noopener noreferrer"
                         className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition text-center block"
                     >
-                        Get Started
+                        Get Started Free
                     </a>
                 </motion.div>
 
@@ -58,19 +63,25 @@ export const PricingSection: React.FC = () => {
                     <div className="mb-8">
                         <span className="text-[#8ECAE6] font-bold text-sm tracking-widest uppercase">Pro</span>
                         <h3 className="font-serif text-4xl text-white mt-4 mb-2">$14.99<span className="text-lg text-white/50 font-sans font-normal">/mo</span></h3>
-                        <p className="text-white/60 text-sm">Unlimited power.</p>
+                        <p className="text-white/60 text-sm">Unlimited power. Premium AI included.</p>
                     </div>
                     <ul className="space-y-4 mb-8 flex-1">
                         {[
-                            "Unlimited Queries",
-                            "1,000 Bulk rows / job",
-                            "Persistent conversation memory",
-                            "Priority Support",
-                            "Proactive smart suggestions"
+                            { text: "$4.99/mo managed AI credits included", highlight: true },
+                            { text: "GPT-5, Claude Sonnet 4.5, Gemini 2.5 Pro" },
+                            { text: "Unlimited BYOK queries" },
+                            { text: "1,000 Bulk rows / job" },
+                            { text: "Persistent conversation memory" },
+                            { text: "Priority support" },
+                            { text: "Early access to new features" },
                         ].map((item, i) => (
                             <li key={i} className="flex items-center gap-3 text-sm text-white/90">
-                                <div className="p-1 rounded-full bg-[#219EBB] text-white"><Check size={12} /></div>
-                                {item}
+                                <div className={`p-1 rounded-full ${item.highlight ? 'bg-[#FFB701] text-[#023047]' : 'bg-[#219EBB] text-white'}`}>
+                                    {item.highlight ? <Sparkles size={12} /> : <Check size={12} />}
+                                </div>
+                                <span className={item.highlight ? 'font-medium text-[#FFB701]' : ''}>
+                                    {item.text}
+                                </span>
                             </li>
                         ))}
                     </ul>
@@ -84,6 +95,11 @@ export const PricingSection: React.FC = () => {
                     </a>
                 </motion.div>
             </div>
+
+            {/* BYOK note */}
+            <p className="text-center text-gray-400 text-xs mt-8">
+                All plans support Bring Your Own Keys (BYOK) — use your own API keys for unlimited access at your own cost.
+            </p>
         </div>
     </section>
   );

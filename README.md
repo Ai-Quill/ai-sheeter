@@ -70,7 +70,7 @@ Most AI spreadsheet tools are just fancy formulas. **AISheeter is different** �
 | **Conversation Memory** | ✅ Remembers context across queries | ❌ Stateless |
 | **Output Format Control** | ✅ JSON, lists, scores, custom formats | ❌ Plain text only |
 | **Proactive Suggestions** | ✅ AI recommends next steps | ❌ Passive |
-| **5+ AI Models** | ✅ GPT-4o, Claude, Gemini, Llama, DeepSeek | ⚠️ Limited |
+| **5+ AI Models** | ✅ GPT-5, Claude, Gemini, Llama, DeepSeek | ⚠️ Limited |
 
 ---
 

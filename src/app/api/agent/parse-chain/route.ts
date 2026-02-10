@@ -35,6 +35,7 @@ import { StoredWorkflow } from '@/lib/workflow-memory'; // Only type needed
 import { buildSmartPrompt, DataContext } from '@/lib/workflow-memory/prompt-builder';
 import { analyzeRequest } from '@/lib/skills';
 import { authenticateRequest, getAuthErrorStatus, createAuthErrorResponse } from '@/lib/auth/auth-service';
+import { calculateQueryCost, debitManagedCredits } from '@/lib/managed-ai';
 import { getModel } from '@/lib/ai/models';
 import { supabaseAdmin } from '@/lib/supabase';
 // SIMPLIFIED: Intent classification disabled - AI handles from instructions
@@ -489,7 +490,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Authenticate request using centralized auth service
-    const auth = authenticateRequest(body);
+    // Supports both BYOK (encryptedApiKey) and Managed (managedMode=true) modes
+    const auth = await authenticateRequest(body);
     if (!auth.success) {
       return NextResponse.json(
         createAuthErrorResponse(auth),
@@ -497,7 +499,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { provider, apiKey, modelId, model } = auth;
+    const { provider, apiKey, modelId, model, isManaged, managedUserId } = auth;
 
     // ============================================
     // SDK AGENT PATH (Feature Flag)
@@ -630,10 +632,17 @@ export async function POST(request: NextRequest) {
     console.log('[parse-chain] Using model provider:', provider, modelId);
     // Model already obtained from authenticateRequest()
     
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model,
       prompt,
     });
+
+    // Debit managed credits if using platform AI keys
+    if (isManaged && managedUserId && usage) {
+      const cost = calculateQueryCost(modelId, usage.inputTokens || 0, usage.outputTokens || 0);
+      await debitManagedCredits(managedUserId, cost);
+      console.log(`[parse-chain] Managed credit debit: $${cost.toFixed(6)} (${usage.inputTokens}+${usage.outputTokens} tokens)`);
+    }
 
     console.log('[parse-chain] AI response length:', text.length);
     console.log('[parse-chain] AI raw response (first 500 chars):', text.substring(0, 500));

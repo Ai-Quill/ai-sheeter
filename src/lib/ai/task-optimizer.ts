@@ -637,13 +637,13 @@ export function getRecommendedModel(
   // Otherwise use cost-optimized defaults
   switch (tier) {
     case 'fast':
-      return { provider: 'GEMINI', model: 'gemini-2.0-flash' };
+      return { provider: 'GEMINI', model: 'gemini-2.5-flash' };
     case 'balanced':
-      return { provider: 'GEMINI', model: 'gemini-1.5-flash' };
+      return { provider: 'GEMINI', model: 'gemini-2.5-flash' };
     case 'quality':
       return { provider: 'CLAUDE', model: 'claude-haiku-4-5' };
     default:
-      return { provider: 'GEMINI', model: 'gemini-1.5-flash' };
+      return { provider: 'GEMINI', model: 'gemini-2.5-flash' };
   }
 }
 
@@ -651,7 +651,7 @@ function parseUserModel(preference: string): { provider: string; model: string }
   const providerMap: Record<string, { provider: string; model: string }> = {
     'CHATGPT': { provider: 'CHATGPT', model: 'gpt-5-mini' },
     'CLAUDE': { provider: 'CLAUDE', model: 'claude-haiku-4-5' },
-    'GEMINI': { provider: 'GEMINI', model: 'gemini-1.5-flash' },
+    'GEMINI': { provider: 'GEMINI', model: 'gemini-2.5-flash' },
     'GROQ': { provider: 'GROQ', model: 'llama-3.3-70b-versatile' },
   };
   return providerMap[preference] || providerMap['GEMINI'];

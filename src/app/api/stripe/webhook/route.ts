@@ -2,14 +2,14 @@
  * Stripe Webhook Handler
  * 
  * Handles subscription lifecycle events:
- * - checkout.session.completed → Create subscription
- * - invoice.paid → Renew subscription, reset credits
+ * - checkout.session.completed → Create subscription, set managed credit cap
+ * - invoice.paid → Renew subscription, reset credits + managed credits
  * - customer.subscription.updated → Plan changes
- * - customer.subscription.deleted → Cancellation
+ * - customer.subscription.deleted → Cancellation, reset managed cap to free tier
  */
 
 import { NextResponse } from 'next/server';
-import { stripe, getCreditsForTier, type PlanTier } from '@/lib/stripe';
+import { stripe, getCreditsForTier, PRICING_TIERS, type PlanTier } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase';
 import Stripe from 'stripe';
 
@@ -89,7 +89,8 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
     current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
   });
 
-  // Update user
+  // Update user (including managed credit cap for new tier)
+  const managedCap = PRICING_TIERS[tier]?.managedCreditsCap ?? PRICING_TIERS.free.managedCreditsCap;
   await supabaseAdmin
     .from('users')
     .update({
@@ -97,11 +98,15 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session): Promise
       plan_tier: tier,
       credits_balance: getCreditsForTier(tier),
       credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      // Reset managed credits for new subscription
+      managed_credits_used_usd: 0,
+      managed_credits_cap_usd: managedCap,
+      managed_credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date().toISOString()
     })
     .eq('id', userId);
 
-  console.log(`Subscription created for user ${userId}: ${tier}`);
+  console.log(`Subscription created for user ${userId}: ${tier}, managed cap: $${managedCap}`);
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
@@ -124,14 +129,19 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     return;
   }
 
-  // Reset credits for the new billing period
+  // Reset credits for the new billing period (BYOK + managed)
   const credits = getCreditsForTier(sub.plan_tier as PlanTier);
+  const managedCap = PRICING_TIERS[sub.plan_tier as PlanTier]?.managedCreditsCap ?? PRICING_TIERS.free.managedCreditsCap;
   
   await supabaseAdmin
     .from('users')
     .update({
       credits_balance: credits,
       credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      // Reset managed credits for new billing period
+      managed_credits_used_usd: 0,
+      managed_credits_cap_usd: managedCap,
+      managed_credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       updated_at: new Date().toISOString()
     })
     .eq('id', sub.user_id);
@@ -178,12 +188,16 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription): Pro
     .single();
 
   if (sub) {
-    // Downgrade user to free tier
+    // Downgrade user to free tier (including managed credit cap)
     await supabaseAdmin
       .from('users')
       .update({
         plan_tier: 'free',
         credits_balance: 100,  // Free tier credits
+        // Reset managed credits to free tier cap
+        managed_credits_used_usd: 0,
+        managed_credits_cap_usd: PRICING_TIERS.free.managedCreditsCap,
+        managed_credits_reset_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', sub.user_id);

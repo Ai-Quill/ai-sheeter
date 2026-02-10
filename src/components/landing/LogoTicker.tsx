@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 
 // AI Providers we integrate with
 const AI_PROVIDERS = [
-  { name: "OpenAI", tag: "GPT-4o" },
-  { name: "Anthropic", tag: "Claude 3.5" },
-  { name: "Google", tag: "Gemini" },
-  { name: "Groq", tag: "Llama 3" },
+  { name: "OpenAI", tag: "GPT-5" },
+  { name: "Anthropic", tag: "Claude 4.5" },
+  { name: "Google", tag: "Gemini 2.5" },
+  { name: "Groq", tag: "Llama 3.3" },
 ];
 
 export const LogoTicker: React.FC = () => {

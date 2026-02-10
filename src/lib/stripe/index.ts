@@ -6,11 +6,15 @@
  * - STRIPE_WEBHOOK_SECRET: Webhook signature verification
  * - STRIPE_PRICE_ID_PRO: Price ID for Pro tier
  * - NEXT_PUBLIC_APP_URL: Base URL for redirects
+ * - MANAGED_OPENAI_API_KEY: Platform OpenAI key for managed credits
+ * - MANAGED_ANTHROPIC_API_KEY: Platform Anthropic key for managed credits
+ * - MANAGED_GOOGLE_API_KEY: Platform Google key for managed credits
+ * - MANAGED_GROQ_API_KEY: Platform Groq key for managed credits
  * 
  * Pricing Tiers:
- * - Free: 500 requests/month - All features, BYOK
- * - Pro: $14.99/mo - Unlimited requests, All features, BYOK
- * - Legacy: Unlimited free forever (existing users)
+ * - Free: 300 BYOK requests/month + 50 managed AI queries (~$0.015 cap)
+ * - Pro: $14.99/mo - Unlimited BYOK + $4.99/mo managed AI credits
+ * - Legacy: Unlimited free forever (existing users) + $4.99/mo managed credits
  */
 
 import Stripe from 'stripe';
@@ -33,21 +37,38 @@ export const PRICING_TIERS = {
     priceMonthly: 0,
     priceId: null,
     requestLimit: 300,
-    features: ['300 queries/month', 'All features included', 'BYOK (your own API keys)', 'Community support']
+    managedCreditsCap: 0.015,  // ~50 queries on mini models
+    features: [
+      '50 free AI queries/month (no setup needed!)',
+      '300 BYOK queries/month',
+      'All features included',
+      'BYOK (your own API keys)',
+      'Community support',
+    ]
   },
   pro: {
     name: 'Pro',
     priceMonthly: 14.99,
     priceId: process.env.STRIPE_PRICE_ID_PRO || null,
     requestLimit: -1,  // Unlimited
-    features: ['Unlimited queries', 'All features included', 'BYOK (your own API keys)', 'Priority email support', 'Early access to new features']
+    managedCreditsCap: 4.99,   // $4.99/month managed AI credits
+    features: [
+      '$4.99/mo managed AI credits included',
+      'GPT-5, Claude Sonnet 4.5, Gemini 2.5 Pro',
+      'Unlimited BYOK queries',
+      'BYOK (your own API keys)',
+      'Priority email support',
+      'Persistent conversation memory',
+      'Early access to new features',
+    ]
   },
   legacy: {
     name: 'Legacy',
     priceMonthly: 0,
     priceId: null,
     requestLimit: -1,  // Unlimited
-    features: ['Grandfathered unlimited access', 'All features included', 'Thank you for being an early user! ❤️']
+    managedCreditsCap: 4.99,   // Same as Pro
+    features: ['Grandfathered unlimited access', 'All features included', '$4.99/mo managed AI credits', 'Thank you for being an early user! ❤️']
   }
 } as const;
 

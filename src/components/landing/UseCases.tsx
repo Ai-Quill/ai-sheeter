@@ -30,12 +30,12 @@ export const UseCases: React.FC = () => {
           desc: "Best for bulk processing. High speed, low cost."
       },
       gpt: {
-          code: '=ChatGPT("Summarize text", A1, "gpt-4o")',
+          code: '=ChatGPT("Summarize text", A1, "gpt-5-mini")',
           color: 'text-green-300',
           desc: "The industry standard for reasoning and general knowledge."
       },
       claude: {
-          code: '=Claude("Analyze tone", A1, "claude-3-5-sonnet")',
+          code: '=Claude("Analyze tone", A1, "claude-sonnet-4-5")',
           color: 'text-orange-300',
           desc: "Superior at nuanced writing and complex instructions."
       }
