@@ -139,6 +139,16 @@ chart type and configuration.
 - domainColumn: Derive column letter from headers (e.g., date/category column)
 - dataColumns: Derive column letters from headers (e.g., numeric columns)
 - NEVER hardcode column letters. ALWAYS derive from the data context headers.
+
+### FUZZY COLUMN MATCHING (CRITICAL)
+When the user refers to columns by name, find the CLOSEST matching column:
+- "Revenue" → "Sales", "Amount", "Total" (synonyms)
+- "Q1_Revenue" → "Q1_Sales" (partial match)
+- "Name" → "Company", "Employee", "Rep" (entity names)
+- "Date" → "Founded", "Created", "Year" (temporal)
+ALWAYS attempt to create the chart with the best matching columns.
+If some requested columns don't exist at all, create the chart with the ones that DO exist.
+NEVER refuse to create a chart when plausible column matches are available.
 `;
 
 const CHART_EXAMPLES: SkillExample[] = [];
