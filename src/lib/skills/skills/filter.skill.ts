@@ -104,6 +104,7 @@ using ANY of the 24 filter criteria types below.
 2. Use column letter from context headers
 3. Multiple criteria are AND-ed together
 4. Date values should be in "YYYY-MM-DD" format
+5. ⚠️ NEVER hardcode ranges — ALWAYS derive from data context (explicitRowInfo.fullRangeIncludingHeader)
 `;
 
 const FILTER_EXAMPLES: SkillExample[] = [];

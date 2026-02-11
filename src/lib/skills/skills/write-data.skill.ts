@@ -53,7 +53,7 @@ Only use this when user explicitly asks to COPY/MOVE existing sheet data to a ne
   "outputMode": "sheet",
   "sheetAction": "writeData",
   "sheetConfig": {
-    "dataRange": "A1:G51",
+    "dataRange": "[fullRangeIncludingHeader from context]",
     "newSheet": "New Sheet Name",
     "includeHeaders": true
   }

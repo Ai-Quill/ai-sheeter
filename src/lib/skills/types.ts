@@ -422,13 +422,20 @@ When user refers to a column BY NAME (e.g., "Growth column", "the Status column"
 When user says "column G", derive the range from context:
 - If dataStartRow=2, dataEndRow=7 → use "G2:G7" (NOT "G:G" or "G1:G100")
 
-⭐ GOLDEN RULE 1.5 - REPLACING vs ADDING:
+⭐ GOLDEN RULE 1.5 - REPLACING vs ADDING vs REFORMATTING:
 When user wants to REPLACE/CONVERT an existing column (e.g., "turn Growth into formula"):
 - outputColumn should be the EXISTING column letter (e.g., "G" for Growth)
 - This replaces static values with the formula
 
 When user wants to ADD a NEW column (e.g., "add a Bonus column"):
 - outputColumn should be a new/empty column letter
+
+⚠️ CRITICAL - DETECT WHEN DATA ALREADY MATCHES THE TARGET:
+Before creating a formula or new column, ALWAYS check the sampleData:
+- If user says "convert X to Year" and column X already contains 4-digit year numbers (e.g., 2014, 2021) → the data is ALREADY years. Use "sheet" mode with "format" action to fix number formatting (remove comma separator: formatType "integer" or pattern "0000") on the EXISTING column. Do NOT create a new column.
+- If user says "convert X to currency" and X already has numeric values → use "sheet" format action on the existing column.
+- If user says "convert X to percentage" and X already has decimal values → use "sheet" format action.
+- General rule: If the source column data IS ALREADY the target type (just displayed wrong due to formatting), use outputMode "sheet" with sheetAction "format" on the existing column range. Never create a redundant new column.
 
 ⭐ GOLDEN RULE 2 - RESPECT USER VALUES:
 Include EVERY value the user explicitly mentions:

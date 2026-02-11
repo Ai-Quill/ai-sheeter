@@ -99,6 +99,13 @@ ALWAYS prefer native Google Sheets formulas over AI processing because they are:
 - "Turn X into formula" or "Replace X with formula" → outputColumn = EXISTING column letter (from headers)
 - "Add a column called Y" → outputColumn = new/empty column letter
 
+### ⚠️ STOP - Check if Formula is Even Needed:
+Before generating a formula, examine the sampleData for the target column:
+- If user says "convert Founded to Year" and sampleData shows values like 2014, 2021, 2015 → these ARE already years. This is a NUMBER FORMATTING issue (comma separator showing 2,014), NOT a data transformation. → Use outputMode "sheet" with sheetAction "format" instead, applying formatType "integer" or custom pattern "0000" to the existing column.
+- If user says "convert X to percentage" and values are already decimals like 0.15, 0.23 → use format skill.
+- If user says "convert X to currency" and values are already numbers → use format skill.
+- Only use formula when actual DATA TRANSFORMATION is needed (e.g., extracting year from a full date "2014-05-23", or computing a new value).
+
 The AI should derive column letters from the headers object in data context.
 No hardcoded examples needed - use context intelligently.
 `;

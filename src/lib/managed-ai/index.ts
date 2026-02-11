@@ -9,7 +9,8 @@
  *         ~50 queries/month ($0.015 cap)
  * - Pro:  Mini + mid-tier (adds GPT-5, Claude Sonnet 4.5, Gemini 2.5 Pro)
  *         $4.99/month cap
- * - Legacy: Same as Pro
+ * - Legacy: Grandfathered free users with unlimited BYOK access.
+ *           No managed credits — they use their own API keys.
  * 
  * Cost tracking: Per-query cost calculated from actual token usage,
  * debited from user's monthly managed credit balance.
@@ -147,11 +148,14 @@ export const DEFAULT_MANAGED_MODEL: Record<PlanTier, string> = {
 
 /**
  * Managed credit caps per tier (USD/month)
+ * 
+ * Legacy users are grandfathered free users with unlimited BYOK access.
+ * They use their own API keys — no managed credits needed.
  */
 export const MANAGED_CREDIT_CAPS: Record<PlanTier, number> = {
   free: 0.015,   // ~50 queries on mini models
   pro: 4.99,     // generous cap, mini + mid-tier
-  legacy: 4.99,  // same as pro
+  legacy: 0,     // legacy = free users grandfathered with unlimited BYOK, no managed credits
 };
 
 // ============================================

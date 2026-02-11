@@ -82,19 +82,19 @@ Each operation specifies its type and relevant parameters.
 
 **Clear Operations:**
 - clear: Clear everything (content, format, validation)
-  → { operation: "clear", range: "A1:D10" }
+  → { operation: "clear", range: "[from context]" }
 - clearContent: Clear values only, keep formatting
-  → { operation: "clearContent", range: "A1:D10" }
+  → { operation: "clearContent", range: "[from context]" }
 - clearFormat: Clear formatting only, keep values
-  → { operation: "clearFormat", range: "A1:D10" }
+  → { operation: "clearFormat", range: "[from context]" }
 - clearValidation: Clear data validation rules
-  → { operation: "clearValidation", range: "A1:D10" }
+  → { operation: "clearValidation", range: "[from context]" }
 - clearNotes: Clear cell notes
-  → { operation: "clearNotes", range: "A1:D10" }
+  → { operation: "clearNotes", range: "[from context]" }
 
 **Sort Data:**
 - sort: Sort range by columns
-  → { operation: "sort", range: "A1:D20", sortBy: [{ column: "B", ascending: false }] }
+  → { operation: "sort", range: "[from context]", sortBy: [{ column: "B", ascending: false }] }
   → { operation: "sort", sortBy: [{ column: 2, ascending: true }, { column: 3, ascending: false }] }
 
 **Row/Column Dimensions:**
@@ -133,9 +133,11 @@ Each operation specifies its type and relevant parameters.
 
 **Protection (basic):**
 - protectRange: Protect a range from editing
-  → { operation: "protectRange", range: "A1:D10", description: "Header rows" }
+  → { operation: "protectRange", range: "[from context]", description: "Header rows", warningOnly: true }
 - protectSheet: Protect entire sheet
   → { operation: "protectSheet", description: "Master data" }
+- unprotect: Remove all range protections
+  → { operation: "unprotect" }
 
 ### Schema
 {
@@ -154,6 +156,7 @@ Each operation specifies its type and relevant parameters.
 3. Column references: letters ("A") or numbers (1)
 4. Row references: always numbers
 5. Multiple operations: put all in the same operations array
+6. ⚠️ NEVER hardcode ranges — ALWAYS derive from data context (explicitRowInfo, headers, etc.)
 `;
 
 const SHEET_OPS_EXAMPLES: SkillExample[] = [];

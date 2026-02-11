@@ -134,6 +134,12 @@ For heat maps and visual data representation:
 - Good/High: #90EE90 (light green), #00FF00 (bold green)
 - Warning/Mid: #FFFF00 (yellow), #FFA500 (orange)
 - Neutral: #E0E0E0 (light gray)
+
+### RANGE TARGETING (ALWAYS derive from context — NEVER hardcode)
+- "highlight column X" → derive column letter from headers, build range as "{col}{dataStartRow}:{col}{dataEndRow}"
+- "highlight all data" → use explicitRowInfo.dataRange
+- "highlight headers" → use explicitRowInfo.headerRange
+- NEVER hardcode ranges. ALWAYS derive from the data context.
 `;
 
 const CONDITIONAL_FORMAT_EXAMPLES: SkillExample[] = [];

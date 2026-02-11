@@ -134,6 +134,11 @@ chart type and configuration.
 - BAR/COLUMN: Categorical comparison
 - SCATTER: Two numeric variables, correlation
 - COMBO: When mixing metrics (e.g., revenue + growth %)
+
+### RANGE TARGETING (ALWAYS derive from context — NEVER hardcode)
+- domainColumn: Derive column letter from headers (e.g., date/category column)
+- dataColumns: Derive column letters from headers (e.g., numeric columns)
+- NEVER hardcode column letters. ALWAYS derive from the data context headers.
 `;
 
 const CHART_EXAMPLES: SkillExample[] = [];

@@ -2,7 +2,8 @@
 -- Migration 004: Managed AI Credits
 -- Adds managed credit tracking for free + paid users
 -- Free: ~$0.015 cap (50 queries on mini models)
--- Pro/Legacy: $4.99 cap (mini + mid-tier models)
+-- Pro: $4.99 cap (mini + mid-tier models)
+-- Legacy: $0 cap (BYOK only, no managed credits)
 -- Run with: psql $DATABASE_URL -f 004_managed_credits.sql
 -- ============================================
 
@@ -12,9 +13,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS managed_credits_cap_usd DECIMAL(10,6)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS managed_credits_reset_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days');
 
 -- 2. Set caps based on current plan tier
+-- Legacy users are grandfathered free users with unlimited BYOK — no managed credits
 UPDATE users SET managed_credits_cap_usd = 0.015 WHERE plan_tier = 'free';
 UPDATE users SET managed_credits_cap_usd = 4.99 WHERE plan_tier = 'pro';
-UPDATE users SET managed_credits_cap_usd = 4.99 WHERE plan_tier = 'legacy';
+UPDATE users SET managed_credits_cap_usd = 0 WHERE plan_tier = 'legacy';
 
 -- 3. Add managed tracking to usage_logs
 ALTER TABLE usage_logs ADD COLUMN IF NOT EXISTS is_managed BOOLEAN DEFAULT FALSE;

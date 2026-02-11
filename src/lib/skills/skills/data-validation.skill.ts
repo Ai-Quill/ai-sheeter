@@ -127,6 +127,7 @@ to ensure data integrity using ANY of the 20 validation types below.
 1. Use sheetAction: "dataValidation" (NOT "validation")
 2. Put all options DIRECTLY in sheetConfig (NOT nested)
 3. Derive range from explicitRowInfo in context
+4. ⚠️ NEVER hardcode ranges — ALWAYS derive from data context (explicitRowInfo, headers, etc.)
 `;
 
 const DATA_VALIDATION_EXAMPLES: SkillExample[] = [];

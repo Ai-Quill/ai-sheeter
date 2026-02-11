@@ -14,7 +14,7 @@
  * Pricing Tiers:
  * - Free: 300 BYOK requests/month + 50 managed AI queries (~$0.015 cap)
  * - Pro: $14.99/mo - Unlimited BYOK + $4.99/mo managed AI credits
- * - Legacy: Unlimited free forever (existing users) + $4.99/mo managed credits
+ * - Legacy: Unlimited free forever (existing users) — BYOK only, no managed credits
  */
 
 import Stripe from 'stripe';
@@ -67,8 +67,8 @@ export const PRICING_TIERS = {
     priceMonthly: 0,
     priceId: null,
     requestLimit: -1,  // Unlimited
-    managedCreditsCap: 4.99,   // Same as Pro
-    features: ['Grandfathered unlimited access', 'All features included', '$4.99/mo managed AI credits', 'Thank you for being an early user! ❤️']
+    managedCreditsCap: 0,      // Legacy = grandfathered free users, BYOK only, no managed credits
+    features: ['Grandfathered unlimited BYOK access', 'All features included', 'Thank you for being an early user! ❤️']
   }
 } as const;
 
