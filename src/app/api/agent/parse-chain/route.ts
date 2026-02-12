@@ -985,48 +985,81 @@ function parseAndValidate(
     
     // FORMULA MODE: AI decided to use native Google Sheets formula (FREE, instant)
     if (parsed.outputMode === 'formula') {
-      console.log('[parse-chain] ✅ FORMULA MODE: AI chose native formula (0 AI cost, instant)');
-      const formulaStep = parsed.steps?.[0] || {};
-      const formula = formulaStep.prompt || '';
-      console.log('[parse-chain] Formula:', formula.substring(0, 100));
+      // ============================================
+      // BUGFIX: Detect formula + chart/sheet action mismatch
+      // AI sometimes returns outputMode:"formula" but also includes sheetAction/sheetConfig,
+      // indicating it intended a multi-step workflow (e.g., formula + chart).
+      // Reclassify as sheet mode so the multi-step handler picks it up.
+      // ============================================
+      const hasSheetAction = parsed.sheetAction && ['chart', 'format', 'conditionalFormat', 'dataValidation', 'filter', 'sheetOps'].includes(parsed.sheetAction);
+      const hasSheetConfig = parsed.sheetConfig && Object.keys(parsed.sheetConfig).length > 0;
       
-      // Determine output column - PRIORITY:
-      // 1. User explicitly specified column
-      // 2. AI returned outputColumn (e.g., for replacing existing column like "G")
-      // 3. First empty column (for new columns)
-      const outputCol = explicitOutputColumn || formulaStep.outputColumn || dataContext.emptyColumns[0] || 'D';
-      console.log('[parse-chain] Formula outputColumn:', outputCol, '(explicit:', explicitOutputColumn, ', ai:', formulaStep.outputColumn, ', empty:', dataContext.emptyColumns[0], ')');
-      
-      return {
-        isMultiStep: false,
-        isCommand: true,
-        steps: [{
-          id: 'step_1',
-          order: 1,
-          action: 'formula',
-          description: formulaStep.description || 'Apply formula',
-          prompt: formula,
-          outputFormat: 'formula',
+      if (hasSheetAction || hasSheetConfig) {
+        console.log(`[parse-chain] ⚠️ FORMULA MODE has sheetAction="${parsed.sheetAction}" and sheetConfig - reclassifying as SHEET mode for multi-step workflow`);
+        
+        // Ensure we have a proper multi-step structure
+        // If AI only provided 1 step (formula), we need to add the sheet action step
+        const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
+        const hasChartStep = steps.some((s: any) => s.action === 'chart' || s.action === parsed.sheetAction);
+        
+        if (!hasChartStep && parsed.sheetAction) {
+          // AI forgot the chart step - add it
+          console.log(`[parse-chain] 🔧 Adding missing "${parsed.sheetAction}" step to workflow`);
+          steps.push({
+            action: parsed.sheetAction,
+            description: `Create ${parsed.sheetAction}`,
+          });
+        }
+        
+        // Reclassify: override outputMode to "sheet" and set isMultiStep
+        parsed.outputMode = 'sheet';
+        parsed.isMultiStep = steps.length > 1;
+        parsed.steps = steps;
+        // Fall through to the SHEET MODE handler below
+      } else {
+        console.log('[parse-chain] ✅ FORMULA MODE: AI chose native formula (0 AI cost, instant)');
+        const formulaStep = parsed.steps?.[0] || {};
+        const formula = formulaStep.prompt || '';
+        console.log('[parse-chain] Formula:', formula.substring(0, 100));
+        
+        // Determine output column - PRIORITY:
+        // 1. User explicitly specified column
+        // 2. AI returned outputColumn (e.g., for replacing existing column like "G")
+        // 3. First empty column (for new columns)
+        const outputCol = explicitOutputColumn || formulaStep.outputColumn || dataContext.emptyColumns[0] || 'D';
+        console.log('[parse-chain] Formula outputColumn:', outputCol, '(explicit:', explicitOutputColumn, ', ai:', formulaStep.outputColumn, ', empty:', dataContext.emptyColumns[0], ')');
+        
+        return {
+          isMultiStep: false,
+          isCommand: true,
+          steps: [{
+            id: 'step_1',
+            order: 1,
+            action: 'formula',
+            description: formulaStep.description || 'Apply formula',
+            prompt: formula,
+            outputFormat: 'formula',
+            inputColumns: dataContext.dataColumns,
+            outputColumn: outputCol,
+            dependsOn: null,
+            usesResultOf: null,
+          }],
+          summary: parsed.summary || 'Apply native formula',
+          clarification: parsed.clarification || `Using native Google Sheets formula.\n\n✅ FREE - no AI cost\n✅ Instant - no processing time\n✅ Auto-updates when data changes`,
+          estimatedTime: 'Instant',
+          outputMode: 'formula',
+          
+          // Include input config
+          inputRange: dataContext.dataRange,
+          inputColumn: dataContext.dataColumns[0],
           inputColumns: dataContext.dataColumns,
-          outputColumn: outputCol,
-          dependsOn: null,
-          usesResultOf: null,
-        }],
-        summary: parsed.summary || 'Apply native formula',
-        clarification: parsed.clarification || `Using native Google Sheets formula.\n\n✅ FREE - no AI cost\n✅ Instant - no processing time\n✅ Auto-updates when data changes`,
-        estimatedTime: 'Instant',
-        outputMode: 'formula',
-        
-        // Include input config
-        inputRange: dataContext.dataRange,
-        inputColumn: dataContext.dataColumns[0],
-        inputColumns: dataContext.dataColumns,
-        hasMultipleInputColumns: dataContext.dataColumns.length > 1,
-        rowCount: dataContext.rowCount,
-        
-        _embedding: embedding || undefined,
-        _command: originalCommand,
-      };
+          hasMultipleInputColumns: dataContext.dataColumns.length > 1,
+          rowCount: dataContext.rowCount,
+          
+          _embedding: embedding || undefined,
+          _command: originalCommand,
+        };
+      }
     }
     
     // SHEET MODE: AI decided to use native sheet manipulation (chart, format, etc.) - instant execution

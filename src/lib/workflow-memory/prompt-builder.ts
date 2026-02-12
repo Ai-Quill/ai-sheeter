@@ -151,9 +151,11 @@ CRITICAL RULES - FOLLOW STRICTLY:
       - "sheetOps" - Sheet-level operations: freeze, sort, hide/show, insert/delete, resize, etc.
         Uses sheetConfig.operations array where each item has { operation: "[type]", ...params }
       
-   B. FORMULA MODE (outputMode: "formula") - Task can be done with native formulas
+   B. FORMULA MODE (outputMode: "formula") - Task can be done with native formulas ONLY
       Use when the transformation is mechanical and doesn't require understanding:
       - Translation, text extraction, case conversion, basic math
+      ⚠️ NEVER use outputMode "formula" when the request also involves a chart, format, or other sheet action.
+      If you need a formula step AND a sheet action (e.g., chart), use outputMode: "sheet" with isMultiStep: true.
       
    C. CHAT MODE (outputMode: "chat") - User is asking a QUESTION
       The user wants INFORMATION, not an action. They want you to TELL them something.
