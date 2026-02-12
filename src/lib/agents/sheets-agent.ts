@@ -59,7 +59,7 @@ const EvaluationSchema = z.object({
 // AGENT INSTRUCTIONS
 // ============================================
 
-function buildAgentSystemPrompt(context: DataContext): string {
+function buildAgentSystemPrompt(context: DataContext, skillInstructions?: string): string {
   // Pre-compute useful context info
   // Use columnsWithData for column span (more reliable than header keys alone)
   const headerKeys = Object.keys(context.headers);
@@ -221,7 +221,20 @@ You MUST always call at least one tool. NEVER respond with only text.
 ## Output Quality
 - Always provide a brief "description" parameter — it shows in the user's task progress UI
 - Make descriptions specific (what this step does), not generic labels
-- Derive column letters, row numbers, and ranges from the live context above — NEVER guess or hardcode`;
+- Derive column letters, row numbers, and ranges from the live context above — NEVER guess or hardcode
+
+## Transparent Communication
+ALWAYS include a brief text explanation alongside your tool calls describing:
+1. **What you did**: The action and specific columns/ranges targeted
+2. **Column mapping**: If the user's column names didn't exactly match, explain what you mapped (e.g., "Used 'Q1_Sales' column for your 'Q1_Revenue' reference")
+3. **What was skipped**: If any part of the request couldn't be fulfilled, explain why and what you did instead
+4. **Result summary**: Brief description of the outcome (e.g., "Created a combo chart with Q1_Sales and Q2_Sales as columns")
+This text appears in the user's chat as context for the action taken.${skillInstructions ? `
+
+## Expert Skill Knowledge
+The following expert guidelines provide detailed capabilities, options, and best practices for the tool(s) relevant to this task. Use this knowledge when deciding WHICH options and parameters to use — the exact parameter format is defined by the tool schemas above.
+
+${skillInstructions}` : ''}`;
 }
 
 // ============================================
@@ -230,17 +243,25 @@ You MUST always call at least one tool. NEVER respond with only text.
 
 /**
  * Create a SheetsAgent - simplified for declarative tools
+ * 
+ * @param model - AI model to use
+ * @param evaluatorModel - Model for self-correction evaluation (null to disable)
+ * @param context - Live spreadsheet data context
+ * @param options - Agent configuration
+ * @param options.maxAttempts - Max self-correction attempts (default: 2)
+ * @param options.timeoutMs - Timeout in ms (default: 45000)
+ * @param options.skillInstructions - Expert skill instructions to inject into system prompt
  */
 export function createSheetsAgent(
   model: LanguageModel, 
   evaluatorModel: LanguageModel | null, 
   context: DataContext,
-  options?: { maxAttempts?: number; timeoutMs?: number }
+  options?: { maxAttempts?: number; timeoutMs?: number; skillInstructions?: string }
 ) {
   return {
     async generate({ prompt }: { prompt: string }): Promise<AgentResult> {
       const startTime = Date.now();
-      const systemPrompt = buildAgentSystemPrompt(context);
+      const systemPrompt = buildAgentSystemPrompt(context, options?.skillInstructions);
       const maxAttempts = options?.maxAttempts || 2;
       const timeoutMs = options?.timeoutMs || 45000; // 45s default (leave buffer for Vercel's 60s)
       let attempt = 0;

@@ -42,7 +42,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 // import { classifyIntent, IntentClassification } from '@/lib/intent';
 import type { IntentClassification } from '@/lib/intent'; // Only type needed
 import { normalizeSheetResponse } from '@/lib/response';
-import { getSkillById, GoogleSheetSkill } from '@/lib/skills';
+import { getSkillById, quickSkillCheck, loadSkillInstructions, GoogleSheetSkill } from '@/lib/skills';
 
 // SIMPLIFIED: Intent classification disabled
 // Modern LLMs understand intent from skill instructions alone.
@@ -517,6 +517,26 @@ export async function POST(request: NextRequest) {
           emptyColumns: agentContext.emptyColumns.slice(0, 3),
         });
         
+        // ============================================
+        // SKILL INJECTION: Load relevant expert knowledge
+        // Detects the primary skill needed and injects its
+        // full instructions into the agent's system prompt.
+        // This gives the agent deep expertise (70+ options for charts,
+        // 30+ format types, etc.) instead of minimal summaries.
+        // ============================================
+        let skillInstructions: string | undefined;
+        const detectedSkillId = quickSkillCheck(command);
+        
+        if (detectedSkillId) {
+          const skill = getSkillById(detectedSkillId);
+          if (skill) {
+            skillInstructions = loadSkillInstructions([skill]);
+            console.log(`[parse-chain] 📦 Injecting skill: ${skill.id} v${skill.version} (~${skill.tokenCost} tokens)`);
+          }
+        } else {
+          console.log('[parse-chain] No specific skill detected — agent uses base knowledge');
+        }
+        
         // Get evaluator model for self-correction
         const enableSelfCorrection = process.env.AGENT_SELF_CORRECTION !== 'false';
         let evaluatorModel = null;
@@ -532,8 +552,11 @@ export async function POST(request: NextRequest) {
         const maxAttempts = parseInt(process.env.AGENT_MAX_ATTEMPTS || '2', 10);
         console.log(`[parse-chain] Max attempts: ${maxAttempts}`);
         
-        // Create and run the agent
-        const agent = createSheetsAgent(model, evaluatorModel, agentContext, { maxAttempts });
+        // Create and run the agent (with skill instructions if available)
+        const agent = createSheetsAgent(model, evaluatorModel, agentContext, { 
+          maxAttempts,
+          skillInstructions,
+        });
         const result = await agent.generate({ prompt: command });
         
         console.log('[parse-chain] Agent result:', {
