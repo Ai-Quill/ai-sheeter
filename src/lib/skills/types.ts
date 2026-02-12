@@ -443,6 +443,12 @@ Include EVERY value the user explicitly mentions:
 - Options: "High, Medium, Low" → values: ["High", "Medium", "Low"]
 - Colors: "dark blue" → backgroundColor: "#003366"
 
+⭐ GOLDEN RULE 3 - MULTI-STEP WHEN NEEDED:
+When a request requires a COMPUTED value before acting (e.g., chart "years since founded"
+when only a "Founded" year column exists), use isMultiStep: true with multiple steps.
+Common pattern: formula step → then sheet action (chart/format).
+Formula steps use {{ROW}} as row placeholder and output to an available empty column.
+
 CRITICAL RULES:
 1. Return ONLY valid JSON - no markdown, no explanation
 2. ALWAYS derive ranges from explicitRowInfo in context (never guess)

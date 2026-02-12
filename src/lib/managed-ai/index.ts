@@ -5,7 +5,7 @@
  * Users don't need their own keys — credits are tracked per user.
  * 
  * Tiers:
- * - Free: Mini models only (GPT-5 Mini, Gemini 2.5 Flash, Haiku, Groq)
+ * - Free: Mini models only (GPT-5 Mini, Gemini 2.5 Flash, Haiku, Llama 4 Scout)
  *         ~50 queries/month ($0.015 cap)
  * - Pro:  Mini + mid-tier (adds GPT-5, Claude Sonnet 4.5, Gemini 2.5 Pro)
  *         $4.99/month cap
@@ -76,11 +76,11 @@ export const MANAGED_MODEL_REGISTRY: Record<string, ManagedModelInfo> = {
     costPer1kTokens: 0.00233,    // $1/$5 per MTok (2:1 blended)
     tier: 'mini',
   },
-  'llama-3.3-70b-versatile': {
+  'meta-llama/llama-4-scout-17b-16e-instruct': {
     provider: 'GROQ',
-    modelId: 'llama-3.3-70b-versatile',
-    displayName: 'Llama 3.3 70B (Groq)',
-    costPer1kTokens: 0.00066,    // $0.59/$0.79 per MTok (2:1 blended)
+    modelId: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    displayName: 'Llama 4 Scout (Groq)',
+    costPer1kTokens: 0.000187,   // $0.11/$0.34 per MTok (2:1 blended) — supports structured outputs
     tier: 'mini',
   },
   // Mid tier (Pro + Legacy only)
@@ -105,6 +105,13 @@ export const MANAGED_MODEL_REGISTRY: Record<string, ManagedModelInfo> = {
     costPer1kTokens: 0.00417,    // $1.25/$10 per MTok (2:1 blended)
     tier: 'mid',
   },
+  'meta-llama/llama-4-maverick-17b-128e-instruct': {
+    provider: 'GROQ',
+    modelId: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+    displayName: 'Llama 4 Maverick (Groq)',
+    costPer1kTokens: 0.000333,   // $0.20/$0.60 per MTok (2:1 blended) — supports structured outputs
+    tier: 'mid',
+  },
 };
 
 /**
@@ -115,25 +122,27 @@ export const TIER_MODEL_ALLOWLIST: Record<PlanTier, string[]> = {
     'gpt-5-mini',
     'gemini-2.5-flash',
     'claude-haiku-4-5',
-    'llama-3.3-70b-versatile',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
   ],
   pro: [
     'gpt-5-mini',
     'gemini-2.5-flash',
     'claude-haiku-4-5',
-    'llama-3.3-70b-versatile',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
     'gpt-5',
     'claude-sonnet-4-5',
     'gemini-2.5-pro',
+    'meta-llama/llama-4-maverick-17b-128e-instruct',
   ],
   legacy: [
     'gpt-5-mini',
     'gemini-2.5-flash',
     'claude-haiku-4-5',
-    'llama-3.3-70b-versatile',
+    'meta-llama/llama-4-scout-17b-16e-instruct',
     'gpt-5',
     'claude-sonnet-4-5',
     'gemini-2.5-pro',
+    'meta-llama/llama-4-maverick-17b-128e-instruct',
   ],
 };
 

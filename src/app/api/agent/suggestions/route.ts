@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     // - CHATGPT → gpt-5-mini (powerful but slower)
     // - CLAUDE → claude-haiku-4-5 (fast, good quality)
     // - GEMINI → gemini-2.5-flash (fastest, cheapest)
-    // - GROQ → llama-3.3-70b-versatile (fast inference)
+    // - GROQ → llama-4-scout (fast inference, supports structured outputs)
     const auth = authenticateRequestOptional(body);
     const { provider, apiKey, model, modelId } = auth;
     
@@ -483,7 +483,7 @@ Now generate suggestions for the context above. Output JSON only (no markdown):`
     // - CHATGPT → gpt-5-mini (OpenAI reasoning model)
     // - CLAUDE → claude-haiku-4-5 (Anthropic fast model)
     // - GEMINI → gemini-2.5-flash (Google fast model) 
-    // - GROQ → llama-3.3-70b-versatile (Groq fast model)
+    // - GROQ → llama-4-scout (Groq fast model, supports structured outputs)
     const modelId = (model as { modelId?: string })?.modelId || '';
     console.log('[suggestions] Using model:', modelId, 'from provider selection');
     

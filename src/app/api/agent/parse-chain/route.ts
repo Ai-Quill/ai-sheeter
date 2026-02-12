@@ -1034,6 +1034,68 @@ function parseAndValidate(
       console.log('[parse-chain] ✅ SHEET MODE: AI chose native sheet action (instant execution)');
       
       // ============================================
+      // MULTI-STEP FORMULA+SHEET DETECTION
+      // If AI returned isMultiStep with formula step(s) + sheet action,
+      // preserve the multi-step structure so formula runs first.
+      // ============================================
+      const hasMultipleSteps = parsed.isMultiStep && Array.isArray(parsed.steps) && parsed.steps.length > 1;
+      const hasFormulaStep = hasMultipleSteps && parsed.steps.some((s: any) => 
+        s.action === 'formula' || s.outputFormat === 'formula'
+      );
+      
+      if (hasFormulaStep) {
+        console.log(`[parse-chain] 🔗 MULTI-STEP SHEET: Formula + ${parsed.sheetAction || 'sheet'} (${parsed.steps.length} steps)`);
+        
+        // Build multi-step response preserving formula steps + sheet action
+        const multiSteps: TaskStep[] = parsed.steps.map((step: any, idx: number) => {
+          const isFormula = step.action === 'formula' || step.outputFormat === 'formula';
+          const outputCol = isFormula 
+            ? (step.outputColumn || dataContext.emptyColumns[idx] || columnNumberToLetter(columnLetterToNumber(dataContext.dataColumns[dataContext.dataColumns.length - 1]) + idx + 1))
+            : '';
+          
+          return {
+            id: `step_${idx + 1}`,
+            order: idx + 1,
+            action: isFormula ? 'formula' : (parsed.sheetAction || step.action || 'chart'),
+            description: step.description || (isFormula ? 'Compute formula' : 'Apply sheet action'),
+            prompt: step.prompt || '',
+            formula: isFormula ? step.prompt : undefined,
+            outputFormat: isFormula ? 'formula' : 'sheet',
+            inputColumns: step.inputColumns || dataContext.dataColumns,
+            outputColumn: outputCol,
+            dependsOn: idx > 0 ? `step_${idx}` : null,
+            usesResultOf: null,
+          };
+        });
+        
+        return {
+          isMultiStep: true,
+          isCommand: true,
+          steps: multiSteps,
+          summary: parsed.summary || 'Multi-step sheet operation',
+          clarification: parsed.clarification || `I'll first compute a formula, then create the ${parsed.sheetAction || 'visualization'}.`,
+          estimatedTime: 'Instant',
+          outputMode: 'sheet',
+          sheetAction: parsed.sheetAction,
+          sheetConfig: parsed.sheetConfig || {},
+          
+          // Include input config
+          inputRange: dataContext.dataRange,
+          inputColumn: dataContext.dataColumns[0],
+          inputColumns: dataContext.dataColumns,
+          hasMultipleInputColumns: dataContext.dataColumns.length > 1,
+          rowCount: dataContext.rowCount,
+          
+          // Include explicitRowInfo for frontend
+          explicitRowInfo: dataContext.explicitRowInfo,
+          
+          _embedding: embedding || undefined,
+          _command: originalCommand,
+        };
+      }
+      
+      // ============================================
+      // SINGLE-STEP SHEET MODE (existing path)
       // LEVERAGE SKILL ARCHITECTURE
       // 1. If we have intent classification, use it to override AI mistakes
       // 2. Normalize response using the normalizer

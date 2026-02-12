@@ -149,6 +149,56 @@ When the user refers to columns by name, find the CLOSEST matching column:
 ALWAYS attempt to create the chart with the best matching columns.
 If some requested columns don't exist at all, create the chart with the ones that DO exist.
 NEVER refuse to create a chart when plausible column matches are available.
+
+### AXIS LABELS MUST BE ACCURATE
+The domainColumn and dataColumns reference RAW column data.
+If using column "Founded" (values: 2018, 2015, 2013), use xAxisTitle: "Founded Year", NOT "Years Since Founded".
+Only use derived labels like "Years Since Founded" when plotting a formula-computed column.
+
+### DERIVED VALUES — MULTI-STEP FORMULA + CHART
+When the user requests a chart with a COMPUTED metric that doesn't exist as a raw column
+(e.g., "time since founded", "growth rate", "age", "profit margin"),
+you MUST use isMultiStep: true with a formula step BEFORE the chart step:
+
+Step 1: formula → compute the derived value in a new empty column
+Step 2: chart → use the formula column as domainColumn or dataColumn
+
+Example: "chart revenue vs years since founded"
+  Context: A=Company, C=Revenue_M, E=Founded (years like 2018, 2015)
+  Available empty columns: K, L, M
+
+Response:
+{
+  "outputMode": "sheet",
+  "isMultiStep": true,
+  "isCommand": true,
+  "steps": [
+    {
+      "action": "formula",
+      "description": "Years Since Founded",
+      "prompt": "=YEAR(TODAY())-E{{ROW}}",
+      "outputFormat": "formula",
+      "outputColumn": "K"
+    },
+    {
+      "action": "chart",
+      "description": "Create scatter chart"
+    }
+  ],
+  "sheetAction": "chart",
+  "sheetConfig": {
+    "chartType": "scatter",
+    "domainColumn": "K",
+    "dataColumns": ["C"],
+    "title": "Revenue vs Years Since Founded",
+    "xAxisTitle": "Years Since Founded",
+    "yAxisTitle": "Revenue ($M)",
+    "trendlines": true,
+    "seriesNames": ["Revenue"]
+  },
+  "summary": "Compute years since founded, then create scatter chart",
+  "clarification": "I'll first calculate Years Since Founded, then create a scatter chart."
+}
 `;
 
 const CHART_EXAMPLES: SkillExample[] = [];

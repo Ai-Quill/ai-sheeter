@@ -652,7 +652,7 @@ function parseUserModel(preference: string): { provider: string; model: string }
     'CHATGPT': { provider: 'CHATGPT', model: 'gpt-5-mini' },
     'CLAUDE': { provider: 'CLAUDE', model: 'claude-haiku-4-5' },
     'GEMINI': { provider: 'GEMINI', model: 'gemini-2.5-flash' },
-    'GROQ': { provider: 'GROQ', model: 'llama-3.3-70b-versatile' },
+    'GROQ': { provider: 'GROQ', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
   };
   return providerMap[preference] || providerMap['GEMINI'];
 }

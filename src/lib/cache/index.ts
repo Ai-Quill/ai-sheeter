@@ -29,7 +29,8 @@ const CACHE_TTL_SECONDS: Record<string, number> = {
   'gemini-2.5-flash': 3 * 24 * 60 * 60,  // 3 days
   
   // Groq (fast, cheap - shorter cache)
-  'llama-3.3-70b-versatile': 24 * 60 * 60,  // 1 day
+  'meta-llama/llama-4-scout-17b-16e-instruct': 24 * 60 * 60,  // 1 day
+  'meta-llama/llama-4-maverick-17b-128e-instruct': 24 * 60 * 60,  // 1 day
   
   // Default
   'default': 24 * 60 * 60,               // 1 day
