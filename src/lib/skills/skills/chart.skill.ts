@@ -84,6 +84,15 @@ chart type and configuration.
 - trendlines: [{ type: "linear", showR2: true, labelInLegend: "Trend" }]
 - trendlineType: "linear" | "exponential" | "polynomial"
 - aggregationTarget: "category" | "series"
+- annotationColumn: "A" - Column with text labels for each data point (e.g., names, IDs)
+
+**Data Point Labels (annotationColumn):**
+- Use annotationColumn when data has a natural IDENTIFIER column (company names, product names, city names, etc.)
+- Especially important for SCATTER charts where each point represents a distinct entity
+- annotationColumn is SEPARATE from domainColumn — domain is the X-axis (numeric for scatter), annotation provides text labels ON each point
+- Example: A=Company, K=YearsSinceFounded, C=Revenue → annotationColumn: "A" labels each point with the company name
+- Also useful for bar/column charts when you want entity names on data points
+- Do NOT set annotationColumn if domainColumn already contains the labels
 
 **COMBO CHART (NEW):**
 - seriesTypes: ["bars", "line", "area"] - Type per series
@@ -111,6 +120,7 @@ chart type and configuration.
     "domainColumn": "[category/date column letter]",
     "dataColumns": ["[numeric columns]"],
     "seriesNames": ["[column headers]"],
+    "annotationColumn": "[optional: text column for data point labels]",
     "title": "[title]",
     // Any additional options as needed
   }
@@ -190,6 +200,7 @@ Response:
     "chartType": "scatter",
     "domainColumn": "K",
     "dataColumns": ["C"],
+    "annotationColumn": "A",
     "title": "Revenue vs Years Since Founded",
     "xAxisTitle": "Years Since Founded",
     "yAxisTitle": "Revenue ($M)",
@@ -219,7 +230,7 @@ export const chartSkill: GoogleSheetSkill = {
     outputMode: 'sheet',
     sheetAction: 'chart',
     requiredFields: ['chartType', 'domainColumn', 'dataColumns'],
-    optionalFields: ['title', 'seriesNames', 'legendPosition', 'yAxisFormat', 'curveType', 'pieHole', 'trendlines', 'secondaryAxis', 'logScale', 'stacked', 'seriesTypes']
+    optionalFields: ['title', 'seriesNames', 'legendPosition', 'yAxisFormat', 'curveType', 'pieHole', 'trendlines', 'secondaryAxis', 'logScale', 'stacked', 'seriesTypes', 'annotationColumn']
   },
   
   tokenCost: 900,

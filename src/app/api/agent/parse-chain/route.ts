@@ -994,21 +994,67 @@ function parseAndValidate(
       const hasSheetAction = parsed.sheetAction && ['chart', 'format', 'conditionalFormat', 'dataValidation', 'filter', 'sheetOps'].includes(parsed.sheetAction);
       const hasSheetConfig = parsed.sheetConfig && Object.keys(parsed.sheetConfig).length > 0;
       
-      if (hasSheetAction || hasSheetConfig) {
-        console.log(`[parse-chain] ⚠️ FORMULA MODE has sheetAction="${parsed.sheetAction}" and sheetConfig - reclassifying as SHEET mode for multi-step workflow`);
+      // Also detect: user asked for a chart but AI only returned formula
+      // (AI computed the derived value but forgot to add the chart step)
+      const commandLower = originalCommand.toLowerCase();
+      const commandWantsChart = /\b(chart|graph|plot|visualize|visualization|scatter|histogram)\b/.test(commandLower);
+      
+      if (hasSheetAction || hasSheetConfig || commandWantsChart) {
+        const triggerReason = hasSheetAction ? `sheetAction="${parsed.sheetAction}"` 
+          : hasSheetConfig ? 'sheetConfig present'
+          : 'command mentions chart/graph';
+        console.log(`[parse-chain] ⚠️ FORMULA MODE reclassified → SHEET mode (reason: ${triggerReason})`);
         
         // Ensure we have a proper multi-step structure
         // If AI only provided 1 step (formula), we need to add the sheet action step
         const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
-        const hasChartStep = steps.some((s: any) => s.action === 'chart' || s.action === parsed.sheetAction);
+        const sheetAction = parsed.sheetAction || 'chart';
+        const hasChartStep = steps.some((s: any) => s.action === 'chart' || s.action === sheetAction);
         
-        if (!hasChartStep && parsed.sheetAction) {
+        if (!hasChartStep) {
           // AI forgot the chart step - add it
-          console.log(`[parse-chain] 🔧 Adding missing "${parsed.sheetAction}" step to workflow`);
+          console.log(`[parse-chain] 🔧 Adding missing "${sheetAction}" step to workflow`);
           steps.push({
-            action: parsed.sheetAction,
-            description: `Create ${parsed.sheetAction}`,
+            action: sheetAction,
+            description: `Create ${sheetAction}`,
           });
+        }
+        
+        // Build sheetConfig from context if AI didn't provide it
+        if (!parsed.sheetConfig && commandWantsChart) {
+          // Determine the formula output column
+          const formulaStep = steps.find((s: any) => s.action === 'formula' || s.outputFormat === 'formula');
+          const formulaOutputCol = formulaStep?.outputColumn || dataContext.emptyColumns[0] || 'K';
+          
+          // Find numeric data columns (for Y-axis) — exclude the formula output column
+          const numericDataCols = dataContext.dataColumns.filter((col: string) => col !== formulaOutputCol);
+          // Pick the most likely Y-axis column (first numeric column based on headers)
+          const headers = dataContext.headers || {};
+          let yAxisCol = numericDataCols[0] || 'B';
+          // Try to find a revenue/amount/value column
+          for (const col of numericDataCols) {
+            const headerName = (headers[col] || '').toLowerCase();
+            if (/revenue|amount|sales|price|value|profit|total|income/i.test(headerName)) {
+              yAxisCol = col;
+              break;
+            }
+          }
+          
+          const yAxisHeader = headers[yAxisCol] || 'Value';
+          const formulaDescription = formulaStep?.description || 'Computed Value';
+          
+          parsed.sheetConfig = {
+            chartType: 'scatter',
+            domainColumn: formulaOutputCol,
+            dataColumns: [yAxisCol],
+            title: `${yAxisHeader} vs ${formulaDescription}`,
+            xAxisTitle: formulaDescription,
+            yAxisTitle: yAxisHeader,
+            trendlines: true,
+            seriesNames: [yAxisHeader],
+          };
+          parsed.sheetAction = 'chart';
+          console.log(`[parse-chain] 🔧 Auto-generated chart config: domain=${formulaOutputCol}, data=[${yAxisCol}], title="${parsed.sheetConfig.title}"`);
         }
         
         // Reclassify: override outputMode to "sheet" and set isMultiStep

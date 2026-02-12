@@ -197,6 +197,8 @@ Expert decisions:
       })),
     ]).optional(),
     trendlineType: z.enum(['linear', 'exponential', 'polynomial']).optional(),
+    // Data point labels
+    annotationColumn: z.string().optional().describe('Column with text labels for data points (e.g., company names on scatter points)'),
     // Combo chart
     seriesTypes: z.array(z.enum(['bars', 'line', 'area'])).optional().describe('Type per series for combo charts'),
     // Dual Y-axis

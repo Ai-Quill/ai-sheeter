@@ -256,6 +256,7 @@ YOUR JOB: Identify WHICH COLUMNS to use based on CURRENT sample data. The fronte
   "domainColumn": "A",          // ALWAYS: The category/label/date/x-axis column (text or dates)
   "dataColumns": ["B", "C"],    // ALWAYS: Array of numeric value columns
   "seriesNames": ["Revenue", "Expenses"],  // Legend labels from column headers
+  "annotationColumn": "A",      // OPTIONAL: Column with text labels for data points (e.g., names, IDs)
   "title": "Chart Title"
 }
 
@@ -280,6 +281,16 @@ COLUMN RULES:
    - Order must match dataColumns order
    - DO NOT use names from previous requests!
 
+4. annotationColumn (OPTIONAL but IMPORTANT): Column with text labels to display on data points
+   - Use this when data has a natural IDENTIFIER column (names, labels, IDs, etc.)
+   - ESPECIALLY important for SCATTER charts where each point represents an entity (company, product, person, city)
+   - The annotationColumn is SEPARATE from domainColumn — domainColumn is the X-axis (numeric for scatter), annotationColumn provides text labels ON each point
+   - For scatter: if context has A=Company, K=YearsSinceFounded, C=Revenue:
+     → domainColumn: "K", dataColumns: ["C"], annotationColumn: "A"
+     → This labels each point with the company name!
+   - Also useful for bar/column/line when you want entity names on data points
+   - Do NOT set annotationColumn if domainColumn already contains the labels (e.g., bar chart where domain=Company)
+
 EXAMPLES:
 
 Line chart (3 series):
@@ -301,6 +312,11 @@ Scatter chart (correlation):
   → domainColumn: "B", dataColumns: ["C", "D"], seriesNames: ["Revenue", "Profit"]
   (domainColumn is X-axis, dataColumns are Y-axis - do NOT include X column in dataColumns!)
 
+Scatter chart with labels (entities):
+  Context columns: A=Company, B=Marketing Spend, C=Revenue
+  → domainColumn: "B", dataColumns: ["C"], seriesNames: ["Revenue"], annotationColumn: "A"
+  (Each point is labeled with the company name!)
+
 ⚠️ DERIVED VALUES FOR CHARTS (CRITICAL):
 When the user requests a chart with a COMPUTED metric that doesn't exist as a column
 (e.g., "time since founded", "growth rate", "age", "days since last order"),
@@ -312,7 +328,8 @@ Example: "chart revenue vs years since founded"
   Context: A=Company, C=Revenue_M, E=Founded (years like 2018, 2015)
   Available empty columns: K, L, M
   → Step 1: formula in column K → =YEAR(TODAY())-E{{ROW}} (header: "Years Since Founded")
-  → Step 2: scatter chart with domainColumn: "K", dataColumns: ["C"]
+  → Step 2: scatter chart with domainColumn: "K", dataColumns: ["C"], annotationColumn: "A"
+  (annotationColumn: "A" → labels each point with the company name!)
 
 DO NOT label axis as "Years Since Founded" when plotting raw "Founded" year values!
 If you use raw columns without a formula step, use accurate axis labels:
@@ -342,6 +359,7 @@ Multi-step formula+chart JSON example:
     "chartType": "scatter",
     "domainColumn": "[formula output column]",
     "dataColumns": ["C"],
+    "annotationColumn": "A",
     "title": "Revenue vs Years Since Founded",
     "xAxisTitle": "Years Since Founded",
     "yAxisTitle": "Revenue ($M)",
@@ -351,6 +369,9 @@ Multi-step formula+chart JSON example:
   "summary": "Compute years since founded, then create scatter chart",
   "clarification": "I'll first calculate Years Since Founded from the Founded year column, then create a scatter chart showing Revenue vs Years Since Founded."
 }
+
+⚠️ REMEMBER: When the data has a clear identifier column (names, labels, categories, IDs) and you're making a SCATTER chart,
+ALWAYS include annotationColumn pointing to that identifier column so data points are labeled!
 
 CHART OPTIONS - BE SMART, PROVIDE COMPLETE CONFIG:
 The frontend just executes what you specify. You decide ALL visual aspects based on context.
